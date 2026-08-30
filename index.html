@@ -2806,7 +2806,14 @@ function paintLaunchkeyNote(noteIdx, active) {
 function setLaunchkeyDawMode(output, on) {
   if (!output) return;
   output.send([0x9F, 0x0C, on ? 0x7F : 0x00]); // channel 16, note 0Ch (12) = DAW mode on/off
-  if (on) paintLaunchkeyBacklight(output);
+  if (on) {
+    // DAW mode defaults the pads to Session layout, but force it explicitly
+    // (channel 16 CC 03h = pad mode, 02h = Session) in case the user had
+    // switched to Drum/Custom/Scale mode on the device before connecting —
+    // this app only ever targets Session layout's pad addresses.
+    output.send([0xBF, 0x03, 0x02]);
+    paintLaunchkeyBacklight(output);
+  }
 }
 
 let launchpadInputMode = false; // true when the selected MIDI-in device is also a Launchpad
