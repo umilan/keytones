@@ -678,42 +678,42 @@
 
   <div id="mic-strip">
     <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
-      <span class="algo-acronym" id="algo-acronym">MF0</span>
+      <span class="algo-acronym" id="algo-acronym">P4</span>
       <span class="algo-chevron"></span>
       <select class="algo-native-select" id="pitch-algo-select" aria-label="Pitch Algorithm">
         <optgroup label="Monophonic">
-          <option value="fft">FFT Peak</option>
-          <option value="acf">Autocorrelation (ACF)</option>
-          <option value="amdf">AMDF</option>
-          <option value="yin">YIN</option>
-          <option value="mpm">MPM</option>
+          <option value="fft" title="FFT Peak">M1</option>
+          <option value="acf" title="Autocorrelation (ACF)">M2</option>
+          <option value="amdf" title="AMDF">M3</option>
+          <option value="yin" title="YIN">M4</option>
+          <option value="mpm" title="MPM">M5</option>
         </optgroup>
         <optgroup label="Polyphonic">
-          <option value="hpcp">HPCP</option>
-          <option value="nnls">NNLS</option>
-          <option value="cqtnmf">CQT+NMF</option>
-          <option value="multif0" selected>Multi-F0</option>
+          <option value="hpcp" title="HPCP">P1</option>
+          <option value="nnls" title="NNLS">P2</option>
+          <option value="cqtnmf" title="CQT+NMF">P3</option>
+          <option value="multif0" title="Multi-F0" selected>P4</option>
         </optgroup>
         <optgroup label="Test">
-          <option value="chroma-test">Chromatic Sequence (Test)</option>
+          <option value="chroma-test" title="Chromatic Sequence (Test)">T1</option>
         </optgroup>
       </select>
     </div>
     <!-- wide-screen alternative to the compact picker above — one button per
          algorithm, current one highlighted; see initResponsiveAlgoPicker() -->
     <div class="algo-btn-group" id="algo-btn-group">
-      <button type="button" class="algo-btn" data-algo="fft">FFT</button>
-      <button type="button" class="algo-btn" data-algo="acf">ACF</button>
-      <button type="button" class="algo-btn" data-algo="amdf">AMDF</button>
-      <button type="button" class="algo-btn" data-algo="yin">YIN</button>
-      <button type="button" class="algo-btn" data-algo="mpm">MPM</button>
+      <button type="button" class="algo-btn" data-algo="fft" title="FFT Peak">M1</button>
+      <button type="button" class="algo-btn" data-algo="acf" title="Autocorrelation (ACF)">M2</button>
+      <button type="button" class="algo-btn" data-algo="amdf" title="AMDF">M3</button>
+      <button type="button" class="algo-btn" data-algo="yin" title="YIN">M4</button>
+      <button type="button" class="algo-btn" data-algo="mpm" title="MPM">M5</button>
       <div class="algo-btn-sep"></div>
-      <button type="button" class="algo-btn" data-algo="hpcp">HPCP</button>
-      <button type="button" class="algo-btn" data-algo="nnls">NNLS</button>
-      <button type="button" class="algo-btn" data-algo="cqtnmf">CQTNMF</button>
-      <button type="button" class="algo-btn active" data-algo="multif0">MF0</button>
+      <button type="button" class="algo-btn" data-algo="hpcp" title="HPCP">P1</button>
+      <button type="button" class="algo-btn" data-algo="nnls" title="NNLS">P2</button>
+      <button type="button" class="algo-btn" data-algo="cqtnmf" title="CQT+NMF">P3</button>
+      <button type="button" class="algo-btn active" data-algo="multif0" title="Multi-F0">P4</button>
       <div class="algo-btn-sep"></div>
-      <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test">TEST</button>
+      <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test" title="Chromatic Sequence (Test)">T1</button>
     </div>
   </div>
 
@@ -765,20 +765,20 @@
       <span class="sp-label">Algorithm</span>
       <select class="sp-select" id="algo-panel-select">
         <optgroup label="Monophonic">
-          <option value="fft">FFT Peak</option>
-          <option value="acf">Autocorrelation (ACF)</option>
-          <option value="amdf">AMDF</option>
-          <option value="yin">YIN</option>
-          <option value="mpm">MPM</option>
+          <option value="fft" title="FFT Peak">M1</option>
+          <option value="acf" title="Autocorrelation (ACF)">M2</option>
+          <option value="amdf" title="AMDF">M3</option>
+          <option value="yin" title="YIN">M4</option>
+          <option value="mpm" title="MPM">M5</option>
         </optgroup>
         <optgroup label="Polyphonic">
-          <option value="hpcp">HPCP</option>
-          <option value="nnls">NNLS</option>
-          <option value="cqtnmf">CQT+NMF</option>
-          <option value="multif0" selected>Multi-F0</option>
+          <option value="hpcp" title="HPCP">P1</option>
+          <option value="nnls" title="NNLS">P2</option>
+          <option value="cqtnmf" title="CQT+NMF">P3</option>
+          <option value="multif0" title="Multi-F0" selected>P4</option>
         </optgroup>
         <optgroup label="Test">
-          <option value="chroma-test">Chromatic Sequence (Test)</option>
+          <option value="chroma-test" title="Chromatic Sequence (Test)">T1</option>
         </optgroup>
       </select>
     </div>
@@ -1718,8 +1718,8 @@ function detectPitch(sr) {
 
 /* the algorithm badge shows a short acronym; the native <select> underneath
    (invisible, see .algo-native-select) still lists the full names when opened */
-const ALGO_ACRONYM = { fft:'FFT', acf:'ACF', amdf:'AMDF', yin:'YIN', mpm:'MPM',
-                        hpcp:'HPCP', nnls:'NNLS', cqtnmf:'CQTNMF', multif0:'MF0', 'chroma-test':'TEST' };
+const ALGO_ACRONYM = { fft:'M1', acf:'M2', amdf:'M3', yin:'M4', mpm:'M5',
+                        hpcp:'P1', nnls:'P2', cqtnmf:'P3', multif0:'P4', 'chroma-test':'T1' };
 
 /* the currently-sounding notes under a polyphonic algorithm — nIdx -> octave.
    Unlike mono's single lastNote, several can be active at once. */
