@@ -71,13 +71,29 @@
       flex-direction: column;
     }
 
+    /* ── SAFE-AREA SPACERS — keep the UI clear of the iPhone Dynamic
+       Island / notch (top) and the home-indicator strip (bottom). Plain
+       flex items rather than padding on #topbar/#keyboard, since those
+       elements size their absolutely-positioned children off clientHeight
+       and would otherwise bleed into the inset area. ── */
+    .safe-top {
+      flex-shrink: 0;
+      height: env(safe-area-inset-top, 0px);
+      background: var(--top-bg);
+    }
+    .safe-bottom {
+      flex-shrink: 0;
+      height: env(safe-area-inset-bottom, 0px);
+      background: var(--key-bg);
+    }
+
     /* ── TOPBAR ──────────────────────────── */
     #topbar {
       flex-shrink: 0;
       height: 56px;
       display: flex;
       align-items: center;
-      padding: 0 16px;
+      padding: 0 calc(16px + env(safe-area-inset-right, 0px)) 0 calc(16px + env(safe-area-inset-left, 0px));
       background: var(--top-bg);
       border-bottom: 1px solid var(--border);
       z-index: 20;
@@ -224,7 +240,7 @@
       height: 46px;
       display: flex;
       align-items: center;
-      padding: 0 14px;
+      padding: 0 calc(14px + env(safe-area-inset-right, 0px)) 0 calc(14px + env(safe-area-inset-left, 0px));
       gap: 10px;
       background: var(--top-bg);
       border-top: 1px solid var(--border);
@@ -553,6 +569,9 @@
       transform: translateX(100%);
       transition: transform 0.24s cubic-bezier(0.4,0,0.2,1);
       overflow-y: auto;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     #settings-panel.open { transform: translateX(0); }
 
@@ -694,6 +713,8 @@
 <body>
 <div id="app">
 
+  <div class="safe-top"></div>
+
   <div id="topbar">
     <div class="app-title" id="app-title">Keymap</div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
@@ -761,6 +782,8 @@
   </div>
 
   <div id="keyboard"></div>
+
+  <div class="safe-bottom"></div>
 
 </div>
 
