@@ -726,14 +726,15 @@
       <span class="decay-lbl">gain</span>
       <span class="decay-val" id="gain-val">100%</span>
     </div>
-    <div class="mic-sep"></div>
     <div class="mic-level-track">
       <div class="mic-level-fill" id="mic-level"></div>
     </div>
-    <div class="mic-sep"></div>
+    <!-- 
+		<div class="mic-sep"></div>
     <div id="mic-note-name">—</div>
-    <div id="mic-note-freq"></div>
+		<div id="mic-note-freq"></div> 
     <div class="mic-sep"></div>
+		-->
     <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
       <span class="algo-acronym" id="algo-acronym">MF0</span>
       <span class="algo-chevron"></span>
@@ -867,28 +868,21 @@
     </div>
     <div class="sp-row">
       <span class="sp-label">Gain</span>
+      <!-- same underlying value as the topbar GAIN drag (micGainPct, 0-300%) —
+           just labeled in dB here; option values are the % it maps to, so
+           picking one calls the exact same setMicGain() as the drag does -->
       <select class="sp-select" id="gain-db-select">
-        <option value="-100">-100dB</option>
-        <option value="-80">-80dB</option>
-        <option value="-60">-60dB</option>
-        <option value="-40">-40dB</option>
-        <option value="-30">-30dB</option>
-        <option value="-20">-20dB</option>
-        <option value="-10">-10dB</option>
-        <option value="0" selected>0dB</option>
-        <option value="10">+10dB</option>
-        <option value="20">+20dB</option>
-        <option value="30">+30dB</option>
-        <option value="40">+40dB</option>
-        <option value="60">+60dB</option>
-        <option value="80">+80dB</option>
-        <option value="100">+100dB</option>
-        <option value="150">+150dB</option>
-        <option value="200">+200dB</option>
-        <option value="300">+300dB</option>
-        <option value="500">+500dB</option>
-        <option value="700">+700dB</option>
-        <option value="1000">+1000dB</option>
+        <option value="0">-inf dB</option>
+        <option value="10">-20dB</option>
+        <option value="25">-12dB</option>
+        <option value="50">-6dB</option>
+        <option value="75">-2.5dB</option>
+        <option value="100" selected>0dB</option>
+        <option value="125">+1.9dB</option>
+        <option value="150">+3.5dB</option>
+        <option value="200">+6dB</option>
+        <option value="250">+8dB</option>
+        <option value="300">+9.5dB</option>
       </select>
     </div>
     <div class="sp-row">
@@ -1071,8 +1065,8 @@ let analyser    = null;
 let micStream   = null;
 let micSrc      = null;
 let micGainNode = null;
-let micGainPct  = 100;  // % applied to the mic signal before detection/metering
-let micGainDb   = 0;    // Settings > Gain — additional dB multiplier stacked on top of micGainPct
+let micGainPct  = 100;  // % applied to the mic signal before detection/metering —
+                         // shared by the topbar GAIN drag and Settings > Gain (dB-labeled)
 let micActive   = false;
 let detInterval = null;
 let levelRaf    = null;
@@ -2009,20 +2003,20 @@ function initScrubDrag(elId, getVal, setVal, sens = 0.4) {
 }
 
 /* mic input gain — applied via a GainNode ahead of the analyser/metering.
-   Two independent controls stack multiplicatively: the topbar's percentage
-   scrub (micGainPct) and Settings > Gain's dB trim (micGainDb). */
+   One value (micGainPct) drives both the topbar's % drag and Settings >
+   Gain's dB-labeled picker — they're two skins on the same control. */
 function applyMicGain() {
-  if (micGainNode) micGainNode.gain.value = (micGainPct / 100) * Math.pow(10, micGainDb / 20);
+  if (micGainNode) micGainNode.gain.value = micGainPct / 100;
 }
+
+const GAIN_DB_STEPS = [0, 10, 25, 50, 75, 100, 125, 150, 200, 250, 300];
 
 function setMicGain(v) {
   micGainPct = Math.max(0, Math.min(300, Math.round(v)));
   document.getElementById('gain-val').textContent = micGainPct + '%';
-  applyMicGain();
-}
-
-function setMicGainDb(v) {
-  micGainDb = Math.round(v);
+  const sel = document.getElementById('gain-db-select');
+  if (sel) sel.value = GAIN_DB_STEPS.reduce((a, b) =>
+    Math.abs(b - micGainPct) < Math.abs(a - micGainPct) ? b : a);
   applyMicGain();
 }
 
@@ -2945,7 +2939,7 @@ function initSettings() {
   });
 
   document.getElementById('gain-db-select').addEventListener('change', e => {
-    setMicGainDb(parseInt(e.target.value, 10));
+    setMicGain(parseInt(e.target.value, 10));
   });
 
   document.getElementById('midi-in-channel-select').addEventListener('change', e => {
