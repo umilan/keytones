@@ -307,15 +307,13 @@
       text-transform: uppercase;
       color: var(--dim);
       white-space: nowrap;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background-repeat: no-repeat; /* live input level — see animateLevel() */
+      transition: background 0.1s linear;
     }
 
     .mic-status-text.ok { color: var(--text); }
-
-    .mic-sep {
-      width: 1px; height: 18px;
-      background: var(--hairline);
-      flex-shrink: 0;
-    }
 
     /* ── ALGORITHM PICKER — shows an acronym; a fully transparent native
        <select> sits on top so the dropdown itself still lists full names ── */
@@ -359,26 +357,6 @@
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
-    }
-
-    #mic-note-name {
-      font-family: monospace;
-      font-size: var(--ui-font-size);
-      color: var(--text);
-      letter-spacing: var(--let-spac);
-      min-width: 46px;
-      text-align: right;
-      transition: color 0.1s;
-      flex-shrink: 0;
-    }
-
-    #mic-note-freq {
-      font-family: monospace;
-      font-size: var(--ui-font-size);
-      color: var(--dim);
-      letter-spacing: var(--let-spac);
-      min-width: 68px;
-      flex-shrink: 0;
     }
 
     .mic-level-track {
@@ -483,48 +461,6 @@
     /* light text on dark black keys */
     .black-key .key-name { font-size: var(--ui-font-size); color: rgba(255,255,255,0.44); }
     .black-key .key-kb   { font-size: var(--ui-font-size); color: rgba(255,255,255,0.24); }
-
-    /* ── OCTAVE CONTROL ──────────────────── */
-    .oct-ctrl {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      flex-shrink: 0;
-    }
-
-    .oct-btn {
-      width: var(--ctrl-size); height: var(--ctrl-size);
-      background: var(--surface);
-      border: 1px solid var(--surface-strong);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-size: var(--ui-font-size);
-      line-height: 1;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.12s;
-      -webkit-tap-highlight-color: transparent;
-      padding: 0;
-      font-family: inherit;
-    }
-
-    .oct-btn:active {
-      background: var(--surface-strong);
-      border-color: var(--border-active);
-      color: var(--text);
-    }
-
-    .oct-val {
-      font-family: monospace;
-      font-size: var(--ui-font-size);
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: var(--let-spac);
-      min-width: 18px;
-      text-align: center;
-      pointer-events: none;
-    }
 
     /* ── SETTINGS BUTTON ─────────────────── */
     #settings-btn {
@@ -692,13 +628,6 @@
       <span class="decay-val" id="decay-val">50%</span>
     </div>
 
-    <div class="oct-ctrl">
-			<span class="decay-lbl">oct</span>
-      <span class="oct-val" id="oct-val">4</span>
-      <button class="oct-btn" id="oct-down">−</button>
-      <button class="oct-btn" id="oct-up">+</button>
-    </div>
-
     <button id="settings-btn" title="Settings">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
@@ -722,10 +651,6 @@
     <div class="mic-level-track">
       <div class="mic-level-fill" id="mic-level"></div>
     </div>
-    <div class="mic-sep"></div>
-    <div id="mic-note-name">—</div>
-    <div id="mic-note-freq"></div>
-    <div class="mic-sep"></div>
     <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
       <span class="algo-acronym" id="algo-acronym">MF0</span>
       <span class="algo-chevron"></span>
@@ -1314,7 +1239,7 @@ async function startMic() {
   if (!navigator.mediaDevices?.getUserMedia) {
     console.error('[mic] navigator.mediaDevices.getUserMedia is unavailable — insecure context (not https/localhost) or unsupported browser?');
     setMicUI('error', '—', '');
-    document.getElementById('mic-status').textContent = 'Mic unavailable (no getUserMedia)';
+    document.getElementById('mic-status').textContent = 'N/A';
     return;
   }
   try {
@@ -1346,8 +1271,9 @@ async function startMic() {
     // surface the actual error (e.g. NotAllowedError, NotFoundError) instead of
     // a generic message — a silently-swallowed error here looks identical to
     // "does nothing" from the outside, which makes this exact class of bug
-    // impossible to diagnose without opening devtools
-    document.getElementById('mic-status').textContent = 'Mic unavailable (' + (e.name || e.message || 'error') + ')';
+    // impossible to diagnose without opening devtools. Kept short (full
+    // detail is in the console.error above) — just the error's own short name.
+    document.getElementById('mic-status').textContent = e.name || 'N/A';
   }
 }
 
@@ -1364,6 +1290,7 @@ function stopMic() {
   releasePolyNotes();
   analyser = null; lastNote = pendingNote = -1; pendingTicks = 0;
   document.getElementById('mic-level').style.width = '0%';
+  document.getElementById('mic-status').style.background = '';
   setMicUI('off', '—', '');
 }
 
@@ -1861,33 +1788,23 @@ function animateLevel() {
   rms = Math.sqrt(rms / tData.length);
   const levelPct = Math.min(rms*380, 100);
   document.getElementById('mic-level').style.width = levelPct + '%';
+  document.getElementById('mic-status').style.background =
+    `linear-gradient(90deg, rgba(0,209,124,0.28) ${levelPct}%, transparent ${levelPct}%)`;
   agcSum += levelPct; agcSamples++; // fed to agcTick() every ~10s
   levelRaf = requestAnimationFrame(animateLevel);
 }
 
 const MIC_OK_STATES = new Set(['MIC ON', 'mic on', 'listening']); // mic connected & functioning — green dot, bright text
 
-function setMicUI(state, note, freq) {
+function setMicUI(state) {
   const dot    = document.getElementById('mic-dot');
   const statEl = document.getElementById('mic-status');
-  const nameEl = document.getElementById('mic-note-name');
-  const freqEl = document.getElementById('mic-note-freq');
   const isOk = MIC_OK_STATES.has(state);
   dot.className = 'mic-dot' + (isOk ? ' ok' : state==='error' ? ' error' : '');
   statEl.classList.toggle('ok', isOk);
-  const L = {connecting:'Connecting…',listening:'Listening',
-             error:'Mic unavailable',off:'Mic off'};
+  const L = {connecting:'WAIT', listening:'ON', error:'N/A', off:'MUTED',
+             'MIC ON':'LIVE', 'mic on':'LIVE'};
   statEl.textContent = L[state] || state;
-  nameEl.textContent = note;
-  freqEl.textContent = note !== '—' ? freq : '';
-  const idx = NOTES.indexOf(note.replace(/\d/g,''));
-  if (idx >= 0 && note !== '—') {
-    const max = Math.max(0, ...outerCounts);
-    const ratio = max > 0 ? outerCounts[idx] / max : 0;
-    nameEl.style.color = ratio > 0 ? barColor(ratio) : '';
-  } else {
-    nameEl.style.color = '';
-  }
 }
 
 /* ═══════════════════════════════════════
@@ -2352,7 +2269,6 @@ function midiNoteNum(noteIdx) { return (midiOctave + 1) * 12 + noteIdx; }
 
 function shiftMidiOctave(delta) {
   midiOctave = Math.max(0, Math.min(8, midiOctave + delta));
-  document.getElementById('oct-val').textContent = midiOctave;
   const sel = document.getElementById('midi-transpose-select');
   if (sel) sel.value = midiOctave - 4;
 }
@@ -3067,9 +2983,6 @@ function initSettings() {
   document.getElementById('midi-transpose-select').addEventListener('change', e => {
     shiftMidiOctave(parseInt(e.target.value, 10) - (midiOctave - 4));
   });
-
-  document.getElementById('oct-down').addEventListener('click', () => shiftMidiOctave(-1));
-  document.getElementById('oct-up').addEventListener('click', () => shiftMidiOctave(1));
 }
 
 function build() {
