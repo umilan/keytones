@@ -725,12 +725,10 @@
     <div class="mic-level-track">
       <div class="mic-level-fill" id="mic-level"></div>
     </div>
-    <!-- 
-		<div class="mic-sep"></div>
-    <div id="mic-note-name">—</div>
-		<div id="mic-note-freq"></div> 
     <div class="mic-sep"></div>
-		-->
+    <div id="mic-note-name">—</div>
+    <div id="mic-note-freq"></div>
+    <div class="mic-sep"></div>
     <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
       <span class="algo-acronym" id="algo-acronym">MF0</span>
       <span class="algo-chevron"></span>
@@ -1285,7 +1283,12 @@ function onNoteOff(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
 async function startMic() {
   if (micActive) return;
   setMicUI('connecting','—','');
-  if (!navigator.mediaDevices?.getUserMedia) { setMicUI('error','—',''); return; }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    console.error('[mic] navigator.mediaDevices.getUserMedia is unavailable — insecure context (not https/localhost) or unsupported browser?');
+    setMicUI('error', '—', '');
+    document.getElementById('mic-status').textContent = 'Mic unavailable (no getUserMedia)';
+    return;
+  }
   try {
     const ac = getCtx(); await ac.resume();
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -1307,7 +1310,15 @@ async function startMic() {
     setMicUI('MIC ON','—','');
     detInterval = setInterval(runDetection, 100);
     animateLevel();
-  } catch(e) { setMicUI('error','—',''); }
+  } catch(e) {
+    console.error('[mic] getUserMedia failed:', e);
+    setMicUI('error', '—', '');
+    // surface the actual error (e.g. NotAllowedError, NotFoundError) instead of
+    // a generic message — a silently-swallowed error here looks identical to
+    // "does nothing" from the outside, which makes this exact class of bug
+    // impossible to diagnose without opening devtools
+    document.getElementById('mic-status').textContent = 'Mic unavailable (' + (e.name || e.message || 'error') + ')';
+  }
 }
 
 function stopMic() {
@@ -2748,19 +2759,24 @@ function onMidiMessage(e) {
   else if (cmd === 0x80 || (cmd === 0x90 && data2 === 0)) onNoteOff(noteIdx, el, true);
 }
 
-/* ── LAUNCHKEY (MK3) — DAW-mode pad lighting, output only ────────────────
-   Launchkey [MK3] exposes the pad grid for lighting only through its
-   dedicated "DAW" MIDI port (not the plain performance port), and only
-   once DAW mode is switched on — see the Launchkey [MK3] Programmer's
-   Reference Guide. Unlike Launchpad there's no pad-press *input* handling
-   here: this only lights pads to show which notes are currently sounding
-   (mic-detected or played in-app), so pick the Launchkey's "DAW" port as
-   MIDI Out in Settings for this to take effect.
+/* ── LAUNCHKEY (MK3 & MK4) — DAW-mode pad lighting, output only ──────────
+   Launchkey exposes the pad grid for lighting only through its dedicated
+   "DAW" MIDI port (not the plain performance port — on some systems this
+   may only be the *second* MIDI device the Launchkey exposes; if you only
+   see one "...MIDI Out" and no "...DAW Out" in the Settings > MIDI out
+   list, the DAW port likely isn't the one selected there), and only once
+   DAW mode is switched on. Unlike Launchpad there's no pad-press *input*
+   handling here: this only lights pads to show which notes are currently
+   sounding (mic-detected or played in-app).
 
-   Session mode's 2x8 pad grid (top row note 60h/96–67h/103, bottom row
-   70h/112–77h/119) is mapped to one octave the same way Launchpad's piano
-   layout maps a 2-row band: bottom row = white keys, top row = black keys,
-   gapped at E–F/B–C, C duplicated at both ends of the bottom row. */
+   DAW-mode-enable, the pad note numbers, and the colouring scheme below
+   are all identical between the MK3 and MK4 Programmer's Reference
+   Guides, so this same code targets both without needing to tell them
+   apart. Session/DAW mode's 2x8 pad grid (top row note 60h/96–67h/103,
+   bottom row 70h/112–77h/119) is mapped to one octave the same way
+   Launchpad's piano layout maps a 2-row band: bottom row = white keys,
+   top row = black keys, gapped at E–F/B–C, C duplicated at both ends of
+   the bottom row. */
 let launchkeyDawMode = false; // true once the connected device has been switched into DAW mode
 const LK_COLOR_OFF    = 0;  // palette index — LED off
 const LK_COLOR_DIM    = 1;  // idle backlight, regular notes (dark grey)
@@ -2806,14 +2822,13 @@ function paintLaunchkeyNote(noteIdx, active) {
 function setLaunchkeyDawMode(output, on) {
   if (!output) return;
   output.send([0x9F, 0x0C, on ? 0x7F : 0x00]); // channel 16, note 0Ch (12) = DAW mode on/off
-  if (on) {
-    // DAW mode defaults the pads to Session layout, but force it explicitly
-    // (channel 16 CC 03h = pad mode, 02h = Session) in case the user had
-    // switched to Drum/Custom/Scale mode on the device before connecting —
-    // this app only ever targets Session layout's pad addresses.
-    output.send([0xBF, 0x03, 0x02]);
-    paintLaunchkeyBacklight(output);
-  }
+  // Entering DAW mode defaults the pads to Session/DAW layout on its own —
+  // confirmed identical (96-103 top row, 112-119 bottom row, same colouring
+  // scheme) across both the MK3 and MK4 Programmer's Reference Guides, so
+  // no separate pad-mode-select message is needed (and MK3 vs MK4 actually
+  // use a *different* channel/CC for that, so sending the wrong one for
+  // whichever's connected would be worse than not sending it at all).
+  if (on) paintLaunchkeyBacklight(output);
 }
 
 let launchpadInputMode = false; // true when the selected MIDI-in device is also a Launchpad
