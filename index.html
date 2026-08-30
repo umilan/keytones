@@ -326,6 +326,7 @@
       border-radius: var(--radius);
       background: var(--surface);
       border: 1px solid var(--surface-strong);
+      width: 100%;
     }
 
     .algo-acronym {
@@ -336,6 +337,7 @@
       color: var(--text);
       white-space: nowrap;
       pointer-events: none;
+      width: 100%;
     }
 
     .algo-chevron {
@@ -362,43 +364,41 @@
        one button per algorithm; see initResponsiveAlgoPicker() ── */
     .algo-btn-group {
       display: none; /* toggled by initResponsiveAlgoPicker() once its natural width is known */
-      align-items: center;
-      gap: 6px;
+      align-items: stretch;
       flex: 1;
       min-width: 0;
+      border-radius: var(--radius);
+      border: 1px solid var(--surface-strong);
+      overflow: hidden; /* clips buttons to the group's own rounded corners */
     }
 
     .algo-btn {
+      flex: 1;
       font-family: monospace;
       font-size: var(--ui-font-size);
       font-weight: 700;
       letter-spacing: var(--let-spac);
       color: var(--dim);
       white-space: nowrap;
-      padding: 5px 10px;
-      border-radius: var(--radius);
+      padding: 5px 8px;
       background: var(--surface);
-      border: 1px solid var(--surface-strong);
+      border: none;
+      border-right: 1px solid var(--surface-strong); /* separates buttons — no gaps to waste space */
       cursor: pointer;
-      transition: all 0.12s;
+      transition: background 0.12s, color 0.12s;
       -webkit-tap-highlight-color: transparent;
     }
+
+    .algo-btn:last-child { border-right: none; }
 
     .algo-btn:active { background: var(--surface-strong); }
 
     .algo-btn.active {
-      background: var(--active-bg);
-      border-color: var(--active-bg);
-      color: #fff;
+      background: var(--surface-strong);
+      color: var(--text);
     }
 
     .algo-btn-test { opacity: 0.6; }
-
-    .algo-btn-sep {
-      width: 1px; height: 18px;
-      background: var(--hairline);
-      flex-shrink: 0;
-    }
 
     /* ── KEYBOARD ─────────────────────────── */
     #keyboard {
@@ -682,20 +682,20 @@
       <span class="algo-chevron"></span>
       <select class="algo-native-select" id="pitch-algo-select" aria-label="Pitch Algorithm">
         <optgroup label="Monophonic">
-          <option value="fft" title="FFT Peak">M1</option>
-          <option value="acf" title="Autocorrelation (ACF)">M2</option>
-          <option value="amdf" title="AMDF">M3</option>
-          <option value="yin" title="YIN">M4</option>
-          <option value="mpm" title="MPM">M5</option>
+          <option value="fft">M1 FFT Peak</option>
+          <option value="acf">M2 Autocorrelation (ACF)</option>
+          <option value="amdf">M3 AMDF</option>
+          <option value="yin">M4 YIN</option>
+          <option value="mpm">M5 MPM</option>
         </optgroup>
         <optgroup label="Polyphonic">
-          <option value="hpcp" title="HPCP">P1</option>
-          <option value="nnls" title="NNLS">P2</option>
-          <option value="cqtnmf" title="CQT+NMF">P3</option>
-          <option value="multif0" title="Multi-F0" selected>P4</option>
+          <option value="hpcp">P1 HPCP</option>
+          <option value="nnls">P2 NNLS</option>
+          <option value="cqtnmf">P3 CQT+NMF</option>
+          <option value="multif0" selected>P4 Multi-F0</option>
         </optgroup>
         <optgroup label="Test">
-          <option value="chroma-test" title="Chromatic Sequence (Test)">T1</option>
+          <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
         </optgroup>
       </select>
     </div>
@@ -707,12 +707,10 @@
       <button type="button" class="algo-btn" data-algo="amdf" title="AMDF">M3</button>
       <button type="button" class="algo-btn" data-algo="yin" title="YIN">M4</button>
       <button type="button" class="algo-btn" data-algo="mpm" title="MPM">M5</button>
-      <div class="algo-btn-sep"></div>
       <button type="button" class="algo-btn" data-algo="hpcp" title="HPCP">P1</button>
       <button type="button" class="algo-btn" data-algo="nnls" title="NNLS">P2</button>
       <button type="button" class="algo-btn" data-algo="cqtnmf" title="CQT+NMF">P3</button>
       <button type="button" class="algo-btn active" data-algo="multif0" title="Multi-F0">P4</button>
-      <div class="algo-btn-sep"></div>
       <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test" title="Chromatic Sequence (Test)">T1</button>
     </div>
   </div>
@@ -765,20 +763,20 @@
       <span class="sp-label">Algorithm</span>
       <select class="sp-select" id="algo-panel-select">
         <optgroup label="Monophonic">
-          <option value="fft" title="FFT Peak">M1</option>
-          <option value="acf" title="Autocorrelation (ACF)">M2</option>
-          <option value="amdf" title="AMDF">M3</option>
-          <option value="yin" title="YIN">M4</option>
-          <option value="mpm" title="MPM">M5</option>
+          <option value="fft">M1 FFT Peak</option>
+          <option value="acf">M2 Autocorrelation (ACF)</option>
+          <option value="amdf">M3 AMDF</option>
+          <option value="yin">M4 YIN</option>
+          <option value="mpm">M5 MPM</option>
         </optgroup>
         <optgroup label="Polyphonic">
-          <option value="hpcp" title="HPCP">P1</option>
-          <option value="nnls" title="NNLS">P2</option>
-          <option value="cqtnmf" title="CQT+NMF">P3</option>
-          <option value="multif0" title="Multi-F0" selected>P4</option>
+          <option value="hpcp">P1 HPCP</option>
+          <option value="nnls">P2 NNLS</option>
+          <option value="cqtnmf">P3 CQT+NMF</option>
+          <option value="multif0" selected>P4 Multi-F0</option>
         </optgroup>
         <optgroup label="Test">
-          <option value="chroma-test" title="Chromatic Sequence (Test)">T1</option>
+          <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
         </optgroup>
       </select>
     </div>
