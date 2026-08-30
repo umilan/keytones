@@ -74,8 +74,9 @@
       height: 100dvh;
       flex: 1 1 auto;
       min-width: 0;
-      overflow: hidden; /* clip rows (topbar, mic-strip) that don't fit once
-                            the settings panel narrows #app, instead of
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
                             spilling into the panel — it used to be masked
                             by the panel's old opaque overlay */
       display: flex;
@@ -358,24 +359,26 @@
       opacity: 0;
       border: none;
       cursor: pointer;
-      appearance: none;
-      -webkit-appearance: none;
-    }
-
-    #mic-note-name {
+      appearance: no
       font-family: monospace;
       font-size: var(--ui-font-size);
       color: var(--text);
-			letter-spacing: var(--let-spac);
+      letter-spacing: var(--let-spac);
       min-width: 46px;
       text-align: right;
       transition: color 0.1s;
       flex-shrink: 0;
-    }
-
-    #mic-note-freq {
+      display: none;
+      min-width: 46px;
+      text-align: right;
+      transition: co
       font-family: monospace;
       font-size: var(--ui-font-size);
+      color: var(--dim);
+      letter-spacing: var(--let-spac);
+      min-width: 68px;
+      flex-shrink: 0;
+      display: none;
       color: var(--dim);
       letter-spacing: var(--let-spac);
       min-width: 68px;
@@ -559,10 +562,14 @@
     #settings-btn .mdot.on  { background: var(--ok); }
     #settings-btn .mdot.err { background: var(--err); }
 
-    /* ── SETTINGS PA
+    /* ── SETTINGS PANEL ──────────────────── */
+    /* an in-flow flex sibling of #app (not position:fixed) — opening it
+       animates width from 0 up, which shrinks #app via flex instead of
+       covering it, so the app stays fully visible and interactive. */
+    #settings-panel {
       width: 0;
       flex-shrink: 0;
-      background: #111;
+      background: var(--panel-bg);
       border-left: 0 solid var(--hairline);
       display: flex;
       flex-direction: column;
@@ -572,13 +579,13 @@
       padding-top: env(safe-area-inset-top, 0px);
       padding-right: env(safe-area-inset-right, 0px);
       padding-bottom: env(safe-area-inset-bottom, 0px);
-      overflow-y: auto;
-      padding-top: env(safe-area-inset-top, 0px);
-      padding-right: env(safe-area-inset-right, 0px);
-      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     #settings-panel.open {
-      width: min
+      width: min(300px, 88vw);
+      border-left-width: 1px;
+    }
+
+    .sp-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -586,10 +593,6 @@
       height: 52px;
       border-bottom: 1px solid var(--surface-soft);
       flex-shrink: 0;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      background: #222;
       position: sticky;
       top: 0;
       z-index: 1;
