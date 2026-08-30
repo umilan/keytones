@@ -28,7 +28,7 @@
 
       /* ── accent / status ── */
       --active-bg:  rgb(251, 91, 36) !important;
-			--active-bg2: rgb(221, 61, 16) !important;
+      --active-bg2: rgb(221, 61, 16) !important;
       --ok:      #00D17C;
       --ok-glow: rgba(0,209,124,0.67);
       --err:     #EF4444;
@@ -46,10 +46,9 @@
       --hairline:       rgba(255,255,255,0.08);
       --border-focus:   rgba(255,255,255,0.22);
       --border-active:  rgba(255,255,255,0.26);
-
-			--ui-font-size: 14px;
-			--let-spac: 1px;
-			--radius: 4px;
+      --ui-font-size: 12px;
+      --let-spac: 1px;
+      --radius: 4px;
       --ctrl-size: 24px; /* square icon/toggle controls in the topbar */
       --chevron-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='10'%20height='6'%20viewBox='0%200%2010%206'%3E%3Cpath%20d='M1%201l4%204%204-4'%20stroke='%23c8c4ff'%20stroke-opacity='0.4'%20stroke-width='1.5'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     }
@@ -625,16 +624,21 @@
     .sp-section-label {
       font-family: monospace;
       font-size: var(--ui-font-size);
-			font-weight: 700;
+      font-weight: 700;
       letter-spacing: var(--let-spac);
-			text-transform: uppercase;
+      text-transform: uppercase;
       color: var(--dim);
-      margin-bottom: 10px; margin-top: 8px;
+      margin-bottom: 8px;
+      margin-top: 8px;
     }
 
     .sp-row {
-      display: flex; flex-direction: row; align-items: center;
-      justify-content: space-between; gap: 12px; margin-bottom: 12px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 0px;
     }
 
     .sp-label {
@@ -663,9 +667,10 @@
 
     .sp-status {
       font-family: monospace;
-      font-size: var(--ui-font-size); 
-			letter-spacing: var(--let-spac);
-      color: var(--dim); margin-top: 2px;
+      font-size: var(--ui-font-size);
+      letter-spacing: var(--let-spac);
+      color: var(--dim);
+      margin-top: 0px;
     }
     .sp-status.ok  { color: var(--ok); }
     .sp-status.err { color: var(--err); }
@@ -673,17 +678,8 @@
     .sp-divider {
       height: 1px;
       background: var(--hairline);
-      margin: 4px 0 12px;
+      margin: 8px 0 0px;
     }
-
-    /* topbar controls relocated here on narrow windows — see initResponsiveTopbar() */
-    .sp-controls-slot {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 14px;
-    }
-    .sp-controls-slot:empty { display: none; }
 
   </style>
 </head>
@@ -772,10 +768,6 @@
     <button class="sp-close" id="sp-close">✕</button>
   </div>
   <div class="sp-body">
-    <div class="sp-section-label" id="sp-controls-label" style="display:none;">CONTROLS</div>
-    <div class="sp-controls-slot" id="sp-controls-slot"></div>
-    <div class="sp-divider" id="sp-controls-divider" style="display:none;"></div>
-
     <div class="sp-section-label">BEHAVIOR</div>
     <div class="sp-row">
       <span class="sp-label">Decay</span>
@@ -937,15 +929,15 @@
     <div class="sp-row">
       <span class="sp-label">MIDI out transpose</span>
       <select class="sp-select" id="midi-transpose-select">
-        <option value="-4">-4</option>
-        <option value="-3">-3</option>
-        <option value="-2">-2</option>
-        <option value="-1">-1</option>
-        <option value="0" selected>0</option>
-        <option value="1">+1</option>
-        <option value="2">+2</option>
-        <option value="3">+3</option>
-        <option value="4">+4</option>
+        <option value="-4">-4 oct</option>
+        <option value="-3">-3 oct</option>
+        <option value="-2">-2 oct</option>
+        <option value="-1">-1 oct</option>
+        <option value="0" selected>0 oct</option>
+        <option value="1">+1 oct</option>
+        <option value="2">+2 oct</option>
+        <option value="3">+3 oct</option>
+        <option value="4">+4 oct</option>
       </select>
     </div>
     <div class="sp-status" id="midi-status-msg">Requesting MIDI access…</div>
@@ -2956,55 +2948,6 @@ function initSettings() {
   document.getElementById('oct-up').addEventListener('click', () => shiftMidiOctave(1));
 }
 
-/* ═══════════════════════════════════════
-   RESPONSIVE TOPBAR — on a slim window, move the mic/decay/octave
-   controls into the settings panel instead of letting the topbar overflow
-═══════════════════════════════════════ */
-function initResponsiveTopbar() {
-  const topbar   = document.getElementById('topbar');
-  const title    = document.getElementById('app-title');
-  const settingsBtn = document.getElementById('settings-btn');
-  const slot       = document.getElementById('sp-controls-slot');
-  const slotLabel  = document.getElementById('sp-controls-label');
-  const slotDivider = document.getElementById('sp-controls-divider');
-  const movable = [
-    document.getElementById('decay-ctrl'),
-    document.querySelector('.oct-ctrl'),
-  ];
-
-  /* natural widths, measured once while everything still lives in the topbar —
-     title uses scrollWidth since flex:auto lets it shrink below its own content */
-  const cs = getComputedStyle(topbar);
-  const gap = parseFloat(cs.gap) || 0;
-  const padding = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-  const titleW = title.scrollWidth;
-  const movableW = movable.reduce((sum, el) => sum + el.getBoundingClientRect().width, 0);
-  const settingsW = settingsBtn.getBoundingClientRect().width;
-  const requiredWidth = titleW + movableW + settingsW + gap * (movable.length + 1) + padding;
-
-  let inSettings = false;
-
-  function apply() {
-    const fits = topbar.getBoundingClientRect().width >= requiredWidth;
-    if (fits === !inSettings) return; // no change needed
-    inSettings = !fits;
-    if (inSettings) {
-      movable.forEach(el => slot.appendChild(el));
-    } else {
-      movable.forEach(el => topbar.insertBefore(el, settingsBtn));
-    }
-    slotLabel.style.display   = inSettings ? '' : 'none';
-    slotDivider.style.display = inSettings ? '' : 'none';
-  }
-
-  apply();
-  window.addEventListener('resize', apply);
-  // #topbar also narrows when the settings panel slides in/out (it pushes
-  // #app via flex rather than overlaying it) — a window resize alone
-  // wouldn't catch that, so watch the topbar's own box directly too.
-  new ResizeObserver(apply).observe(topbar);
-}
-
 function build() {
   const barArea  = document.getElementById('bar-area');
   const keyboard = document.getElementById('keyboard');
@@ -3019,7 +2962,6 @@ function build() {
 
   initResize();
   initSettings();
-  initResponsiveTopbar();
   tryAutoMidi();
   initScrubDrag('decay-ctrl', () => decayPct, setDecayPct);
   initScrubDrag('gain-ctrl', () => micGainPct, setMicGain);
