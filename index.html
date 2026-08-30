@@ -65,8 +65,19 @@
       -webkit-user-select: none;
     }
 
+    body {
+      display: flex; /* lays #app and #settings-panel side by side — opening
+                         settings pushes/shrinks #app instead of overlaying it */
+    }
+
     #app {
       height: 100dvh;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden; /* clip rows (topbar, mic-strip) that don't fit once
+                            the settings panel narrows #app, instead of
+                            spilling into the panel — it used to be masked
+                            by the panel's old opaque overlay */
       display: flex;
       flex-direction: column;
     }
@@ -548,39 +559,37 @@
     #settings-btn .mdot.on  { background: var(--ok); }
     #settings-btn .mdot.err { background: var(--err); }
 
-    /* ── SETTINGS BACKDROP ───────────────── */
-    #settings-backdrop {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.45);
-      z-index: 90;
-    }
-    #settings-backdrop.open { display: block; }
-
-    /* ── SETTINGS PANEL ──────────────────── */
-    #settings-panel {
-      position: fixed;
-      top: 0; right: 0; bottom: 0;
-      width: min(300px, 88vw);
-      background: var(--panel-bg);
-      border-left: 1px solid var(--hairline);
-      z-index: 100;
-      display: flex; flex-direction: column;
-      transform: translateX(100%);
-      transition: transform 0.24s cubic-bezier(0.4,0,0.2,1);
+    /* ── SETTINGS PA
+      width: 0;
+      flex-shrink: 0;
+      background: #111;
+      border-left: 0 solid var(--hairline);
+      display: flex;
+      flex-direction: column;
+      transition: width 0.24s cubic-bezier(0.4,0,0.2,1);
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
       overflow-y: auto;
       padding-top: env(safe-area-inset-top, 0px);
       padding-right: env(safe-area-inset-right, 0px);
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
-    #settings-panel.open { transform: translateX(0); }
-
-    .sp-header {
-      display: flex; align-items: center; justify-content: space-between;
+    #settings-panel.open {
+      width: min
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       padding: 0 16px;
       height: 52px;
       border-bottom: 1px solid var(--surface-soft);
       flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #222;
       position: sticky;
       top: 0;
       z-index: 1;
@@ -751,7 +760,6 @@
 </div>
 
 <!-- settings panel -->
-<div id="settings-backdrop"></div>
 <div id="settings-panel">
   <div class="sp-header">
     <span class="sp-title">Settings</span>
@@ -2862,26 +2870,22 @@ async function tryAutoMidi() {
 function initSettings() {
   const btn      = document.getElementById('settings-btn');
   const panel    = document.getElementById('settings-panel');
-  const backdrop = document.getElementById('settings-backdrop');
   const closeBtn = document.getElementById('sp-close');
 
   function openPanel()  {
     panel.classList.add('open');
-    backdrop.classList.add('open');
     btn.classList.add('active');
     ensureMidiAccess();   // ask for MIDI access here, not on page load
     ensureAudioDevices(); // same for audio in/out device labels
   }
   function closePanel() {
     panel.classList.remove('open');
-    backdrop.classList.remove('open');
     btn.classList.remove('active');
   }
 
   btn.addEventListener('click', () =>
     panel.classList.contains('open') ? closePanel() : openPanel()
   );
-  backdrop.addEventListener('click', closePanel);
   closeBtn.addEventListener('click', closePanel);
 
   document.getElementById('midi-in-select').addEventListener('change', e => {
@@ -2996,6 +3000,10 @@ function initResponsiveTopbar() {
 
   apply();
   window.addEventListener('resize', apply);
+  // #topbar also narrows when the settings panel slides in/out (it pushes
+  // #app via flex rather than overlaying it) — a window resize alone
+  // wouldn't catch that, so watch the topbar's own box directly too.
+  new ResizeObserver(apply).observe(topbar);
 }
 
 function build() {
@@ -3024,6 +3032,12 @@ function build() {
   );
   document.getElementById('app-title').addEventListener('click', reset);
   window.addEventListener('resize', applyLayout);
+
+  /* #keyboard's width also changes when the settings panel slides in/out
+     (it pushes #app via flex rather than overlaying it) — a window resize
+     alone wouldn't catch that, so re-run the layout on every frame of the
+     transition too, making the keys/bars visibly stretch along with it. */
+  new ResizeObserver(applyLayout).observe(document.getElementById('keyboard'));
 
   document.addEventListener('keydown', e => {
     if (e.repeat) return;
