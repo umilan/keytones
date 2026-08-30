@@ -2,7 +2,7 @@
   "name": "Keymap",
   "short_name": "Keymap",
   "description": "Note-usage keyboard with mic pitch tracking and MIDI/Launchpad output",
-  "start_url": "./keymap.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
