@@ -73,9 +73,8 @@
       height: 100dvh;
       flex: 1 1 auto;
       min-width: 0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      overflow: hidden; /* clip rows (topbar, mic-strip) that don't fit once
+                            the settings panel narrows #app, instead of
                             spilling into the panel — it used to be masked
                             by the panel's old opaque overlay */
       display: flex;
@@ -358,7 +357,11 @@
       opacity: 0;
       border: none;
       cursor: pointer;
-      appearance: no
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    #mic-note-name {
       font-family: monospace;
       font-size: var(--ui-font-size);
       color: var(--text);
@@ -367,17 +370,11 @@
       text-align: right;
       transition: color 0.1s;
       flex-shrink: 0;
-      display: none;
-      min-width: 46px;
-      text-align: right;
-      transition: co
+    }
+
+    #mic-note-freq {
       font-family: monospace;
       font-size: var(--ui-font-size);
-      color: var(--dim);
-      letter-spacing: var(--let-spac);
-      min-width: 68px;
-      flex-shrink: 0;
-      display: none;
       color: var(--dim);
       letter-spacing: var(--let-spac);
       min-width: 68px;
