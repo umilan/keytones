@@ -108,8 +108,16 @@
       border-bottom: 1px solid var(--border);
       z-index: 20;
       gap: 16px;
+      /* on a narrow window nothing here shrinks, so let the row scroll
+         instead of letting #app's overflow:hidden clip the settings
+         button unreachably off the right edge */
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
       /* outline: 14px solid red; */
     }
+    #topbar::-webkit-scrollbar { display: none; }
 
     .app-title {
       flex: auto;
@@ -291,15 +299,9 @@
     .mic-dot.ok {
       background: var(--ok);
       box-shadow: 0 0 7px var(--ok-glow);
-      animation: blink 2s ease-in-out infinite;
     }
 
     .mic-dot.error { background: var(--err); }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.3; }
-    }
 
     .mic-status-text {
       font-family: monospace;
@@ -356,17 +358,46 @@
       -webkit-appearance: none;
     }
 
-    .mic-level-track {
-      flex: 1; height: 3px;
-      background: var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
+    /* ── ALGORITHM BUTTON GROUP — wide-screen alternative to .algo-badge,
+       one button per algorithm; see initResponsiveAlgoPicker() ── */
+    .algo-btn-group {
+      display: none; /* toggled by initResponsiveAlgoPicker() once its natural width is known */
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
     }
 
-    .mic-level-fill {
-      height: 100%; width: 0%;
+    .algo-btn {
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      font-weight: 700;
+      letter-spacing: var(--let-spac);
+      color: var(--dim);
+      white-space: nowrap;
+      padding: 5px 10px;
       border-radius: var(--radius);
-      background: rgba(200,196,255,0.5);
+      background: var(--surface);
+      border: 1px solid var(--surface-strong);
+      cursor: pointer;
+      transition: all 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .algo-btn:active { background: var(--surface-strong); }
+
+    .algo-btn.active {
+      background: var(--active-bg);
+      border-color: var(--active-bg);
+      color: #fff;
+    }
+
+    .algo-btn-test { opacity: 0.6; }
+
+    .algo-btn-sep {
+      width: 1px; height: 18px;
+      background: var(--hairline);
+      flex-shrink: 0;
     }
 
     /* ── KEYBOARD ─────────────────────────── */
@@ -625,6 +656,15 @@
       <span class="decay-val" id="decay-val">50%</span>
     </div>
 
+    <div class="mic-badge" id="mic-badge" title="Click to toggle mic listening">
+      <div class="mic-dot" id="mic-dot"></div>
+      <div class="mic-status-text" id="mic-status">MUTED</div>
+    </div>
+    <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
+      <span class="decay-lbl">gain</span>
+      <span class="decay-val" id="gain-val">0dB</span>
+    </div>
+
     <button id="settings-btn" title="Settings">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3"/>
@@ -637,17 +677,6 @@
   <div id="bar-area"></div>
 
   <div id="mic-strip">
-    <div class="mic-badge" id="mic-badge" title="Click to toggle mic listening">
-      <div class="mic-dot" id="mic-dot"></div>
-      <div class="mic-status-text" id="mic-status">MUTED</div>
-    </div>
-    <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
-      <span class="decay-lbl">gain</span>
-      <span class="decay-val" id="gain-val">0dB</span>
-    </div>
-    <div class="mic-level-track">
-      <div class="mic-level-fill" id="mic-level"></div>
-    </div>
     <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
       <span class="algo-acronym" id="algo-acronym">MF0</span>
       <span class="algo-chevron"></span>
@@ -669,6 +698,22 @@
           <option value="chroma-test">Chromatic Sequence (Test)</option>
         </optgroup>
       </select>
+    </div>
+    <!-- wide-screen alternative to the compact picker above — one button per
+         algorithm, current one highlighted; see initResponsiveAlgoPicker() -->
+    <div class="algo-btn-group" id="algo-btn-group">
+      <button type="button" class="algo-btn" data-algo="fft">FFT</button>
+      <button type="button" class="algo-btn" data-algo="acf">ACF</button>
+      <button type="button" class="algo-btn" data-algo="amdf">AMDF</button>
+      <button type="button" class="algo-btn" data-algo="yin">YIN</button>
+      <button type="button" class="algo-btn" data-algo="mpm">MPM</button>
+      <div class="algo-btn-sep"></div>
+      <button type="button" class="algo-btn" data-algo="hpcp">HPCP</button>
+      <button type="button" class="algo-btn" data-algo="nnls">NNLS</button>
+      <button type="button" class="algo-btn" data-algo="cqtnmf">CQTNMF</button>
+      <button type="button" class="algo-btn active" data-algo="multif0">MF0</button>
+      <div class="algo-btn-sep"></div>
+      <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test">TEST</button>
     </div>
   </div>
 
@@ -1286,7 +1331,6 @@ function stopMic() {
   if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
   releasePolyNotes();
   analyser = null; lastNote = pendingNote = -1; pendingTicks = 0;
-  document.getElementById('mic-level').style.width = '0%';
   document.getElementById('mic-badge').style.background = '';
   setMicUI('off', '—', '');
 }
@@ -1693,6 +1737,8 @@ function setPitchAlgo(algo) {
   document.getElementById('algo-acronym').textContent = ALGO_ACRONYM[algo] || algo.toUpperCase();
   const topSel = document.getElementById('pitch-algo-select'); if (topSel) topSel.value = algo;
   const panelSel = document.getElementById('algo-panel-select'); if (panelSel) panelSel.value = algo;
+  document.querySelectorAll('.algo-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.algo === algo));
   if (algo === 'chroma-test') setMode('outside'); // the test loop only runs while mic mode's polling is active
 }
 
@@ -1784,7 +1830,6 @@ function animateLevel() {
   let rms = 0; for (const v of tData) rms += v*v;
   rms = Math.sqrt(rms / tData.length);
   const levelPct = Math.min(rms*380, 100);
-  document.getElementById('mic-level').style.width = levelPct + '%';
   document.getElementById('mic-badge').style.background =
     `linear-gradient(90deg, rgba(0,209,124,0.28) ${levelPct}%, transparent ${levelPct}%), var(--surface)`;
   agcSum += levelPct; agcSamples++; // fed to agcTick() every ~10s
@@ -2074,7 +2119,7 @@ function initResize() {
   const kb    = document.getElementById('keyboard');
 
   function isInteractiveChild(el) {
-    return el.closest('#mic-badge, #gain-ctrl, #algo-badge');
+    return el.closest('#algo-badge, #algo-btn-group');
   }
 
   /* Calculate how tall the keyboard can get (full remaining space minus a
@@ -2136,6 +2181,27 @@ function initResize() {
   }, { passive: false });
   document.addEventListener('touchend',    dragEnd, { passive: true });
   document.addEventListener('touchcancel', dragEnd, { passive: true });
+}
+
+/* on a wide-enough #mic-strip, swap the compact "MF0 ▾" picker for the full
+   horizontal button group instead of leaving it a cramped dropdown — same
+   "measure, then decide" approach as the old topbar/keyboard responsive
+   logic elsewhere in this file. */
+function initResponsiveAlgoPicker() {
+  const row     = document.getElementById('mic-strip');
+  const compact = document.getElementById('algo-badge');
+  const group   = document.getElementById('algo-btn-group');
+
+  function apply() {
+    group.style.display = 'flex'; // lay it out so scrollWidth reflects its real, unwrapped width
+    const requiredWidth = group.scrollWidth;
+    const fits = row.clientWidth >= requiredWidth;
+    compact.style.display = fits ? 'none' : 'flex';
+    group.style.display   = fits ? 'flex' : 'none';
+  }
+
+  apply();
+  new ResizeObserver(apply).observe(row);
 }
 
 /* ═══════════════════════════════════════
@@ -2954,6 +3020,8 @@ function initSettings() {
   document.getElementById('algo-panel-select').addEventListener('change', e => {
     setPitchAlgo(e.target.value);
   });
+  document.querySelectorAll('.algo-btn').forEach(btn =>
+    btn.addEventListener('click', () => setPitchAlgo(btn.dataset.algo)));
 
   document.getElementById('decay-select').addEventListener('change', e => {
     setDecayPct(parseInt(e.target.value, 10));
@@ -2995,6 +3063,7 @@ function build() {
   BLACK_KEYS.forEach(k => keyboard.appendChild(makeKey(k, 'black')));
 
   initResize();
+  initResponsiveAlgoPicker();
   initSettings();
   tryAutoMidi();
   initScrubDrag('decay-ctrl', () => decayPct, setDecayPct);
