@@ -2650,6 +2650,8 @@ function sendMidiNote(noteIdx, on, source = 'app', octave = null) {
         lpNotePlaying[noteIdx] = false; // no longer held — starts fading on the next decay tick
       }
     }
+  } else if (launchkeyDawMode) {
+    if (source === 'app') paintLaunchkeyNote(noteIdx, on);
   } else {
     const ch = midiOutChannel === 'omni' ? 0 : midiOutChannel;
     midiOut.send([(on ? 0x90 : 0x80) | ch, midiNoteNum(noteIdx), on ? 100 : 0]);
@@ -2746,6 +2748,67 @@ function onMidiMessage(e) {
   else if (cmd === 0x80 || (cmd === 0x90 && data2 === 0)) onNoteOff(noteIdx, el, true);
 }
 
+/* ── LAUNCHKEY (MK3) — DAW-mode pad lighting, output only ────────────────
+   Launchkey [MK3] exposes the pad grid for lighting only through its
+   dedicated "DAW" MIDI port (not the plain performance port), and only
+   once DAW mode is switched on — see the Launchkey [MK3] Programmer's
+   Reference Guide. Unlike Launchpad there's no pad-press *input* handling
+   here: this only lights pads to show which notes are currently sounding
+   (mic-detected or played in-app), so pick the Launchkey's "DAW" port as
+   MIDI Out in Settings for this to take effect.
+
+   Session mode's 2x8 pad grid (top row note 60h/96–67h/103, bottom row
+   70h/112–77h/119) is mapped to one octave the same way Launchpad's piano
+   layout maps a 2-row band: bottom row = white keys, top row = black keys,
+   gapped at E–F/B–C, C duplicated at both ends of the bottom row. */
+let launchkeyDawMode = false; // true once the connected device has been switched into DAW mode
+const LK_COLOR_OFF    = 0;  // palette index — LED off
+const LK_COLOR_DIM    = 1;  // idle backlight, regular notes (dark grey)
+const LK_COLOR_C_BLUE = 45; // idle backlight, every C (blue)
+const LK_COLOR_ACTIVE = 5;  // currently sounding, app-triggered (red)
+
+const LK_NOTE_PAD = [
+  [112, 119], // C (+ duplicate at the far end of the row, like Launchpad)
+  [97],  // C#
+  [113], // D
+  [98],  // D#
+  [114], // E
+  [115], // F
+  [100], // F#
+  [116], // G
+  [101], // G#
+  [117], // A
+  [102], // A#
+  [118], // B
+];
+const LK_UNUSED_PADS = [96, 99, 103]; // top-row gaps at E–F/B–C — no black key there
+
+function setLaunchkeyPad(output, pad, colorIndex) {
+  output.send([0x90, pad, colorIndex]); // Note On, channel 1 = stationary colour
+}
+
+function lkColorForNote(noteIdx) {
+  return noteIdx === 0 ? LK_COLOR_C_BLUE : LK_COLOR_DIM;
+}
+
+function paintLaunchkeyBacklight(output) {
+  for (let i = 0; i < 12; i++) LK_NOTE_PAD[i].forEach(pad => setLaunchkeyPad(output, pad, lkColorForNote(i)));
+  LK_UNUSED_PADS.forEach(pad => setLaunchkeyPad(output, pad, LK_COLOR_OFF));
+}
+
+/* the only per-note entry point — see sendMidiNote()'s launchkeyDawMode branch */
+function paintLaunchkeyNote(noteIdx, active) {
+  if (!midiOut || !launchkeyDawMode) return;
+  const color = active ? LK_COLOR_ACTIVE : lkColorForNote(noteIdx);
+  LK_NOTE_PAD[noteIdx].forEach(pad => setLaunchkeyPad(midiOut, pad, color));
+}
+
+function setLaunchkeyDawMode(output, on) {
+  if (!output) return;
+  output.send([0x9F, 0x0C, on ? 0x7F : 0x00]); // channel 16, note 0Ch (12) = DAW mode on/off
+  if (on) paintLaunchkeyBacklight(output);
+}
+
 let launchpadInputMode = false; // true when the selected MIDI-in device is also a Launchpad
 
 function setMidiIn(id) {
@@ -2761,14 +2824,19 @@ function setMidiOut(id) {
   if (midiOut && midiOut !== newOut && launchpadProgrammerMode) {
     setLaunchpadProgrammerMode(midiOut, false); // hand the old device back to normal standalone use
   }
+  if (midiOut && midiOut !== newOut && launchkeyDawMode) {
+    setLaunchkeyDawMode(midiOut, false); // hand the old device back to Standalone (MIDI) mode
+  }
   midiOut = newOut;
   launchpadProgrammerMode = !!(midiOut && /launchpad/i.test(midiOut.name || ''));
+  launchkeyDawMode        = !!(midiOut && /launchkey/i.test(midiOut.name || ''));
   if (launchpadProgrammerMode) {
     for (const k in lpNoteBrightness) delete lpNoteBrightness[k]; // no stale fade state from a previous connection
     for (const k in lpNotePlaying)    delete lpNotePlaying[k];
     for (const k in lpNoteOctave)     delete lpNoteOctave[k];
     setLaunchpadProgrammerMode(midiOut, true);
   }
+  if (launchkeyDawMode) setLaunchkeyDawMode(midiOut, true);
   updateMidiDot();
 }
 
