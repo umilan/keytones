@@ -336,8 +336,11 @@
       letter-spacing: var(--let-spac);
       color: var(--text);
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis; /* the full label (e.g. "M2 Autocorrelation (ACF)") can be longer than the badge */
       pointer-events: none;
       width: 100%;
+      min-width: 0;
     }
 
     .algo-chevron {
@@ -697,6 +700,7 @@
         <optgroup label="Test">
           <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
         </optgroup>
+        <option value="off">OFF</option>
       </select>
     </div>
     <!-- wide-screen alternative to the compact picker above — one button per
@@ -712,6 +716,7 @@
       <button type="button" class="algo-btn" data-algo="cqtnmf" title="CQT+NMF">P3</button>
       <button type="button" class="algo-btn active" data-algo="multif0" title="Multi-F0">P4</button>
       <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test" title="Chromatic Sequence (Test)">T1</button>
+      <button type="button" class="algo-btn" data-algo="off" title="Detection off">OFF</button>
     </div>
   </div>
 
@@ -778,6 +783,7 @@
         <optgroup label="Test">
           <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
         </optgroup>
+        <option value="off">OFF</option>
       </select>
     </div>
 
@@ -1714,10 +1720,13 @@ function detectPitch(sr) {
   }
 }
 
-/* the algorithm badge shows a short acronym; the native <select> underneath
-   (invisible, see .algo-native-select) still lists the full names when opened */
-const ALGO_ACRONYM = { fft:'M1', acf:'M2', amdf:'M3', yin:'M4', mpm:'M5',
-                        hpcp:'P1', nnls:'P2', cqtnmf:'P3', multif0:'P4', 'chroma-test':'T1' };
+/* the compact algorithm badge stretches to the full row width when shown
+   (see initResponsiveAlgoPicker()), so there's room to show the full label
+   rather than just the short id — same text as each <select> option. */
+const ALGO_LABEL = { fft:'M1 FFT Peak', acf:'M2 Autocorrelation (ACF)', amdf:'M3 AMDF',
+                      yin:'M4 YIN', mpm:'M5 MPM', hpcp:'P1 HPCP', nnls:'P2 NNLS',
+                      cqtnmf:'P3 CQT+NMF', multif0:'P4 Multi-F0',
+                      'chroma-test':'T1 Chromatic Sequence (Test)', off:'OFF' };
 
 /* the currently-sounding notes under a polyphonic algorithm — nIdx -> octave.
    Unlike mono's single lastNote, several can be active at once. */
@@ -1730,9 +1739,10 @@ function releasePolyNotes() {
 
 function setPitchAlgo(algo) {
   releasePolyNotes(); // don't leave a note stuck lit when switching away from a polyphonic algorithm
+  if (lastNote !== -1) { sendMidiNote(lastNote, false); lastNote = -1; lastNoteOctave = -1; } // same, for the mono path — matters most switching to 'off', which stops detection ticks from ever releasing it themselves
   pitchAlgo = algo;
   pendingNote = -1; pendingTicks = 0; // avoid a stale debounce carrying over
-  document.getElementById('algo-acronym').textContent = ALGO_ACRONYM[algo] || algo.toUpperCase();
+  document.getElementById('algo-acronym').textContent = ALGO_LABEL[algo] || algo.toUpperCase();
   const topSel = document.getElementById('pitch-algo-select'); if (topSel) topSel.value = algo;
   const panelSel = document.getElementById('algo-panel-select'); if (panelSel) panelSel.value = algo;
   document.querySelectorAll('.algo-btn').forEach(btn =>
@@ -1787,7 +1797,7 @@ function runPolyDetection(sr) {
 }
 
 function runDetection() {
-  if (!analyser || !micActive) return;
+  if (!analyser || !micActive || pitchAlgo === 'off') return;
   const sr = getCtx().sampleRate;
   if (POLY_ALGOS.has(pitchAlgo)) { runPolyDetection(sr); return; }
   const result = detectPitch(sr);
