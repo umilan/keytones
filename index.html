@@ -597,6 +597,8 @@
       top: 0;
       z-index: 1;
       background: var(--panel-bg);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
     .sp-title {
       font-family: monospace;
@@ -2873,7 +2875,7 @@ async function tryAutoMidi() {
 function initSettings() {
   const btn      = document.getElementById('settings-btn');
   const panel    = document.getElementById('settings-panel');
-  const closeBtn = document.getElementById('sp-close');
+  const header   = document.querySelector('.sp-header');
 
   function openPanel()  {
     panel.classList.add('open');
@@ -2889,7 +2891,7 @@ function initSettings() {
   btn.addEventListener('click', () =>
     panel.classList.contains('open') ? closePanel() : openPanel()
   );
-  closeBtn.addEventListener('click', closePanel);
+  header.addEventListener('click', closePanel); // whole header closes — the ✕ inside it is just a visual affordance
 
   document.getElementById('midi-in-select').addEventListener('change', e => {
     setMidiIn(e.target.value);
