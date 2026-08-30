@@ -717,7 +717,7 @@
     </div>
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl">gain</span>
-      <span class="decay-val" id="gain-val">100%</span>
+      <span class="decay-val" id="gain-val">0dB</span>
     </div>
     <div class="mic-level-track">
       <div class="mic-level-fill" id="mic-level"></div>
@@ -855,21 +855,24 @@
     </div>
     <div class="sp-row">
       <span class="sp-label">Gain</span>
-      <!-- same underlying value as the topbar GAIN drag (micGainPct, 0-300%) —
-           just labeled in dB here; option values are the % it maps to, so
-           picking one calls the exact same setMicGain() as the drag does -->
+      <!-- same underlying value (micGainDb) as the topbar GAIN drag —
+           picking an option here calls the exact same setMicGain() -->
       <select class="sp-select" id="gain-db-select">
-        <option value="0">-inf dB</option>
-        <option value="10">-20dB</option>
-        <option value="25">-12dB</option>
-        <option value="50">-6dB</option>
-        <option value="75">-2.5dB</option>
-        <option value="100" selected>0dB</option>
-        <option value="125">+1.9dB</option>
-        <option value="150">+3.5dB</option>
-        <option value="200">+6dB</option>
-        <option value="250">+8dB</option>
-        <option value="300">+9.5dB</option>
+        <option value="-40">-40dB</option>
+        <option value="-30">-30dB</option>
+        <option value="-20">-20dB</option>
+        <option value="-15">-15dB</option>
+        <option value="-10">-10dB</option>
+        <option value="-6">-6dB</option>
+        <option value="-3">-3dB</option>
+        <option value="0" selected>0dB</option>
+        <option value="3">+3dB</option>
+        <option value="6">+6dB</option>
+        <option value="10">+10dB</option>
+        <option value="15">+15dB</option>
+        <option value="20">+20dB</option>
+        <option value="30">+30dB</option>
+        <option value="40">+40dB</option>
       </select>
     </div>
     <div class="sp-row">
@@ -1052,11 +1055,39 @@ let analyser    = null;
 let micStream   = null;
 let micSrc      = null;
 let micGainNode = null;
-let micGainPct  = 100;  // % applied to the mic signal before detection/metering —
-                         // shared by the topbar GAIN drag and Settings > Gain (dB-labeled)
+let micGainDb   = 0;    // dB trim applied to the mic signal before detection/metering —
+                         // shared by the topbar GAIN drag and Settings > Gain
+const MIC_GAIN_DB_MIN = -40, MIC_GAIN_DB_MAX = 40;
 let micActive   = false;
 let detInterval = null;
 let levelRaf    = null;
+
+/* lightweight auto-gain: the browser's own AGC is deliberately disabled on
+   the getUserMedia constraints below (it distorts levels unpredictably for
+   pitch detection), so every ~10s nudge micGainDb toward a healthy meter
+   range instead — a few dB at a time, not a fast/aggressive compressor.
+   agcSum/agcSamples accumulate the meter level (see animateLevel) between
+   ticks so each adjustment is based on a real ~10s average, not one frame. */
+let agcInterval  = null;
+let agcSum       = 0;
+let agcSamples   = 0;
+const AGC_INTERVAL_MS = 10000;
+const AGC_LOW_PCT  = 15; // meter-scale (0-100) average below this → boost
+const AGC_HIGH_PCT = 85; // meter-scale (0-100) average above this → cut
+const AGC_STEP_DB  = 3;
+
+function agcTick() {
+  if (!micActive || agcSamples === 0) return;
+  const avgLevel = agcSum / agcSamples;
+  agcSum = 0; agcSamples = 0;
+  if (avgLevel < AGC_LOW_PCT && micGainDb < MIC_GAIN_DB_MAX) {
+    console.log('[agc] level low (' + avgLevel.toFixed(1) + '%) — boosting gain to', micGainDb + AGC_STEP_DB, 'dB');
+    setMicGain(Math.min(MIC_GAIN_DB_MAX, micGainDb + AGC_STEP_DB));
+  } else if (avgLevel > AGC_HIGH_PCT && micGainDb > MIC_GAIN_DB_MIN) {
+    console.log('[agc] level high (' + avgLevel.toFixed(1) + '%) — cutting gain to', micGainDb - AGC_STEP_DB, 'dB');
+    setMicGain(Math.max(MIC_GAIN_DB_MIN, micGainDb - AGC_STEP_DB));
+  }
+}
 
 let audioInDeviceId  = ''; // '' = system default
 let audioOutDeviceId = ''; // '' = system default
@@ -1307,6 +1338,8 @@ async function startMic() {
     setMicUI('MIC ON','—','');
     detInterval = setInterval(runDetection, 100);
     animateLevel();
+    agcSum = 0; agcSamples = 0;
+    agcInterval = setInterval(agcTick, AGC_INTERVAL_MS);
   } catch(e) {
     console.error('[mic] getUserMedia failed:', e);
     setMicUI('error', '—', '');
@@ -1322,6 +1355,8 @@ function stopMic() {
   micActive = false;
   if (detInterval) { clearInterval(detInterval);     detInterval = null; }
   if (levelRaf)    { cancelAnimationFrame(levelRaf); levelRaf    = null; }
+  if (agcInterval) { clearInterval(agcInterval);     agcInterval = null; }
+  agcSum = 0; agcSamples = 0;
   if (micSrc)      { micSrc.disconnect();            micSrc      = null; }
   if (micGainNode) { micGainNode.disconnect();       micGainNode = null; }
   if (micStream)   { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
@@ -1824,7 +1859,9 @@ function animateLevel() {
   analyser.getFloatTimeDomainData(tData);
   let rms = 0; for (const v of tData) rms += v*v;
   rms = Math.sqrt(rms / tData.length);
-  document.getElementById('mic-level').style.width = Math.min(rms*380,100)+'%';
+  const levelPct = Math.min(rms*380, 100);
+  document.getElementById('mic-level').style.width = levelPct + '%';
+  agcSum += levelPct; agcSamples++; // fed to agcTick() every ~10s
   levelRaf = requestAnimationFrame(animateLevel);
 }
 
@@ -2003,20 +2040,20 @@ function initScrubDrag(elId, getVal, setVal, sens = 0.4) {
 }
 
 /* mic input gain — applied via a GainNode ahead of the analyser/metering.
-   One value (micGainPct) drives both the topbar's % drag and Settings >
-   Gain's dB-labeled picker — they're two skins on the same control. */
+   One value (micGainDb) drives both the topbar's dB drag and Settings >
+   Gain's picker — they're two skins on the same control. */
 function applyMicGain() {
-  if (micGainNode) micGainNode.gain.value = micGainPct / 100;
+  if (micGainNode) micGainNode.gain.value = Math.pow(10, micGainDb / 20);
 }
 
-const GAIN_DB_STEPS = [0, 10, 25, 50, 75, 100, 125, 150, 200, 250, 300];
+const GAIN_DB_STEPS = [-40, -30, -20, -15, -10, -6, -3, 0, 3, 6, 10, 15, 20, 30, 40];
 
 function setMicGain(v) {
-  micGainPct = Math.max(0, Math.min(300, Math.round(v)));
-  document.getElementById('gain-val').textContent = micGainPct + '%';
+  micGainDb = Math.max(MIC_GAIN_DB_MIN, Math.min(MIC_GAIN_DB_MAX, Math.round(v)));
+  document.getElementById('gain-val').textContent = (micGainDb > 0 ? '+' : '') + micGainDb + 'dB';
   const sel = document.getElementById('gain-db-select');
   if (sel) sel.value = GAIN_DB_STEPS.reduce((a, b) =>
-    Math.abs(b - micGainPct) < Math.abs(a - micGainPct) ? b : a);
+    Math.abs(b - micGainDb) < Math.abs(a - micGainDb) ? b : a);
   applyMicGain();
 }
 
@@ -3051,7 +3088,7 @@ function build() {
   initSettings();
   tryAutoMidi();
   initScrubDrag('decay-ctrl', () => decayPct, setDecayPct);
-  initScrubDrag('gain-ctrl', () => micGainPct, setMicGain);
+  initScrubDrag('gain-ctrl', () => micGainDb, setMicGain, 0.25);
   setDecayPct(decayPct); // starts the decay interval for the default rate
   applyLayout();
 
