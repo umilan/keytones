@@ -1,0 +1,2881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Keymap</title>
+
+  <!-- PWA: installable "Add to Home Screen" once served over http(s), not file:// -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0C0C14">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Keymap">
+  <style>
+    *, *::before, *::after {box-sizing: border-box;margin: 0;padding: 0;}
+
+    :root {
+      /* ── backgrounds ── */
+      --bg:       #000000;
+      --bar-bg:   #0A0A0E;
+      --top-bg:   #0C0C14;
+      --strip-bg: #0E0E18;
+      --col-bg:   #232336; /* neutral bar-column fill */
+      --key-bg:   #141420; /* keyboard container background */
+      --panel-bg: #0D0D1C; /* settings panel + its dropdowns */
+
+      /* ── accent / status ── */
+      --active-bg:  rgb(251, 91, 36) !important;
+			--active-bg2: rgb(221, 61, 16) !important;
+      --ok:      #00D17C;
+      --ok-glow: rgba(0,209,124,0.67);
+      --err:     #EF4444;
+
+      /* ── text ── */
+      --border:   rgba(255,255,255,0.06);
+      --text:     rgba(220,216,255,0.85);
+      --dim:      rgba(200,196,255,0.36);
+
+      /* ── white-overlay scale — subtle surfaces & borders on dark panels ── */
+      --surface:        rgba(255,255,255,0.05);
+      --surface-soft:   rgba(255,255,255,0.07);
+      --surface-hover:  rgba(255,255,255,0.09);
+      --surface-strong: rgba(255,255,255,0.12);
+      --hairline:       rgba(255,255,255,0.08);
+      --border-focus:   rgba(255,255,255,0.22);
+      --border-active:  rgba(255,255,255,0.26);
+
+			--ui-font-size: 14px;
+			--let-spac: 1px;
+			--radius: 4px;
+      --ctrl-size: 24px; /* square icon/toggle controls in the topbar */
+      --chevron-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='10'%20height='6'%20viewBox='0%200%2010%206'%3E%3Cpath%20d='M1%201l4%204%204-4'%20stroke='%23c8c4ff'%20stroke-opacity='0.4'%20stroke-width='1.5'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── TOPBAR ──────────────────────────── */
+    #topbar {
+      flex-shrink: 0;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      background: var(--top-bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 20;
+      gap: 16px;
+      /* outline: 14px solid red; */
+    }
+
+    .app-title {
+      flex: auto;
+			font-family: monospace;
+      font-size: var(--ui-font-size);
+      font-weight: 700;
+      letter-spacing: var(--let-spac);
+      text-transform: uppercase;
+      color: var(--text);
+      white-space: nowrap;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.12s;
+    }
+
+    .app-title:active { opacity: 0.45; }
+
+    /* ── DECAY CONTROL (drag to scrub) ───── */
+    .decay-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      cursor: ew-resize;
+      touch-action: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .decay-lbl {
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      font-weight: 700;
+      letter-spacing: var(--let-spac);
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .decay-val {
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: var(--let-spac);
+      min-width: 26px;
+      text-align: center;
+      padding: 4px 8px;
+      background: var(--surface);
+      border: 1px solid var(--surface-strong);
+			border-radius: var(--radius);
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .decay-ctrl.dragging .decay-val {
+      background: var(--surface-strong);
+      border-color: var(--border-active);
+    }
+
+    /* ── BAR AREA ─────────────────────────── */
+    #bar-area {
+      flex: 1;
+      position: relative;
+      background: var(--bar-bg);
+      overflow: hidden;
+    }
+
+    .bar-col {
+      position: absolute;
+      top: 0; bottom: 0;
+      background: var(--col-bg);          /* light-grey column bg */
+      border-right: 0px solid var(--bg); /* thin division line only */
+      cursor: pointer;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .white-bar { z-index: 1; }
+    .black-bar { z-index: 2; }
+
+    /* 25% black overlay — darkens black-key columns */
+    .black-mask {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* percentage label — top of column, above mask */
+    .pct-label {
+      position: absolute;
+      top: 10px;
+      left: 0; right: 0;
+      text-align: center;
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      font-weight: 600;
+			letter-spacing: var(--let-spac);
+      color: var(--dim);
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 3; /* sits above the black-mask */
+    }
+
+    .pct-label.on { opacity: 1; }
+
+    /* the bar itself — grows from bottom */
+    .bar {
+      position: absolute;
+      bottom: 0;
+      left: 0; right: 0;
+      height: 0;
+			border-radius: 0;
+      transition: height 0.40s cubic-bezier(0.22, 1, 0.36, 1),
+                  background 0.35s ease,
+                  box-shadow 0.35s ease;
+    }
+
+    /* bright cap flash on hit */
+    .bar::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: #f0f;
+      border-radius: var(--radius);
+      opacity: 0;
+      transition: opacity 0.14s;
+    }
+
+    .bar.flash::after { opacity: 1; transition: opacity 0s; }
+
+
+    /* ── MIC STRIP — always visible; the badge doubles as the on/off toggle ── */
+    #mic-strip {
+      flex-shrink: 0;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 10px;
+      background: var(--top-bg);
+      border-top: 1px solid var(--border);
+      cursor: ns-resize; /* doubles as the keyboard-resize drag handle */
+      touch-action: none;
+    }
+
+    #mic-strip.dragging { background: var(--strip-bg); }
+
+    .mic-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: var(--surface);
+      border: 1px solid var(--surface-strong);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .mic-badge:active {
+      background: var(--surface-strong);
+      border-color: var(--border-active);
+    }
+
+    .mic-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--dim); /* neutral "off" light */
+      flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+
+    .mic-dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 7px var(--ok-glow);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    .mic-dot.error { background: var(--err); }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .mic-status-text {
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      letter-spacing: var(--let-spac);
+      text-transform: uppercase;
+      color: var(--dim);
+      white-space: nowrap;
+    }
+
+    .mic-status-text.ok { color: var(--text); }
+
+    .mic-sep {
+      width: 1px; height: 18px;
+      background: var(--hairline);
+      flex-shrink: 0;
+    }
+
+    /* ── ALGORITHM PICKER — shows an acronym; a fully transparent native
+       <select> sits on top so the dropdown itself still lists full names ── */
+    .algo-badge {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      padding: 5px 12px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--surface-strong);
+    }
+
+    .algo-acronym {
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      font-weight: 700;
+      letter-spacing: var(--let-spac);
+      color: var(--text);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .algo-chevron {
+      width: 10px;
+      height: 6px;
+      background: var(--chevron-icon) no-repeat center;
+      pointer-events: none;
+      flex-shrink: 0;
+    }
+
+    .algo-native-select {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      border: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    #mic-note-name {
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      color: var(--text);
+			letter-spacing: var(--let-spac);
+      min-width: 46px;
+      text-align: right;
+      transition: color 0.1s;
+      flex-shrink: 0;
+    }
+
+    #mic-note-freq {
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      color: var(--dim);
+      letter-spacing: var(--let-spac);
+      min-width: 68px;
+      flex-shrink: 0;
+    }
+
+    .mic-level-track {
+      flex: 1; height: 3px;
+      background: var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .mic-level-fill {
+      height: 100%; width: 0%;
+      border-radius: var(--radius);
+      background: rgba(200,196,255,0.5);
+    }
+
+    /* ── KEYBOARD ─────────────────────────── */
+    #keyboard {
+      flex-shrink: 0;
+      height: 148px;
+      position: relative;
+      background: var(--key-bg);
+    }
+
+    .white-key, .black-key {
+      position: absolute;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+			border-radius: 0 0 var(--radius) var(--radius);
+      padding-bottom: 8px;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+      transition: filter 0.06s ease, transform 0.06s ease;
+    }
+
+    /* white key — piano cream */
+    .white-key {
+      z-index: 1;
+      gap: 2px;
+      background: linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%);
+      border: 0px solid rgba(0,0,0,0.28);
+    }
+
+    /* black key — piano ebony */
+    .black-key {
+      z-index: 2;
+      gap: 1px;
+      background: linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%);
+      border: 0px solid rgba(0,0,0,0.5);
+
+    }
+
+    /* subtle gloss on black keys only */
+    .black-key::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 35%;
+      background: linear-gradient(180deg, var(--surface-hover), transparent);
+      pointer-events: none;
+      border-radius: inherit;
+    }
+
+    .white-key.pressed { background: var(--active-bg); }
+    .black-key.pressed { background: var(--active-bg2); }
+
+    /* decaying afterglow — JS drives --press-t from 1 (just released) down to 0
+       (idle) at the same per-second rate as the bars/Launchpad, so the key's
+       highlight lingers and fades instead of snapping off with .pressed */
+    .white-key::after, .black-key::after {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 0;
+      opacity: var(--press-t, 0);
+    }
+    .white-key::after { background: var(--active-bg); }
+    .black-key::after { background: var(--active-bg2); }
+
+    .key-name {
+      font-family: monospace;
+      font-weight: 700;
+      line-height: 1;
+      position: relative; z-index: 1;
+    }
+
+    .key-kb {
+      display: none;
+			font-family: monospace;
+      font-weight: 600;
+      line-height: 1;
+      position: relative; z-index: 1;
+    }
+
+    /* dark text on light white keys */
+    .white-key .key-name { font-size: var(--ui-font-size); color: rgba(30,25,50,0.50); }
+    .white-key .key-kb   { font-size: var(--ui-font-size);  color: rgba(30,25,50,0.28); }
+
+    /* light text on dark black keys */
+    .black-key .key-name { font-size: var(--ui-font-size); color: rgba(255,255,255,0.44); }
+    .black-key .key-kb   { font-size: var(--ui-font-size); color: rgba(255,255,255,0.24); }
+
+    /* ── OCTAVE CONTROL ──────────────────── */
+    .oct-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .oct-btn {
+      width: var(--ctrl-size); height: var(--ctrl-size);
+      background: var(--surface);
+      border: 1px solid var(--surface-strong);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: var(--ui-font-size);
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.12s;
+      -webkit-tap-highlight-color: transparent;
+      padding: 0;
+      font-family: inherit;
+    }
+
+    .oct-btn:active {
+      background: var(--surface-strong);
+      border-color: var(--border-active);
+      color: var(--text);
+    }
+
+    .oct-val {
+      font-family: monospace;
+      font-size: var(--ui-font-size);
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: var(--let-spac);
+      min-width: 18px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    /* ── SETTINGS BUTTON ─────────────────── */
+    #settings-btn {
+      width: var(--ctrl-size); height: var(--ctrl-size);
+      background: var(--surface);
+      border: 1px solid var(--surface-strong);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: var(--ui-font-size);
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+    }
+    #settings-btn:active, #settings-btn.active {
+      background: var(--surface-hover);
+      border-color: var(--border-active);
+      color: var(--text);
+    }
+    #settings-btn .mdot {
+      position: absolute;
+      top: 5px; right: 5px;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: transparent;
+      transition: background 0.3s;
+    }
+    #settings-btn .mdot.on  { background: var(--ok); }
+    #settings-btn .mdot.err { background: var(--err); }
+
+    /* ── SETTINGS BACKDROP ───────────────── */
+    #settings-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 90;
+    }
+    #settings-backdrop.open { display: block; }
+
+    /* ── SETTINGS PANEL ──────────────────── */
+    #settings-panel {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: min(300px, 88vw);
+      background: var(--panel-bg);
+      border-left: 1px solid var(--hairline);
+      z-index: 100;
+      display: flex; flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.24s cubic-bezier(0.4,0,0.2,1);
+      overflow-y: auto;
+    }
+    #settings-panel.open { transform: translateX(0); }
+
+    .sp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px;
+      height: 52px;
+      border-bottom: 1px solid var(--surface-soft);
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--panel-bg);
+    }
+    .sp-title {
+      font-family: monospace;
+      font-size: var(--ui-font-size); 
+			font-weight: 700;
+      letter-spacing: var(--let-spac);
+			text-transform: uppercase;
+      color: var(--text);
+    }
+    .sp-close {
+      width: 28px; height: 28px;
+      background: transparent; border: none;
+      color: var(--dim); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--ui-font-size); 
+			border-radius: var(--radius);
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sp-close:active { background: var(--hairline); color: var(--text); }
+
+    .sp-body { padding: 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    .sp-section-label {
+      font-family: monospace;
+      font-size: var(--ui-font-size); 
+			font-weight: 700;
+      letter-spacing: var(--let-spac);
+			text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 10px; margin-top: 8px;
+    }
+
+    .sp-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+
+    .sp-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      margin-bottom: 10px;
+    }
+
+    .sp-checkbox-row input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border: 1px solid var(--surface-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      flex-shrink: 0;
+      position: relative;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .sp-checkbox-row input[type="checkbox"]::after {
+      content: '';
+      position: absolute;
+      display: none;
+      left: 5px; top: 2px;
+      width: 5px; height: 9px;
+      border: 1.5px solid var(--text);
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg);
+    }
+
+    .sp-checkbox-row input[type="checkbox"]:checked {
+      border-color: var(--border-active);
+      background: var(--surface-strong);
+    }
+
+    .sp-checkbox-row input[type="checkbox"]:checked::after { display: block; }
+
+    .sp-label {
+      font-family: monospace;
+      font-size: var(--ui-font-size); 
+			font-weight: 600; 
+			letter-spacing: var(--let-spac);
+      color: rgba(220,216,255,0.50);
+    }
+
+    .sp-select {
+      background: var(--surface) var(--chevron-icon) no-repeat right 10px center;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: monospace;
+			font-size: var(--ui-font-size);
+      padding: 8px 28px 8px 10px; width: 100%;
+      appearance: none; -webkit-appearance: none;
+      cursor: pointer; outline: none;
+    }
+    .sp-select:focus { border-color: var(--border-focus); }
+    .sp-select option { background: var(--panel-bg); }
+
+    .sp-status {
+      font-family: monospace;
+      font-size: var(--ui-font-size); 
+			letter-spacing: var(--let-spac);
+      color: var(--dim); margin-top: 2px;
+    }
+    .sp-status.ok  { color: var(--ok); }
+    .sp-status.err { color: var(--err); }
+
+    .sp-divider {
+      height: 1px;
+      background: var(--hairline);
+      margin: 4px 0 12px;
+    }
+
+    /* topbar controls relocated here on narrow windows — see initResponsiveTopbar() */
+    .sp-controls-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .sp-controls-slot:empty { display: none; }
+
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <div class="app-title" id="app-title">Keymap</div>
+    <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
+      <span class="decay-lbl">decay</span>
+      <span class="decay-val" id="decay-val">50%</span>
+    </div>
+
+    <div class="oct-ctrl">
+			<span class="decay-lbl">oct</span>
+      <span class="oct-val" id="oct-val">4</span>
+      <button class="oct-btn" id="oct-down">−</button>
+      <button class="oct-btn" id="oct-up">+</button>
+    </div>
+
+    <button id="settings-btn" title="Settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      <span class="mdot" id="midi-dot"></span>
+    </button>
+  </div>
+
+  <div id="bar-area"></div>
+
+  <div id="mic-strip">
+    <div class="mic-badge" id="mic-badge" title="Click to toggle mic listening">
+      <div class="mic-dot" id="mic-dot"></div>
+      <div class="mic-status-text" id="mic-status">MUTED</div>
+    </div>
+    <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
+      <span class="decay-lbl">gain</span>
+      <span class="decay-val" id="gain-val">100%</span>
+    </div>
+    <div class="mic-sep"></div>
+    <div class="mic-level-track">
+      <div class="mic-level-fill" id="mic-level"></div>
+    </div>
+    <div class="mic-sep"></div>
+    <div id="mic-note-name">—</div>
+    <div id="mic-note-freq"></div>
+    <div class="mic-sep"></div>
+    <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
+      <span class="algo-acronym" id="algo-acronym">FFT</span>
+      <span class="algo-chevron"></span>
+      <select class="algo-native-select" id="pitch-algo-select" aria-label="Pitch Algorithm">
+        <optgroup label="Monophonic">
+          <option value="fft">FFT Peak</option>
+          <option value="acf">Autocorrelation (ACF)</option>
+          <option value="amdf">AMDF</option>
+          <option value="yin">YIN</option>
+          <option value="mpm">MPM</option>
+        </optgroup>
+        <optgroup label="Polyphonic">
+          <option value="hpcp">HPCP</option>
+          <option value="nnls">NNLS</option>
+          <option value="cqtnmf">CQT+NMF</option>
+          <option value="multif0">Multi-F0</option>
+        </optgroup>
+        <optgroup label="Test">
+          <option value="chroma-test">Chromatic Sequence (Test)</option>
+        </optgroup>
+      </select>
+    </div>
+  </div>
+
+  <div id="keyboard"></div>
+
+</div>
+
+<!-- settings panel -->
+<div id="settings-backdrop"></div>
+<div id="settings-panel">
+  <div class="sp-header">
+    <span class="sp-title">Settings</span>
+    <button class="sp-close" id="sp-close">✕</button>
+  </div>
+  <div class="sp-body">
+    <div class="sp-section-label" id="sp-controls-label" style="display:none;">CONTROLS</div>
+    <div class="sp-controls-slot" id="sp-controls-slot"></div>
+    <div class="sp-divider" id="sp-controls-divider" style="display:none;"></div>
+
+    <div class="sp-section-label">SOUND</div>
+    <div class="sp-row">
+      <span class="sp-label">Waveform</span>
+      <select class="sp-select" id="wave-select">
+        <option value="sine">Sine</option>
+        <option value="triangle">Triangle</option>
+        <option value="square">Square</option>
+        <option value="sawtooth">Sawtooth</option>
+        <option value="revsaw">Reverse Saw</option>
+        <option value="pulse25">Pulse 25%</option>
+        <option value="pulse12">Pulse 12.5%</option>
+        <option value="organ">Organ</option>
+      </select>
+    </div>
+
+    <div class="sp-divider"></div>
+
+    <div class="sp-section-label">AUDIO</div>
+    <div class="sp-row">
+      <span class="sp-label">Input Device</span>
+      <select class="sp-select" id="audio-in-select">
+        <option value="">— Default —</option>
+      </select>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Output Device</span>
+      <select class="sp-select" id="audio-out-select">
+        <option value="">— Default —</option>
+      </select>
+    </div>
+    <div class="sp-status" id="audio-status-msg">Requesting audio device access…</div>
+
+    <div class="sp-divider"></div>
+
+    <div class="sp-section-label">MIDI</div>
+    <div class="sp-row">
+      <span class="sp-label">Input Device</span>
+      <select class="sp-select" id="midi-in-select">
+        <option value="">— None —</option>
+      </select>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Output Device</span>
+      <select class="sp-select" id="midi-out-select">
+        <option value="">— None —</option>
+      </select>
+    </div>
+    <div class="sp-status" id="midi-status-msg">Requesting MIDI access…</div>
+    <label class="sp-checkbox-row" for="midi-monitor-check">
+      <input type="checkbox" id="midi-monitor-check">
+      <span class="sp-label">MIDI monitor in console</span>
+    </label>
+
+    <div class="sp-divider"></div>
+
+    <div class="sp-section-label">LAUNCHPAD BEHAVIOR</div>
+    <label class="sp-checkbox-row" for="lp-light-pressed-check">
+      <input type="checkbox" id="lp-light-pressed-check">
+      <span class="sp-label">Light up currently pressed pads</span>
+    </label>
+    <label class="sp-checkbox-row" for="lp-full-range-check">
+      <input type="checkbox" id="lp-full-range-check" checked>
+      <span class="sp-label">Full range detection instead of just octave-less note</span>
+    </label>
+  </div>
+</div>
+<script>
+/* ═══════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════ */
+const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FREQS = [261.63,277.18,293.66,311.13,329.63,349.23,369.99,
+               392.00,415.30,440.00,466.16,493.88];
+const C0_HZ = 16.3516;
+
+let waveType = 'sine'; // sine, triangle, square, sawtooth (native OscillatorNode types) —
+                        // or one of WAVEFORMS' custom PeriodicWave types below
+const WAVE_PEAK = { sine: 0.30, triangle: 0.28, square: 0.16, sawtooth: 0.18,
+                    revsaw: 0.18, pulse25: 0.16, pulse12: 0.15, organ: 0.20 };
+
+/* waveforms beyond the 4 native OscillatorNode types, built as custom
+   PeriodicWaves from hand-picked Fourier coefficients. Cached per
+   AudioContext (a PeriodicWave belongs to the context that created it) so
+   they're only built once. real/imag follow the Web Audio convention: index
+   n is the n-th harmonic, real=cosine phase, imag=sine phase. */
+const N_HARMONICS = 32;
+const lpWaveformCache = new WeakMap(); // AudioContext -> { key: PeriodicWave }
+
+function buildPulseWave(ac, duty) {
+  const real = new Float32Array(N_HARMONICS), imag = new Float32Array(N_HARMONICS);
+  for (let n = 1; n < N_HARMONICS; n++) imag[n] = (2 / (n * Math.PI)) * Math.sin(n * Math.PI * duty);
+  return ac.createPeriodicWave(real, imag);
+}
+
+function buildRevSawWave(ac) {
+  const real = new Float32Array(N_HARMONICS), imag = new Float32Array(N_HARMONICS);
+  // negating a rising sawtooth's harmonic series mirrors it into a falling ramp
+  for (let n = 1; n < N_HARMONICS; n++) imag[n] = -(2 / (n * Math.PI)) * (n % 2 === 0 ? -1 : 1);
+  return ac.createPeriodicWave(real, imag);
+}
+
+function buildOrganWave(ac) {
+  const real = new Float32Array(N_HARMONICS), imag = new Float32Array(N_HARMONICS);
+  [1, 3, 5, 7].forEach(n => { imag[n] = 1 / n; }); // odd harmonics, clarinet-like
+  return ac.createPeriodicWave(real, imag);
+}
+
+const WAVEFORMS = {
+  revsaw:  { label: 'Reverse Saw',  build: buildRevSawWave },
+  pulse25: { label: 'Pulse 25%',    build: ac => buildPulseWave(ac, 0.25) },
+  pulse12: { label: 'Pulse 12.5%',  build: ac => buildPulseWave(ac, 0.125) },
+  organ:   { label: 'Organ',        build: buildOrganWave },
+};
+
+function getPeriodicWave(ac, key) {
+  let cache = lpWaveformCache.get(ac);
+  if (!cache) { cache = {}; lpWaveformCache.set(ac, cache); }
+  if (!cache[key]) cache[key] = WAVEFORMS[key].build(ac);
+  return cache[key];
+}
+
+/* Single bar colour — amber yellow throughout */
+const BAR_CLR = 'var(--active-bg)';
+
+function barColor(ratio) {
+  return ratio > 0 ? BAR_CLR : 'transparent';
+}
+
+function barGlow(ratio) {
+  if (ratio < 0.12) return 'none';
+  const a    = (ratio * 0.40).toFixed(2);
+  const size = Math.round(8 + ratio * 10);
+  return `0 0 ${size}px 2px rgba(255,0,0,${a})`;
+}
+
+/* Piano layout */
+const WHITE_KEYS = [
+  { noteIdx:  0, name:'C',  kb:'A' },
+  { noteIdx:  2, name:'D',  kb:'S' },
+  { noteIdx:  4, name:'E',  kb:'D' },
+  { noteIdx:  5, name:'F',  kb:'F' },
+  { noteIdx:  7, name:'G',  kb:'G' },
+  { noteIdx:  9, name:'A',  kb:'H' },
+  { noteIdx: 11, name:'B',  kb:'J' },
+];
+
+const BLACK_KEYS = [
+  { noteIdx:  1, name:'C#', kb:'W', afterWhite: 0 },
+  { noteIdx:  3, name:'D#', kb:'E', afterWhite: 1 },
+  { noteIdx:  6, name:'F#', kb:'T', afterWhite: 3 },
+  { noteIdx:  8, name:'G#', kb:'Y', afterWhite: 4 },
+  { noteIdx: 10, name:'A#', kb:'U', afterWhite: 5 },
+];
+
+const KEY_MAP = {};
+WHITE_KEYS.forEach(k => KEY_MAP[k.kb.toLowerCase()] = k.noteIdx);
+BLACK_KEYS.forEach(k => KEY_MAP[k.kb.toLowerCase()] = k.noteIdx);
+
+const KB_PAD  = 3;
+const KB_SEP  = 2;
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let mode          = 'inner';
+const innerCounts = new Array(12).fill(0);
+const outerCounts = new Array(12).fill(0);
+
+let audioCtx    = null;
+let analyser    = null;
+let micStream   = null;
+let micSrc      = null;
+let micGainNode = null;
+let micGainPct  = 100;  // % applied to the mic signal before detection/metering
+let micActive   = false;
+let detInterval = null;
+let levelRaf    = null;
+
+let audioInDeviceId  = ''; // '' = system default
+let audioOutDeviceId = ''; // '' = system default
+let audioDevicesRequested = false; // guards against asking more than once
+
+let lastNote       = -1;
+let lastNoteOctave = -1; // exact octave of the currently-tracked pitch (full-range detection)
+let pendingNote  = -1;
+let pendingTicks = 0;
+const DEBOUNCE   = 2;
+
+let decayPct        = 50;   // % of value shed per second
+let decayInterval   = null;
+
+const heldKeys      = new Set();
+const activeNotes   = {}; // noteIdx → { osc, gain }
+const noteStartTimes = {}; // noteIdx → Date.now() at press
+let   holdRafId     = null;
+
+/* DOM refs indexed by chromatic noteIdx 0–11 */
+const barEls   = new Array(12);
+const pctEls   = new Array(12);
+const keyEls   = new Array(12);
+
+/* ═══════════════════════════════════════
+   LAYOUT — shared position math
+═══════════════════════════════════════ */
+/* 12 equal-width lanes in chromatic order — noteIdx doubles as the lane index,
+   so every bar and every key of a given note shares the exact same slot. */
+function calcLayout() {
+  const kb     = document.getElementById('keyboard');
+  const totalW = kb.clientWidth;
+  const innerW = totalW - KB_PAD * 2;
+  const n      = 12;
+  const w      = (innerW - (n - 1) * KB_SEP) / n;
+  const left   = Array.from({ length: n }, (_, i) => KB_PAD + i * (w + KB_SEP));
+  return { w, left };
+}
+
+function applyLayout() {
+  const kb  = document.getElementById('keyboard');
+  const kbH = kb.clientHeight;
+  const { w, left } = calcLayout();
+  const wkH = kbH - KB_PAD * 2;
+
+  /* keys */
+  document.querySelectorAll('.white-key').forEach(el => {
+    const idx = +el.dataset.note;
+    el.style.left = left[idx] + 'px';  el.style.width  = w + 'px';
+    el.style.top  = KB_PAD + 'px';     el.style.height = wkH + 'px';
+  });
+  document.querySelectorAll('.black-key').forEach(el => {
+    const idx = +el.dataset.note;
+    el.style.left = left[idx] + 'px';  el.style.width  = w + 'px';
+    el.style.top  = KB_PAD + 'px';     el.style.height = wkH + 'px';
+  });
+
+  /* bars */
+  document.querySelectorAll('.white-bar').forEach(el => {
+    const idx = +el.dataset.note;
+    el.style.left = left[idx] + 'px';  el.style.width = w + 'px';
+  });
+  document.querySelectorAll('.black-bar').forEach(el => {
+    const idx = +el.dataset.note;
+    el.style.left = left[idx] + 'px';  el.style.width = w + 'px';
+  });
+
+  render();
+}
+
+/* ═══════════════════════════════════════
+   AUDIO CONTEXT
+═══════════════════════════════════════ */
+function getCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioOutDeviceId && typeof audioCtx.setSinkId === 'function') {
+      audioCtx.setSinkId(audioOutDeviceId).catch(() => {});
+    }
+  }
+  return audioCtx;
+}
+
+/* ═══════════════════════════════════════
+   SUSTAIN AUDIO — note on / note off
+═══════════════════════════════════════ */
+/* keyed by "noteIdx:octave" — not just noteIdx — so the same chroma class can
+   sound at multiple octaves at once (e.g. a Launchpad press of "C" at octave 1
+   and octave 2 simultaneously) instead of the second press being a no-op. */
+function noteKey(idx, octave) { return idx + ':' + octave; }
+
+function noteOn(idx, octave = 4) {
+  const key = noteKey(idx, octave);
+  if (activeNotes[key]) return;          // already playing at this exact octave
+  const ac = getCtx();
+  if (ac.state === 'suspended') ac.resume();
+  const osc  = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.connect(gain); gain.connect(ac.destination);
+  if (WAVEFORMS[waveType]) osc.setPeriodicWave(getPeriodicWave(ac, waveType));
+  else osc.type = waveType;
+  const freq = FREQS[idx] * Math.pow(2, octave - 4); // FREQS is tuned to octave 4
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  gain.gain.setValueAtTime(0, ac.currentTime);
+  // square/sawtooth carry a lot more harmonic energy than sine at the same
+  // amplitude, so peak level is tuned per waveform to keep loudness even
+  gain.gain.linearRampToValueAtTime(WAVE_PEAK[waveType], ac.currentTime + 0.012); // attack
+  osc.start(ac.currentTime);
+  activeNotes[key] = { osc, gain };
+}
+
+function noteOff(idx, octave = 4) {
+  const key  = noteKey(idx, octave);
+  const note = activeNotes[key];
+  if (!note) return;
+  const { osc, gain } = note;
+  const ac  = getCtx();
+  const now = ac.currentTime;
+  gain.gain.cancelScheduledValues(now);
+  gain.gain.setValueAtTime(gain.gain.value, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18); // release
+  osc.stop(now + 0.18);
+  delete activeNotes[key];
+}
+
+/* RAF loop — re-renders while at least one key is held (inner mode) */
+function startHoldLoop() {
+  if (holdRafId !== null) return;
+  function tick() {
+    if (Object.keys(noteStartTimes).length > 0) {
+      render();
+      holdRafId = requestAnimationFrame(tick);
+    } else {
+      holdRafId = null;
+    }
+  }
+  holdRafId = requestAnimationFrame(tick);
+}
+
+/* how many concurrent presses of each chroma class are currently held (e.g. the
+   same note at two different octaves at once) — the shared UI/MIDI-echo state
+   below (pressed class, bar timing, Launchpad LED) is per chroma, not per
+   octave, so it should only engage on the first press and release on the last */
+const heldNoteCount = {};
+
+/* the on-screen key's own glow: snaps to full the moment a note sounds and
+   stays there while it's held, then fades out over time at the same
+   per-second decay rate as everything else (bars, Launchpad pads) once it
+   actually stops — see applyDecayTick(). 0 = idle color, 1 = just triggered. */
+const keyBrightness = {};
+
+function paintKeyFade(noteIdx) {
+  const el = keyEls[noteIdx];
+  if (el) el.style.setProperty('--press-t', keyBrightness[noteIdx] || 0);
+}
+
+/* note-on: sustain sound, start timing (inner), send MIDI out.
+   source: 'app' (default — mouse/touch, keyboard, generic MIDI) vs 'pad'
+   (physically pressing the Launchpad's own pad) — see sendMidiNote(). */
+function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
+  noteOn(noteIdx, octave);
+  const wasIdle = !heldNoteCount[noteIdx];
+  heldNoteCount[noteIdx] = (heldNoteCount[noteIdx] || 0) + 1;
+  // while the mic is listening, a Launchpad pad press plays/lights the pad
+  // itself but shouldn't also light up the on-screen key — that highlight is
+  // reserved for what the mic actually hears, so the two don't get confused
+  if (!(source === 'pad' && micActive)) {
+    el.classList.add('pressed');
+    keyBrightness[noteIdx] = 1; // pin the key's own decaying glow at full — see applyDecayTick()
+    paintKeyFade(noteIdx);
+  }
+  if (!wasIdle) { flashBar(noteIdx); return; } // already sounding at another octave — just a re-trigger flash
+  if (!fromMidi) sendMidiNote(noteIdx, true, source, octave);   // echo to MIDI out
+  if (mode === 'inner') {
+    noteStartTimes[noteIdx] = Date.now(); // begin timing this note
+    flashBar(noteIdx);
+    startHoldLoop();                      // bars grow in real time
+  }
+  // outside: mic detects the sound and counts
+}
+
+/* note-off: fade sound, commit accumulated time (inner), send MIDI out */
+function onNoteOff(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
+  noteOff(noteIdx, octave);
+  heldNoteCount[noteIdx] = Math.max(0, (heldNoteCount[noteIdx] || 1) - 1);
+  if (heldNoteCount[noteIdx] > 0) return; // still held at another octave — leave shared state alone
+  if (!(source === 'pad' && micActive)) el.classList.remove('pressed');
+  if (!fromMidi) sendMidiNote(noteIdx, false, source);  // echo to MIDI out
+  if (mode === 'inner' && noteStartTimes[noteIdx] !== undefined) {
+    innerCounts[noteIdx] += Date.now() - noteStartTimes[noteIdx];
+    delete noteStartTimes[noteIdx];
+    render(); // final update after release
+  }
+}
+
+/* ═══════════════════════════════════════
+   MICROPHONE
+═══════════════════════════════════════ */
+async function startMic() {
+  if (micActive) return;
+  setMicUI('connecting','—','');
+  if (!navigator.mediaDevices?.getUserMedia) { setMicUI('error','—',''); return; }
+  try {
+    const ac = getCtx(); await ac.resume();
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation:false, noiseSuppression:false, autoGainControl:false,
+        ...(audioInDeviceId ? { deviceId: { exact: audioInDeviceId } } : {}),
+      },
+      video: false,
+    });
+    micStream = stream;
+    micSrc    = ac.createMediaStreamSource(stream);
+    micGainNode = ac.createGain();
+    micGainNode.gain.value = micGainPct / 100;
+    analyser  = ac.createAnalyser();
+    analyser.fftSize = 8192; analyser.smoothingTimeConstant = 0.80;
+    micSrc.connect(micGainNode);
+    micGainNode.connect(analyser);
+    micActive = true; lastNote = pendingNote = -1; pendingTicks = 0;
+    setMicUI('MIC ON','—','');
+    detInterval = setInterval(runDetection, 100);
+    animateLevel();
+  } catch(e) { setMicUI('error','—',''); }
+}
+
+function stopMic() {
+  micActive = false;
+  if (detInterval) { clearInterval(detInterval);     detInterval = null; }
+  if (levelRaf)    { cancelAnimationFrame(levelRaf); levelRaf    = null; }
+  if (micSrc)      { micSrc.disconnect();            micSrc      = null; }
+  if (micGainNode) { micGainNode.disconnect();       micGainNode = null; }
+  if (micStream)   { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
+  releasePolyNotes();
+  analyser = null; lastNote = pendingNote = -1; pendingTicks = 0;
+  document.getElementById('mic-level').style.width = '0%';
+  setMicUI('off', '—', '');
+}
+
+/* ── PITCH DETECTION — pluggable algorithms, all tuned to the same 80–1400 Hz
+   vocal/instrument range. FFT works on the spectrum; the rest are classic
+   time-domain methods operating directly on a short window of raw samples. */
+let pitchAlgo = 'fft';
+const TD_WINDOW = 2048; // sample window for time-domain algorithms
+const RMS_GATE  = 0.01; // minimum signal level before attempting time-domain detection
+
+function getTimeFrame() {
+  const full = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(full);
+  return full.subarray(0, Math.min(TD_WINDOW, full.length));
+}
+
+function rms(buf) {
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+  return Math.sqrt(sum / buf.length);
+}
+
+/* spectral peak-picking with parabolic interpolation (the original method) */
+function detectFFTPeak(sr) {
+  const bufLen = analyser.frequencyBinCount;
+  const fData  = new Float32Array(bufLen);
+  analyser.getFloatFrequencyData(fData);
+  const minBin = Math.ceil(  80 * analyser.fftSize / sr);
+  const maxBin = Math.floor(1400 * analyser.fftSize / sr);
+  let peakDb = -Infinity, peakBin = minBin;
+  for (let i = minBin; i <= maxBin && i < bufLen; i++) {
+    if (fData[i] > peakDb) { peakDb = fData[i]; peakBin = i; }
+  }
+  if (peakDb <= -46) return null;
+  const a = peakBin > 0        ? fData[peakBin-1] : fData[peakBin];
+  const b = fData[peakBin];
+  const g = peakBin < bufLen-1 ? fData[peakBin+1] : fData[peakBin];
+  const d = a - 2*b + g;
+  const off = d !== 0 ? 0.5*(a-g)/d : 0;
+  return { freq: (peakBin + off) * sr / analyser.fftSize };
+}
+
+/* plain autocorrelation — lag with the strongest self-similarity */
+function detectACF(sr) {
+  const buf = getTimeFrame();
+  if (rms(buf) < RMS_GATE) return null;
+  const minLag = Math.floor(sr / 1400);
+  const maxLag = Math.min(Math.ceil(sr / 80), buf.length - 1);
+  let energy = 0;
+  for (let i = 0; i < buf.length; i++) energy += buf[i] * buf[i];
+  if (energy <= 0) return null;
+  const corr = new Float32Array(maxLag + 1);
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let c = 0;
+    for (let i = 0; i < buf.length - lag; i++) c += buf[i] * buf[i + lag];
+    corr[lag] = c / energy; // normalized against total signal energy, not raw sum
+  }
+  // correlation near lag=0 is trivially high regardless of pitch, and a raw
+  // (unnormalized) sum is biased toward short lags by window overlap alone —
+  // the fundamental period is the *first* genuine local peak, not the global max
+  for (let lag = minLag + 1; lag < maxLag; lag++) {
+    if (corr[lag] > 0.3 && corr[lag] >= corr[lag - 1] && corr[lag] >= corr[lag + 1]) {
+      return { freq: sr / lag };
+    }
+  }
+  return null;
+}
+
+/* average magnitude difference function — first genuine dip, not the global minimum */
+function detectAMDF(sr) {
+  const buf = getTimeFrame();
+  if (rms(buf) < RMS_GATE) return null;
+  const minLag = Math.floor(sr / 1400);
+  const maxLag = Math.min(Math.ceil(sr / 80), buf.length - 1);
+  const diffs = new Float32Array(maxLag + 1);
+  let maxDiff = 0;
+  for (let lag = minLag; lag <= maxLag; lag++) {
+    let diff = 0;
+    for (let i = 0; i < buf.length - lag; i++) diff += Math.abs(buf[i] - buf[i + lag]);
+    diffs[lag] = diff / (buf.length - lag);
+    if (diffs[lag] > maxDiff) maxDiff = diffs[lag];
+  }
+  if (maxDiff <= 0) return null;
+  for (let lag = minLag + 1; lag < maxLag; lag++) {
+    if (diffs[lag] < maxDiff * 0.5 && diffs[lag] <= diffs[lag - 1] && diffs[lag] <= diffs[lag + 1]) {
+      return { freq: sr / lag };
+    }
+  }
+  return null;
+}
+
+/* YIN — cumulative mean normalized difference function + parabolic refinement */
+function detectYIN(sr) {
+  const buf = getTimeFrame();
+  if (rms(buf) < RMS_GATE) return null;
+  const minLag = Math.floor(sr / 1400);
+  const maxLag = Math.min(Math.ceil(sr / 80), Math.floor(buf.length / 2));
+  const d = new Float32Array(maxLag + 1);
+  for (let tau = 1; tau <= maxLag; tau++) {
+    let sum = 0;
+    for (let i = 0; i < buf.length - tau; i++) {
+      const diff = buf[i] - buf[i + tau];
+      sum += diff * diff;
+    }
+    d[tau] = sum;
+  }
+  const dPrime = new Float32Array(maxLag + 1);
+  dPrime[0] = 1;
+  let running = 0;
+  for (let tau = 1; tau <= maxLag; tau++) {
+    running += d[tau];
+    dPrime[tau] = d[tau] * tau / (running || 1e-9);
+  }
+  const THRESHOLD = 0.15;
+  let tau = -1;
+  for (let t = minLag; t <= maxLag; t++) {
+    if (dPrime[t] < THRESHOLD) {
+      while (t + 1 <= maxLag && dPrime[t + 1] < dPrime[t]) t++;
+      tau = t;
+      break;
+    }
+  }
+  if (tau < 0) return null;
+  const s0 = dPrime[tau - 1] ?? dPrime[tau], s1 = dPrime[tau], s2 = dPrime[tau + 1] ?? dPrime[tau];
+  const denom = s0 + s2 - 2 * s1;
+  const refined = denom !== 0 ? tau + 0.5 * (s0 - s2) / denom : tau;
+  return { freq: sr / refined };
+}
+
+/* MPM (McLeod Pitch Method) — normalized square difference peak-picking */
+function detectMPM(sr) {
+  const buf = getTimeFrame();
+  if (rms(buf) < RMS_GATE) return null;
+  const minLag = Math.floor(sr / 1400);
+  const maxLag = Math.min(Math.ceil(sr / 80), Math.floor(buf.length / 2));
+  const nsdf = new Float32Array(maxLag + 1);
+  for (let tau = 0; tau <= maxLag; tau++) {
+    let acf = 0, energy = 0;
+    for (let i = 0; i < buf.length - tau; i++) {
+      acf    += buf[i] * buf[i + tau];
+      energy += buf[i] * buf[i] + buf[i + tau] * buf[i + tau];
+    }
+    nsdf[tau] = energy > 0 ? 2 * acf / energy : 0;
+  }
+  const peaks = [];
+  for (let tau = minLag + 1; tau < maxLag; tau++) {
+    if (nsdf[tau] > nsdf[tau - 1] && nsdf[tau] >= nsdf[tau + 1] && nsdf[tau] > 0.5) peaks.push(tau);
+  }
+  if (!peaks.length) return null;
+  // McLeod's "key maximum" pick: the first peak close enough to the global
+  // best, not the tallest one — a pure tone peaks almost as high at 2x the
+  // true period, and always later, so "first" is what avoids the octave error
+  const globalBest = Math.max(...peaks.map(t => nsdf[t]));
+  const bestTau = peaks.find(t => nsdf[t] >= 0.9 * globalBest);
+  const s0 = nsdf[bestTau - 1], s1 = nsdf[bestTau], s2 = nsdf[bestTau + 1];
+  const denom = s0 - 2 * s1 + s2;
+  const shift = denom !== 0 ? 0.5 * (s0 - s2) / denom : 0;
+  return { freq: sr / (bestTau + shift) };
+}
+
+/* ── POLYPHONIC ALGORITHMS — unlike the ones above (one dominant pitch per
+   frame), these return an ARRAY of {freq}, zero or more simultaneous
+   pitches. Experimental / for side-by-side comparison, not tuned as
+   carefully as the monophonic set — see runPolyDetection(). */
+const POLY_ALGOS = new Set(['hpcp', 'nnls', 'cqtnmf', 'multif0']);
+
+function getMagnitudeSpectrum() {
+  const bufLen = analyser.frequencyBinCount;
+  const fData  = new Float32Array(bufLen);
+  analyser.getFloatFrequencyData(fData); // dB
+  const mag = new Float32Array(bufLen);
+  for (let i = 0; i < bufLen; i++) mag[i] = Math.pow(10, fData[i] / 20); // dB -> linear amplitude
+  return mag;
+}
+
+/* HPCP (Harmonic Pitch Class Profile) — every spectral peak votes for its own
+   pitch class AND the pitch classes of its likely sub-harmonics (since a
+   harmonic at h*f0 is evidence for f0's class), weighted 1/h. This is
+   inherently octave-blind by design (that's what makes it useful for chord/
+   key detection), so results are reported at a fixed reference octave. */
+function detectHPCP(sr) {
+  const mag   = getMagnitudeSpectrum();
+  const binHz = sr / analyser.fftSize;
+  const minBin = Math.max(1, Math.floor(80 / binHz));
+  const maxBin = Math.min(mag.length - 2, Math.floor(5000 / binHz));
+  const peaks = [];
+  for (let i = minBin + 1; i < maxBin; i++) {
+    if (mag[i] > mag[i - 1] && mag[i] >= mag[i + 1] && mag[i] > 0.01) peaks.push({ bin: i, mag: mag[i] });
+  }
+  if (!peaks.length) return [];
+  peaks.sort((a, b) => b.mag - a.mag);
+  const hpcp = new Float32Array(12);
+  const NHARM = 5;
+  for (const { bin, mag: m } of peaks.slice(0, 40)) {
+    const freq = bin * binHz;
+    for (let h = 1; h <= NHARM; h++) {
+      const subFreq = freq / h;
+      if (subFreq < 60) break;
+      const nNum = Math.round(12 * Math.log2(subFreq / C0_HZ));
+      hpcp[((nNum % 12) + 12) % 12] += m / h;
+    }
+  }
+  const maxV = Math.max(...hpcp);
+  if (maxV <= 0) return [];
+  const results = [];
+  for (let i = 0; i < 12; i++) if (hpcp[i] / maxV > 0.65) results.push({ freq: FREQS[i] }); // FREQS = octave 4
+  return results;
+}
+
+/* NNLS chroma — fit a fixed dictionary of per-semitone harmonic-comb templates
+   against the linear-frequency magnitude spectrum via multiplicative-update
+   non-negative least squares (the standard NMF update rule), then report
+   whichever semitones ended up with strong activation. Unlike HPCP this
+   keeps real octave information, since each dictionary atom is one exact
+   pitch (not folded into a 12-bin class). */
+const NNLS_MIN_MIDI     = 36; // ~C2
+const NNLS_NUM_PITCHES  = 48; // 4 octaves
+let nnlsDict = null;
+
+function buildNNLSDict(sr) {
+  const bufLen = analyser.frequencyBinCount;
+  const binHz  = sr / analyser.fftSize;
+  const dict = [];
+  for (let p = 0; p < NNLS_NUM_PITCHES; p++) {
+    const f0 = 440 * Math.pow(2, (NNLS_MIN_MIDI + p - 69) / 12);
+    const harmonics = [];
+    for (let h = 1; h <= 6; h++) {
+      const bin = Math.round((f0 * h) / binHz);
+      if (bin >= bufLen) break;
+      harmonics.push({ bin, w: 1 / h });
+    }
+    dict.push(harmonics);
+  }
+  return dict;
+}
+
+function detectNNLS(sr) {
+  const bufLen = analyser.frequencyBinCount;
+  if (!nnlsDict || nnlsDict._sr !== sr) { nnlsDict = buildNNLSDict(sr); nnlsDict._sr = sr; }
+  const spectrum = getMagnitudeSpectrum();
+  const activation = new Float32Array(NNLS_NUM_PITCHES).fill(0.1);
+  for (let iter = 0; iter < 15; iter++) {
+    const recon = new Float32Array(bufLen);
+    for (let p = 0; p < NNLS_NUM_PITCHES; p++) {
+      const a = activation[p];
+      if (a === 0) continue;
+      for (const { bin, w } of nnlsDict[p]) recon[bin] += a * w;
+    }
+    for (let p = 0; p < NNLS_NUM_PITCHES; p++) {
+      let num = 0, den = 1e-6;
+      for (const { bin, w } of nnlsDict[p]) { num += w * spectrum[bin]; den += w * recon[bin]; }
+      activation[p] *= num / den;
+    }
+  }
+  const maxA = Math.max(...activation);
+  if (maxA <= 1e-4) return [];
+  const results = [];
+  for (let p = 0; p < NNLS_NUM_PITCHES; p++) {
+    if (activation[p] / maxA > 0.3) results.push({ freq: 440 * Math.pow(2, (NNLS_MIN_MIDI + p - 69) / 12) });
+  }
+  return results;
+}
+
+/* CQT+NMF — computes an actual (if simplified) Constant-Q Transform directly
+   via per-semitone Goertzel-style correlation against the raw time-domain
+   frame (one bin per semitone, log-frequency spaced), then runs the same
+   multiplicative-update NMF as above but over CQT bins with a SINGLE,
+   shift-invariant harmonic-offset dictionary — the whole point of doing this
+   in log-frequency space is that a harmonic comb has the same bin-offset
+   shape for every pitch, unlike NNLS's linear-frequency, per-pitch dictionary. */
+const CQT_MIN_MIDI  = 36;
+const CQT_NUM_BINS  = 48;
+const CQT_HARMONIC_OFFSETS = [1, 2, 3, 4, 5, 6].map(h => ({ semis: Math.round(12 * Math.log2(h)), w: 1 / h }));
+
+function computeCQT(sr) {
+  const buf = getTimeFrame();
+  const N   = buf.length;
+  const cqt = new Float32Array(CQT_NUM_BINS);
+  for (let b = 0; b < CQT_NUM_BINS; b++) {
+    const f = 440 * Math.pow(2, (CQT_MIN_MIDI + b - 69) / 12);
+    const w = 2 * Math.PI * f / sr;
+    let re = 0, im = 0;
+    for (let n = 0; n < N; n++) { const wn = w * n; re += buf[n] * Math.cos(wn); im += buf[n] * Math.sin(wn); }
+    cqt[b] = Math.sqrt(re * re + im * im) / N;
+  }
+  return cqt;
+}
+
+function detectCQTNMF(sr) {
+  const cqt = computeCQT(sr);
+  const activation = new Float32Array(CQT_NUM_BINS).fill(0.1);
+  for (let iter = 0; iter < 15; iter++) {
+    const recon = new Float32Array(CQT_NUM_BINS);
+    for (let p = 0; p < CQT_NUM_BINS; p++) {
+      const a = activation[p];
+      if (a === 0) continue;
+      for (const { semis, w } of CQT_HARMONIC_OFFSETS) { const bin = p + semis; if (bin < CQT_NUM_BINS) recon[bin] += a * w; }
+    }
+    for (let p = 0; p < CQT_NUM_BINS; p++) {
+      let num = 0, den = 1e-6;
+      for (const { semis, w } of CQT_HARMONIC_OFFSETS) {
+        const bin = p + semis;
+        if (bin < CQT_NUM_BINS) { num += w * cqt[bin]; den += w * recon[bin]; }
+      }
+      activation[p] *= num / den;
+    }
+  }
+  const maxA = Math.max(...activation);
+  if (maxA <= 1e-4) return [];
+  const results = [];
+  for (let p = 0; p < CQT_NUM_BINS; p++) {
+    if (activation[p] / maxA > 0.3) results.push({ freq: 440 * Math.pow(2, (CQT_MIN_MIDI + p - 69) / 12) });
+  }
+  return results;
+}
+
+/* Multi-F0 — classic greedy iterative estimation (Klapuri-style): find the
+   candidate fundamental with the strongest harmonic-sum salience, record it,
+   subtract its harmonic energy from the spectrum, and repeat. Each pass
+   extracts one real, octave-resolved fundamental — the most direct of the
+   four polyphonic methods here. */
+const MULTIF0_MAX_POLYPHONY = 4;
+const MULTIF0_MIN_HZ = 80, MULTIF0_MAX_HZ = 1400;
+
+function detectMultiF0(sr) {
+  const mag    = getMagnitudeSpectrum();
+  const bufLen = mag.length;
+  const binHz  = sr / analyser.fftSize;
+  const working = Float32Array.from(mag);
+  const results = [];
+  const candMinBin = Math.max(1, Math.floor(MULTIF0_MIN_HZ / binHz));
+  const candMaxBin = Math.min(bufLen - 1, Math.ceil(MULTIF0_MAX_HZ / binHz));
+  for (let pass = 0; pass < MULTIF0_MAX_POLYPHONY; pass++) {
+    let bestBin = -1, bestScore = 0;
+    for (let b = candMinBin; b <= candMaxBin; b++) {
+      let score = 0;
+      for (let h = 1; h <= 6; h++) {
+        const hb = Math.round(b * h);
+        if (hb >= bufLen) break;
+        score += working[hb] / h;
+      }
+      if (score > bestScore) { bestScore = score; bestBin = b; }
+    }
+    if (bestBin < 0 || bestScore < 0.05) break;
+    results.push({ freq: bestBin * binHz });
+    for (let h = 1; h <= 6; h++) { // spectral subtraction so the next pass finds a different pitch
+      const hb = Math.round(bestBin * h);
+      if (hb >= bufLen) break;
+      working[hb] *= 0.05;
+    }
+  }
+  return results;
+}
+
+function detectPitchPoly(sr) {
+  switch (pitchAlgo) {
+    case 'hpcp':    return detectHPCP(sr);
+    case 'nnls':    return detectNNLS(sr);
+    case 'cqtnmf':  return detectCQTNMF(sr);
+    case 'multif0': return detectMultiF0(sr);
+    default:        return [];
+  }
+}
+
+/* not a real detector — walks through all 12 notes on a timer, so you can
+   confirm bars + external MIDI gear (e.g. a Launchpad) light up correctly
+   for every note without having to sing or play each one in */
+const CHROMA_TEST_STEP_MS = 600; // how long each note holds before advancing
+function detectChromaTest() {
+  const idx = Math.floor(Date.now() / CHROMA_TEST_STEP_MS) % 12;
+  return { freq: FREQS[idx] };
+}
+
+function detectPitch(sr) {
+  switch (pitchAlgo) {
+    case 'acf':         return detectACF(sr);
+    case 'amdf':        return detectAMDF(sr);
+    case 'yin':         return detectYIN(sr);
+    case 'mpm':         return detectMPM(sr);
+    case 'chroma-test': return detectChromaTest();
+    default:            return detectFFTPeak(sr);
+  }
+}
+
+/* the algorithm badge shows a short acronym; the native <select> underneath
+   (invisible, see .algo-native-select) still lists the full names when opened */
+const ALGO_ACRONYM = { fft:'FFT', acf:'ACF', amdf:'AMDF', yin:'YIN', mpm:'MPM',
+                        hpcp:'HPCP', nnls:'NNLS', cqtnmf:'CQTNMF', multif0:'MF0', 'chroma-test':'TEST' };
+
+/* the currently-sounding notes under a polyphonic algorithm — nIdx -> octave.
+   Unlike mono's single lastNote, several can be active at once. */
+const activePolyNotes = new Map();
+
+function releasePolyNotes() {
+  for (const nIdx of activePolyNotes.keys()) sendMidiNote(nIdx, false);
+  activePolyNotes.clear();
+}
+
+function setPitchAlgo(algo) {
+  releasePolyNotes(); // don't leave a note stuck lit when switching away from a polyphonic algorithm
+  pitchAlgo = algo;
+  pendingNote = -1; pendingTicks = 0; // avoid a stale debounce carrying over
+  document.getElementById('algo-acronym').textContent = ALGO_ACRONYM[algo] || algo.toUpperCase();
+  if (algo === 'chroma-test') setMode('outside'); // the test loop only runs while mic mode's polling is active
+}
+
+/* step through the picker's own option order (clamped, not wrapping) */
+function cyclePitchAlgo(delta) {
+  const sel  = document.getElementById('pitch-algo-select');
+  const opts = [...sel.options];
+  const curIdx  = opts.findIndex(o => o.value === pitchAlgo);
+  const nextIdx = Math.max(0, Math.min(opts.length - 1, curIdx + delta));
+  sel.value = opts[nextIdx].value;
+  setPitchAlgo(sel.value);
+}
+
+/* polyphonic path — no debounce (each algorithm's own frame-to-frame output
+   is taken as-is), just a diff against what was active last frame: newly-
+   appeared chroma classes trigger a note-on, newly-disappeared ones a
+   note-off, reusing the exact same per-note primitives (bar count, flash,
+   Launchpad LED) the monophonic path uses one at a time. */
+function runPolyDetection(sr) {
+  const results = detectPitchPoly(sr);
+  const newActive = new Map(); // nIdx -> octave
+  const labelParts = [];
+  for (const { freq } of results) {
+    const nNum = Math.round(12 * Math.log2(freq / C0_HZ));
+    const nIdx = ((nNum % 12) + 12) % 12;
+    const oct  = Math.floor(nNum / 12);
+    if (!newActive.has(nIdx)) newActive.set(nIdx, oct);
+    labelParts.push(NOTES[nIdx] + oct);
+  }
+  for (const [nIdx, oct] of newActive) {
+    if (!activePolyNotes.has(nIdx)) {
+      outerCounts[nIdx]++;
+      flashBar(nIdx);
+      sendMidiNote(nIdx, true, 'app', oct);
+    }
+  }
+  for (const nIdx of activePolyNotes.keys()) {
+    if (!newActive.has(nIdx)) sendMidiNote(nIdx, false);
+  }
+  activePolyNotes.clear();
+  newActive.forEach((oct, nIdx) => activePolyNotes.set(nIdx, oct));
+  if (newActive.size) {
+    setMicUI('mic on', labelParts.join(' '), '');
+    if (mode === 'outside') render();
+  } else {
+    setMicUI('listening', '—', '');
+  }
+}
+
+function runDetection() {
+  if (!analyser || !micActive) return;
+  const sr = getCtx().sampleRate;
+  if (POLY_ALGOS.has(pitchAlgo)) { runPolyDetection(sr); return; }
+  const result = detectPitch(sr);
+  if (result) {
+    const freq = result.freq;
+    const nNum = Math.round(12 * Math.log2(freq / C0_HZ));
+    const nIdx = ((nNum % 12) + 12) % 12;
+    const oct  = Math.floor(nNum / 12);
+    setMicUI('mic on', NOTES[nIdx] + oct, freq.toFixed(1) + ' Hz');
+    if (nIdx === pendingNote) {
+      pendingTicks++;
+      if (pendingTicks === DEBOUNCE && nIdx !== lastNote) {
+        if (lastNote !== -1) sendMidiNote(lastNote, false); // release the previously tracked pitch
+        lastNote = nIdx; lastNoteOctave = oct; outerCounts[nIdx]++;
+        flashBar(nIdx);
+        sendMidiNote(nIdx, true, 'app', oct); // echo the tracked pitch out to MIDI (e.g. lights the matching Launchpad pad)
+        if (mode === 'outside') render();
+      } else if (nIdx === lastNote && lpFullRangeDetection && oct !== lastNoteOctave) {
+        // same pitch class still sounding, but the detected octave moved —
+        // refresh just the exact-octave highlight, without re-counting
+        lastNoteOctave = oct;
+        sendMidiNote(nIdx, true, 'app', oct);
+      }
+    } else { pendingNote = nIdx; pendingTicks = 1; }
+  } else {
+    pendingNote = -1; pendingTicks = 0;
+    if (lastNote !== -1) {
+      sendMidiNote(lastNote, false); // pitch lost — release the note
+      lastNote = -1; lastNoteOctave = -1; setMicUI('listening','—','');
+    }
+  }
+}
+
+function animateLevel() {
+  if (!micActive || !analyser) return;
+  const tData = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(tData);
+  let rms = 0; for (const v of tData) rms += v*v;
+  rms = Math.sqrt(rms / tData.length);
+  document.getElementById('mic-level').style.width = Math.min(rms*380,100)+'%';
+  levelRaf = requestAnimationFrame(animateLevel);
+}
+
+const MIC_OK_STATES = new Set(['MIC ON', 'mic on', 'listening']); // mic connected & functioning — green dot, bright text
+
+function setMicUI(state, note, freq) {
+  const dot    = document.getElementById('mic-dot');
+  const statEl = document.getElementById('mic-status');
+  const nameEl = document.getElementById('mic-note-name');
+  const freqEl = document.getElementById('mic-note-freq');
+  const isOk = MIC_OK_STATES.has(state);
+  dot.className = 'mic-dot' + (isOk ? ' ok' : state==='error' ? ' error' : '');
+  statEl.classList.toggle('ok', isOk);
+  const L = {connecting:'Connecting…',listening:'Listening',
+             error:'Mic unavailable',off:'Mic off'};
+  statEl.textContent = L[state] || state;
+  nameEl.textContent = note;
+  freqEl.textContent = note !== '—' ? freq : '';
+  const idx = NOTES.indexOf(note.replace(/\d/g,''));
+  if (idx >= 0 && note !== '—') {
+    const max = Math.max(0, ...outerCounts);
+    const ratio = max > 0 ? outerCounts[idx] / max : 0;
+    nameEl.style.color = ratio > 0 ? barColor(ratio) : '';
+  } else {
+    nameEl.style.color = '';
+  }
+}
+
+/* ═══════════════════════════════════════
+   MODE SWITCHING
+═══════════════════════════════════════ */
+function setMode(newMode) {
+  if (mode === newMode) return;
+  mode = newMode;
+  if (mode === 'outside') startMic();
+  else                    stopMic();
+  render();
+}
+
+/* ═══════════════════════════════════════
+   RENDER
+═══════════════════════════════════════ */
+function flashBar(idx) {
+  const el = barEls[idx];
+  if (!el) return;
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 220);
+}
+
+function render() {
+  let counts;
+  if (mode === 'inner') {
+    // merge committed times with any currently-held durations
+    const now = Date.now();
+    counts = innerCounts.map((acc, i) =>
+      acc + (noteStartTimes[i] !== undefined ? now - noteStartTimes[i] : 0)
+    );
+  } else {
+    counts = outerCounts;
+  }
+  const maxCount = Math.max(0, ...counts);
+  const total    = counts.reduce((a, b) => a + b, 0);
+  const baH      = document.getElementById('bar-area').clientHeight;
+  const availH   = Math.max(baH - 4, 0); // bars can fill almost the full height
+
+  for (let i = 0; i < 12; i++) {
+    const barEl = barEls[i];
+    const pctEl = pctEls[i];
+    if (!barEl || !pctEl) continue;
+
+    /* bar height + linear colour */
+    const ratio = maxCount > 0 ? counts[i] / maxCount : 0;
+    barEl.style.height     = Math.round(ratio * availH) + 'px';
+    barEl.style.background = barColor(ratio);
+    barEl.style.boxShadow  = barGlow(ratio);
+
+    /* percentage label */
+    const pct = total > 0 ? Math.round(counts[i] / total * 100) : 0;
+    if (pct > 0) { pctEl.textContent = pct + '%'; pctEl.classList.add('on'); }
+    else         { pctEl.textContent = '';          pctEl.classList.remove('on'); }
+  }
+}
+
+/* ═══════════════════════════════════════
+   RESET
+═══════════════════════════════════════ */
+function reset() {
+  if (mode === 'inner') {
+    innerCounts.fill(0);
+    Object.keys(noteStartTimes).forEach(k => delete noteStartTimes[k]);
+    if (holdRafId !== null) { cancelAnimationFrame(holdRafId); holdRafId = null; }
+  } else {
+    outerCounts.fill(0);
+    if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
+    lastNote = pendingNote = -1; pendingTicks = 0;
+    setMicUI('listening','—','');
+  }
+  for (let i = 0; i < 12; i++) { keyBrightness[i] = 0; paintKeyFade(i); }
+  render();
+}
+
+/* ═══════════════════════════════════════
+   DECAY — shed a % of every bar's value each second
+═══════════════════════════════════════ */
+function applyDecayTick() {
+  const factor = 1 - decayPct / 100;
+  const now    = Date.now();
+  for (let i = 0; i < 12; i++) {
+    innerCounts[i] *= factor;
+    outerCounts[i] *= factor;
+    /* a currently-held note keeps growing outside innerCounts until release —
+       fold its live elapsed time in too, decayed, then reset the clock so it
+       keeps growing from the decayed baseline instead of being decayed again */
+    if (noteStartTimes[i] !== undefined) {
+      innerCounts[i]    += (now - noteStartTimes[i]) * factor;
+      noteStartTimes[i]  = now;
+    }
+    // the Launchpad's app-triggered red glow fades at this exact same rate,
+    // but only once the note has actually stopped — held at full while playing
+    if (lpNoteBrightness[i] && !lpNotePlaying[i]) {
+      lpNoteBrightness[i] *= factor;
+      if (lpNoteBrightness[i] < 0.02) lpNoteBrightness[i] = 0;
+      paintLaunchpadNoteFade(i);
+    }
+    // the on-screen key's own glow fades the same way, once released
+    if (keyBrightness[i] && !heldNoteCount[i]) {
+      keyBrightness[i] *= factor;
+      if (keyBrightness[i] < 0.02) keyBrightness[i] = 0;
+      paintKeyFade(i);
+    }
+  }
+  render();
+}
+
+function setDecayPct(v) {
+  decayPct = Math.max(0, Math.min(100, Math.round(v)));
+  document.getElementById('decay-val').textContent = decayPct + '%';
+  if (decayInterval) { clearInterval(decayInterval); decayInterval = null; }
+  if (decayPct > 0) decayInterval = setInterval(applyDecayTick, 1000);
+}
+
+/* drag a value control horizontally or vertically to scrub it, like a slider.
+   getVal returns the control's current value; setVal applies a new one. */
+function initScrubDrag(elId, getVal, setVal, sens = 0.4) {
+  const el = document.getElementById(elId);
+  let dragging = false;
+  let startX = 0, startY = 0, startVal = 0;
+
+  el.addEventListener('pointerdown', e => {
+    dragging = true;
+    startX   = e.clientX;
+    startY   = e.clientY;
+    startVal = getVal();
+    el.classList.add('dragging');
+    el.setPointerCapture(e.pointerId);
+  });
+
+  el.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;   // right = increase
+    const dy = startY - e.clientY;   // up    = increase
+    setVal(startVal + (dx + dy) * sens);
+  });
+
+  function stopDrag() {
+    dragging = false;
+    el.classList.remove('dragging');
+  }
+  el.addEventListener('pointerup', stopDrag);
+  el.addEventListener('pointercancel', stopDrag);
+}
+
+/* mic input gain — applied via a GainNode ahead of the analyser/metering */
+function setMicGain(v) {
+  micGainPct = Math.max(0, Math.min(300, Math.round(v)));
+  document.getElementById('gain-val').textContent = micGainPct + '%';
+  if (micGainNode) micGainNode.gain.value = micGainPct / 100;
+}
+
+/* ═══════════════════════════════════════
+   BUILD DOM
+═══════════════════════════════════════ */
+function makeBarCol(noteIdx, type) {
+  const col = document.createElement('div');
+  col.className = `bar-col ${type}-bar`;
+  col.dataset.note = noteIdx;
+
+  const pct = document.createElement('div');
+  pct.className = 'pct-label';
+
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+
+  col.appendChild(pct);
+  col.appendChild(bar);
+
+  /* black-key columns get a 25% black overlay to appear darker */
+  if (type === 'black') {
+    const mask = document.createElement('div');
+    mask.className = 'black-mask';
+    col.appendChild(mask);
+  }
+
+  barEls[noteIdx] = bar;
+  pctEls[noteIdx] = pct;
+
+  /* tapping/clicking a bar plays its note, same as pressing the key below */
+  let live = false;
+
+  col.addEventListener('touchstart', e => {
+    e.preventDefault(); if (live) return; live = true;
+    onNoteOn(noteIdx, keyEls[noteIdx], false, previewOctave);
+  }, { passive: false });
+
+  col.addEventListener('touchend', e => {
+    e.preventDefault(); if (!live) return; live = false;
+    onNoteOff(noteIdx, keyEls[noteIdx], false, previewOctave);
+  }, { passive: false });
+
+  col.addEventListener('touchcancel', () => {
+    live = false; onNoteOff(noteIdx, keyEls[noteIdx], false, previewOctave);
+  }, { passive: true });
+
+  col.addEventListener('mousedown', e => {
+    if (live) return; e.preventDefault();
+    onNoteOn(noteIdx, keyEls[noteIdx], false, previewOctave);
+  });
+
+  return col;
+}
+
+function makeKey(def, type) {
+  const el = document.createElement('div');
+  el.className    = type + '-key';
+  el.dataset.note = def.noteIdx;
+
+  const name = document.createElement('div');
+  name.className   = 'key-name';
+  name.textContent = def.name;
+
+  const kb = document.createElement('div');
+  kb.className   = 'key-kb';
+  kb.textContent = def.kb;
+
+  el.appendChild(name);
+  el.appendChild(kb);
+  keyEls[def.noteIdx] = el;
+
+  let live = false;
+
+  el.addEventListener('touchstart', e => {
+    e.preventDefault(); if (live) return; live = true;
+    onNoteOn(def.noteIdx, el, false, previewOctave);
+  }, { passive: false });
+
+  el.addEventListener('touchend', e => {
+    e.preventDefault(); if (!live) return; live = false;
+    onNoteOff(def.noteIdx, el, false, previewOctave);
+  }, { passive: false });
+
+  el.addEventListener('touchcancel', () => {
+    live = false; onNoteOff(def.noteIdx, el, false, previewOctave);
+  }, { passive: true });
+
+  el.addEventListener('mousedown', e => {
+    if (live) return; e.preventDefault();
+    onNoteOn(def.noteIdx, el, false, previewOctave);
+  });
+
+  return el;
+}
+
+/* ═══════════════════════════════════════
+   RESIZE — drag the mic strip to resize the keyboard. The strip also hosts
+   the mic badge, gain control, and algorithm picker, so a drag only starts
+   when the press lands on the strip's own background, not on one of those.
+═══════════════════════════════════════ */
+function initResize() {
+  const strip = document.getElementById('mic-strip');
+  const kb    = document.getElementById('keyboard');
+
+  function isInteractiveChild(el) {
+    return el.closest('#mic-badge, #gain-ctrl, #algo-badge');
+  }
+
+  /* Calculate how tall the keyboard can get (full remaining space minus a
+     small guaranteed minimum for the bar area) and how small it can get. */
+  function getBounds() {
+    const appH  = document.getElementById('app').clientHeight;
+    const topH  = document.getElementById('topbar').clientHeight;
+    const micH  = strip.clientHeight;
+    const avail = appH - topH - micH;
+    return { min: 30, max: avail - 30 };   // 30 px guaranteed on each side
+  }
+
+  let dragging    = false;
+  let startY      = 0;
+  let startHeight = 0;
+
+  function dragStart(clientY) {
+    dragging    = true;
+    startY      = clientY;
+    startHeight = kb.clientHeight;
+    strip.classList.add('dragging');
+    document.body.style.userSelect    = 'none';
+    document.body.style.cursor        = 'ns-resize';
+  }
+
+  function dragMove(clientY) {
+    if (!dragging) return;
+    const { min, max } = getBounds();
+    const delta  = startY - clientY;           // up = positive = taller keyboard
+    const newH   = Math.min(max, Math.max(min, startHeight + delta));
+    kb.style.height = newH + 'px';
+    applyLayout();
+  }
+
+  function dragEnd() {
+    if (!dragging) return;
+    dragging = false;
+    strip.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    document.body.style.cursor     = '';
+  }
+
+  /* mouse */
+  strip.addEventListener('mousedown', e => {
+    if (isInteractiveChild(e.target)) return;
+    e.preventDefault();
+    dragStart(e.clientY);
+  });
+  document.addEventListener('mousemove', e => dragMove(e.clientY));
+  document.addEventListener('mouseup',   dragEnd);
+
+  /* touch */
+  strip.addEventListener('touchstart', e => {
+    if (isInteractiveChild(e.target)) return;
+    dragStart(e.touches[0].clientY);
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (dragging) { e.preventDefault(); dragMove(e.touches[0].clientY); }
+  }, { passive: false });
+  document.addEventListener('touchend',    dragEnd, { passive: true });
+  document.addEventListener('touchcancel', dragEnd, { passive: true });
+}
+
+/* ═══════════════════════════════════════
+   DEVICE PREFERENCES — remember picked MIDI/audio devices across reloads.
+   Only meaningful once the page's permission grants persist too (not
+   reliable for file:// pages — see a proper http(s)/localhost origin).
+═══════════════════════════════════════ */
+const DEVICE_PREFS_KEY = 'keymap-device-prefs-v1';
+
+function loadDevicePrefs() {
+  try { return JSON.parse(localStorage.getItem(DEVICE_PREFS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+
+function saveDevicePref(key, id, name) {
+  try {
+    const prefs = loadDevicePrefs();
+    prefs[key] = { id, name };
+    localStorage.setItem(DEVICE_PREFS_KEY, JSON.stringify(prefs));
+  } catch (e) { /* storage unavailable/full — ignore */ }
+}
+
+/* picks what a <select> should show: keep an already-active selection as-is;
+   otherwise try the saved device id, then fall back to matching by name
+   (ids can change across browser restarts more often than device names) */
+function restoreDeviceValue(selectEl, prevValue, pref) {
+  if (prevValue) return prevValue;
+  if (!pref) return prevValue;
+  const opts = [...selectEl.options];
+  if (pref.id && opts.some(o => o.value === pref.id)) return pref.id;
+  if (pref.name) {
+    const match = opts.find(o => o.textContent === pref.name);
+    if (match) return match.value;
+  }
+  return prevValue;
+}
+
+/* ═══════════════════════════════════════
+   AUDIO DEVICES (input mic + output sink)
+═══════════════════════════════════════ */
+function setAudioIn(id) {
+  audioInDeviceId = id;
+  if (mode === 'outside' && micActive) { stopMic(); startMic(); } // reopen with the new device
+}
+
+async function setAudioOut(id) {
+  audioOutDeviceId = id;
+  const ac = getCtx();
+  if (typeof ac.setSinkId === 'function') {
+    try { await ac.setSinkId(id || ''); } catch (e) { /* unsupported device id — ignore */ }
+  }
+}
+
+async function refreshAudioDevices() {
+  const inSel  = document.getElementById('audio-in-select');
+  const outSel = document.getElementById('audio-out-select');
+  const msg    = document.getElementById('audio-status-msg');
+  if (!inSel) return;
+
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const prevIn  = inSel.value;
+  const prevOut = outSel.value;
+
+  inSel.innerHTML  = '<option value="">— Default —</option>';
+  outSel.innerHTML = '<option value="">— Default —</option>';
+
+  let nIn = 0, nOut = 0;
+  devices.forEach(d => {
+    if (d.kind === 'audioinput') {
+      nIn++;
+      const o = document.createElement('option');
+      o.value = d.deviceId; o.textContent = d.label || `Microphone ${nIn}`;
+      inSel.appendChild(o);
+    } else if (d.kind === 'audiooutput') {
+      nOut++;
+      const o = document.createElement('option');
+      o.value = d.deviceId; o.textContent = d.label || `Speaker ${nOut}`;
+      outSel.appendChild(o);
+    }
+  });
+
+  const prefs  = loadDevicePrefs();
+  const newIn  = restoreDeviceValue(inSel,  prevIn,  prefs.audioIn);
+  const newOut = restoreDeviceValue(outSel, prevOut, prefs.audioOut);
+  inSel.value  = newIn;
+  outSel.value = newOut;
+  if (newIn  !== prevIn)  setAudioIn(newIn);
+  if (newOut !== prevOut) setAudioOut(newOut);
+
+  if (msg) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const canSwitchOutput = !!(AC && typeof AC.prototype.setSinkId === 'function');
+    msg.textContent = canSwitchOutput
+      ? `${nIn} input${nIn !== 1 ? 's' : ''}, ${nOut} output${nOut !== 1 ? 's' : ''} detected`
+      : `${nIn} input${nIn !== 1 ? 's' : ''} detected — output switching isn't supported in this browser`;
+    msg.className = 'sp-status' + (nIn > 0 ? ' ok' : '');
+  }
+}
+
+/* enumerateDevices() only returns labelled devices after mic permission has
+   been granted at least once, so briefly open + close the mic to unlock them */
+async function ensureAudioDevices() {
+  if (audioDevicesRequested) return;
+  audioDevicesRequested = true;
+  const msg = document.getElementById('audio-status-msg');
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    if (msg) { msg.textContent = 'Audio device selection not supported in this browser.'; msg.className = 'sp-status err'; }
+    return;
+  }
+  try {
+    const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    tempStream.getTracks().forEach(t => t.stop());
+  } catch (e) { /* denied — device list will just show unlabelled entries */ }
+  navigator.mediaDevices.ondevicechange = refreshAudioDevices;
+  refreshAudioDevices();
+}
+
+/* ═══════════════════════════════════════
+   MIDI
+═══════════════════════════════════════ */
+let midiAccess    = null;
+let midiIn        = null;   // active MIDIInput
+let midiOut       = null;   // active MIDIOutput
+let midiOctave    = 4;      // output octave (C4 = note 60) — the OCT +/- buttons only
+let midiRequested = false;  // guards against asking for access more than once
+
+function midiNoteNum(noteIdx) { return (midiOctave + 1) * 12 + noteIdx; }
+
+function shiftMidiOctave(delta) {
+  midiOctave = Math.max(0, Math.min(8, midiOctave + delta));
+  document.getElementById('oct-val').textContent = midiOctave;
+}
+
+/* Z/X — shifts only what's actually heard from the speakers when clicking a
+   key, tapping a bar, or pressing a computer-keyboard key. Deliberately
+   separate from midiOctave: Z/X must never change the outgoing MIDI note
+   number, only the local preview sound. */
+let previewOctave = 4;
+
+function shiftPreviewOctave(delta) {
+  previewOctave = Math.max(0, Math.min(8, previewOctave + delta));
+}
+
+/* ── LAUNCHPAD (Mini MK3) — Programmer Mode direct pad lighting ──────────
+   Programmer Mode note-addresses are a fixed 8x8 grid (11–88, tens digit =
+   row from the bottom, units digit = column from the left) — completely
+   different from ordinary musical MIDI note numbers, and independent of
+   octave/transposition.
+
+   Layout mirrors a real piano, 2 rows per octave (row 0 = white keys, row 1
+   = black keys, gapped correctly at E–F and B–C), stacked 4 times to cover
+   4 octaves across the full 8-row grid. Which octave-band lights up follows
+   the existing OCT control (wrapped into 0–3), same one used for MIDI-out. */
+let launchpadProgrammerMode = false; // true once the connected device has been switched over
+const LP_DEVICE_ID   = 0x0D; // Launchpad Mini MK3 (differs for X / Pro MK3)
+const LP_BANDS       = 4;    // stacked octave bands (2 grid rows each = 8 rows total)
+
+/* the grid's own backlight/active colors use RGB SysEx (not the 128-color
+   palette) specifically so the intensity gap between "idle" states is
+   guaranteed and large, rather than picking two palette indices that turn
+   out to look nearly identical on the actual hardware. */
+const LP_RGB_ACTIVE    = [127, 127, 127]; // actively-sounding pad — full white
+const LP_RGB_DIM       = [4, 4, 4];       // idle backlight, regular notes — barely lit
+const LP_RGB_DIM_WHITE = [28, 28, 28];    // idle backlight, black/sharp notes (fretboard layout) —
+                                           // kept well below LP_RGB_ACTIVE so pressed vs idle stays obvious
+const LP_RGB_C_BLUE    = [10, 60, 127];   // idle backlight, every C (fretboard layout)
+const LP_RGB_APP_ACTIVE = [127, 10, 10];  // note highlighted BY THE APP (mic, on-screen key, chroma test —
+                                           // anything other than physically pressing the pad itself) — always red
+const LP_RGB_APP_OCTAVE = [110, 10, 127]; // Settings > "full range detection" — the one pad matching the
+                                           // exact detected octave, layered on top of the all-octaves red
+
+/* app-triggered red isn't a plain on/off — it snaps to full brightness the
+   moment a note is detected and *stays* there for as long as the note is
+   still recognized as playing, then fades out over time using the exact
+   same per-second decay rate (decayPct / applyDecayTick) as the bar chart
+   once it actually stops — a pad's red glow behaves just like that note's
+   bar. 0 = fully faded (idle backlight color), 1 = just triggered. */
+const lpNoteBrightness = {};
+const lpNotePlaying    = {}; // noteIdx -> true while still held (decay is paused)
+
+/* Settings > Launchpad Behavior — when on, the exact octave of the last
+   detected/played note also gets its own pad lit purple, on top of the
+   usual all-octaves red highlight. lpNoteOctave keeps the last-known exact
+   octave per chroma so the purple pad fades in step with the red one. */
+let lpFullRangeDetection = true;
+const lpNoteOctave = {};
+
+function lpBlendColor(idle, active, t) {
+  return idle.map((c, i) => Math.round(c + (active[i] - c) * t));
+}
+
+/* find the pad(s) that currently produce this exact (noteIdx, octave) pair in
+   the active layout — mirrors the forward pad->note transform used by the
+   INPUT layer (onLaunchpadPadMessage), so the highlighted pad always matches
+   whatever transpose/octave-shift is currently applied. */
+function lpPadsForNoteOctave(targetNoteIdx, targetOctave) {
+  const pads = [];
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const pad  = 11 + col + 10 * row;
+      const info = lpPadToNote(pad);
+      if (!info) continue;
+      let noteIdx    = info.noteIdx + lpTranspose;
+      const octave   = info.octave + lpOctaveShift + Math.floor(noteIdx / 12);
+      noteIdx        = ((noteIdx % 12) + 12) % 12;
+      if (noteIdx === targetNoteIdx && octave === targetOctave) pads.push(pad);
+    }
+  }
+  return pads;
+}
+
+function paintLaunchpadNoteFade(noteIdx) {
+  if (!midiOut || !launchpadProgrammerMode) return;
+  // the pads lit here are found by their own fixed (pre-transpose) identity —
+  // the idle color to fade back toward must use that same identity, not the
+  // currently-sounding noteIdx, or the pad's idle color gets permanently
+  // stuck as the wrong note's shade once transpose is anything but 0
+  const baseIdx = ((noteIdx - lpTranspose) % 12 + 12) % 12;
+  const t = lpNoteBrightness[noteIdx] || 0;
+  const [r, g, b] = lpBlendColor(lpBacklightColorForNote(baseIdx), LP_RGB_APP_ACTIVE, t);
+  allPadsForIndex(noteIdx).forEach(pad => setLaunchpadRGB(midiOut, pad, r, g, b));
+  if (lpFullRangeDetection && lpNoteOctave[noteIdx] !== undefined) {
+    const [pr, pg, pb] = lpBlendColor(lpBacklightColorForNote(baseIdx), LP_RGB_APP_OCTAVE, t);
+    lpPadsForNoteOctave(noteIdx, lpNoteOctave[noteIdx]).forEach(pad => setLaunchpadRGB(midiOut, pad, pr, pg, pb));
+  }
+}
+
+/* move a color toward white by `amount` (0-1) — used so a pad with its own
+   hue (like C's blue) lights up brighter *in the same hue* when pressed,
+   instead of jumping to a plain white that erases which note it was */
+function lightenColor([r, g, b], amount) {
+  const lift = c => Math.round(c + (127 - c) * amount);
+  return [lift(r), lift(g), lift(b)];
+}
+
+/* top-row round buttons — not part of the 8x8 grid, so Programmer Mode
+   addresses and lights them via Control Change instead of Note On/Off.
+   Left to right: Up, Down, Left, Right, Session, Drums, Keys, User. */
+const LP_CC_UP      = 91;
+const LP_CC_DOWN    = 92;
+const LP_CC_LEFT    = 93;
+const LP_CC_RIGHT   = 94;
+const LP_CC_KEYS    = 97; // picks the piano layout
+const LP_CC_USER    = 98; // picks the fretboard layout
+const LP_CC_STOP_SOLO_MUTE = [19]; // side-column row 1 (bottom) — resets the bars, same as the app title
+
+/* the rest of the side column, rows 2 (bottom) to 8 (top) — one button per
+   waveform, red on whichever is currently selected, dimmed dark blue on the
+   rest. Row order (bottom to top) matches LP_WAVE_ORDER's own order. */
+const LP_WAVE_ORDER = ['sine', 'square', 'sawtooth', 'revsaw', 'pulse25', 'pulse12', 'organ'];
+const LP_CC_WAVE = [29, 39, 49, 59, 69, 79, 89];
+const LP_RGB_WAVE_DIM = [4, 4, 40]; // dark blue — idle waveform button
+
+function paintLaunchpadWaveButtons(output) {
+  LP_CC_WAVE.forEach((cc, i) => {
+    const isSelected = LP_WAVE_ORDER[i] === waveType;
+    const [r, g, b] = isSelected ? LP_RGB_APP_ACTIVE : LP_RGB_WAVE_DIM;
+    setLaunchpadRGB(output, cc, r, g, b);
+  });
+  LP_CC_STOP_SOLO_MUTE.forEach(cc => setLaunchpadRGB(output, cc, ...LP_RGB_APP_OCTAVE)); // reset button — purple
+}
+
+function setWaveType(type) {
+  waveType = type;
+  const sel = document.getElementById('wave-select');
+  if (sel) sel.value = type;
+  if (midiOut && launchpadProgrammerMode) paintLaunchpadWaveButtons(midiOut);
+}
+let lpLayout = 'piano'; // 'piano' | 'fretboard'
+let lpLightPressedPads = false; // Settings > Launchpad Behavior — physically pressing a pad lights it
+let midiMonitorEnabled = false; // Settings > MIDI monitor in console — log incoming MIDI + outgoing LED commands
+
+/* Up/Down shift the fixed octave-1..4 window the grid's INPUT layer plays at;
+   Left/Right transpose which note-class each pad plays, both directions —
+   independent of the OCT dial (which only affects the on-screen app itself). */
+let lpOctaveShift = 0;
+let lpTranspose   = 0;
+const LP_OCTAVE_SHIFT_MIN = -2;
+const LP_OCTAVE_SHIFT_MAX = 4;
+const LP_TRANSPOSE_MIN = -6;
+const LP_TRANSPOSE_MAX = 6;
+
+/* noteIdx -> position(s) within one 2-row octave band. C gets a second, duplicated
+   pad at the far end of the white-key row (col 7) so each row visually bookends
+   itself with the tonic at both ends, matching the reference hardware layout,
+   instead of leaving that last column dark. */
+const LP_NOTE_PAD = [
+  [{ row: 0, col: 0 }, { row: 0, col: 7 }], // C (+ duplicate for row continuity)
+  [{ row: 1, col: 1 }], // C#
+  [{ row: 0, col: 1 }], // D
+  [{ row: 1, col: 2 }], // D#
+  [{ row: 0, col: 2 }], // E
+  [{ row: 0, col: 3 }], // F
+  [{ row: 1, col: 4 }], // F#
+  [{ row: 0, col: 4 }], // G
+  [{ row: 1, col: 5 }], // G#
+  [{ row: 0, col: 5 }], // A
+  [{ row: 1, col: 6 }], // A#
+  [{ row: 0, col: 6 }], // B
+];
+
+function padNotesForIndex(noteIdx, band) {
+  return LP_NOTE_PAD[noteIdx].map(({ row, col }) => 11 + col + 10 * (band * 2 + row));
+}
+
+/* reverse lookup for the INPUT layer — pressing a physical pad reports its own
+   grid note number back to us; translate it back to {noteIdx, octave} using
+   the exact same layout the LED display uses, so pressing "C2" on the device
+   plays/sends C at octave 2. Independent of the OCT dial (which only steers
+   which band the app's own display layer highlights). */
+const LP_PIANO_PAD_TO_NOTE = {};
+const LP_PIANO_NOTE_TO_PADS = Array.from({ length: 12 }, () => []);
+for (let lpBand = 0; lpBand < LP_BANDS; lpBand++) {
+  for (let lpNoteIdx = 0; lpNoteIdx < 12; lpNoteIdx++) {
+    for (const pad of padNotesForIndex(lpNoteIdx, lpBand)) {
+      LP_PIANO_PAD_TO_NOTE[pad] = { noteIdx: lpNoteIdx, octave: lpBand + 1 }; // bands read bottom-to-top as octave 1–4
+      LP_PIANO_NOTE_TO_PADS[lpNoteIdx].push(pad);
+    }
+  }
+}
+
+/* second selectable layout: "fretboard" — a guitar-like isomorphic grid where
+   +1 column = +1 semitone and +1 row = +5 semitones (a perfect fourth, same
+   interval as adjacent guitar strings). Unlike the piano layout's 4 stacked
+   2-row bands, this uses the full 8 rows as one continuous run, so every one
+   of the 64 pads is playable (no gap pads). */
+const LP_FRETBOARD_ANCHOR = 0; // bottom-left pad (row 0, col 0) is C1, per the reference layout
+const LP_FRETBOARD_PAD_TO_NOTE = {};
+const LP_FRETBOARD_NOTE_TO_PADS = Array.from({ length: 12 }, () => []);
+for (let row = 0; row < 8; row++) {
+  for (let col = 0; col < 8; col++) {
+    const pad      = 11 + col + 10 * row;
+    const semitone = LP_FRETBOARD_ANCHOR + col + 5 * row;
+    const noteIdx  = semitone % 12;
+    const octave   = 1 + Math.floor(semitone / 12);
+    LP_FRETBOARD_PAD_TO_NOTE[pad] = { noteIdx, octave };
+    LP_FRETBOARD_NOTE_TO_PADS[noteIdx].push(pad);
+  }
+}
+
+function lpPadToNote(pad) {
+  return lpLayout === 'fretboard' ? LP_FRETBOARD_PAD_TO_NOTE[pad] : LP_PIANO_PAD_TO_NOTE[pad];
+}
+
+function lpNoteToPads(noteIdx) {
+  return lpLayout === 'fretboard' ? LP_FRETBOARD_NOTE_TO_PADS[noteIdx] : LP_PIANO_NOTE_TO_PADS[noteIdx];
+}
+
+/* every pad in the active layout that represents this note — the display layer
+   highlights a note everywhere it appears on the grid, not just one octave.
+   Transpose shifts which physical pad-shape plays which note-class, so the
+   pad(s) to light for a given noteIdx are found by looking up the shape that
+   *would* produce noteIdx once transposed (the inverse of the input side). */
+function allPadsForIndex(noteIdx) {
+  const baseIdx = ((noteIdx - lpTranspose) % 12 + 12) % 12;
+  return lpNoteToPads(baseIdx);
+}
+
+const LP_BLACK_NOTES = new Set([1, 3, 6, 8, 10]); // C#, D#, F#, G#, A#
+
+/* C always gets the same light-blue idle backlight on both layouts, as a
+   fixed visual anchor for "where the octave starts". The piano layout
+   already distinguishes black/white keys by row position, so every other
+   note just stays the plain dim color; the fretboard layout has no such
+   positional cue, so its sharps also get color-coded (dimmed white).
+   Returns [r,g,b]. */
+function lpBacklightColorForNote(noteIdx) {
+  if (noteIdx === 0) return LP_RGB_C_BLUE;
+  if (lpLayout === 'fretboard' && LP_BLACK_NOTES.has(noteIdx)) return LP_RGB_DIM_WHITE;
+  return LP_RGB_DIM;
+}
+
+/* a pad with its own hue (C's blue) stays that hue when pressed, just
+   brighter — everything else (grey-family idle colors) just goes full white.
+   Used only when the press came from the physical pad itself. */
+function lpActiveColorForNote(noteIdx) {
+  if (noteIdx === 0) return lightenColor(LP_RGB_C_BLUE, 0.55);
+  return LP_RGB_ACTIVE;
+}
+
+/* paint every playable pad in the active layout with the idle backlight */
+function paintLaunchpadBacklight(output) {
+  // clear every one of the 64 grid pads first — the piano layout only uses
+  // 52 of them, and whatever was lit before (the fretboard layout, which
+  // uses all 64, a previous session, or the device's own standalone mode)
+  // would otherwise stay lit on the ones the current layout leaves unused
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) setLaunchpadRGB(output, 11 + col + 10 * row, 0, 0, 0);
+  }
+  for (let noteIdx = 0; noteIdx < 12; noteIdx++) {
+    const [r, g, b] = lpBacklightColorForNote(noteIdx);
+    for (const pad of lpNoteToPads(noteIdx)) setLaunchpadRGB(output, pad, r, g, b);
+  }
+}
+
+/* the two layout-picker side buttons: red for whichever is currently active */
+function paintLaunchpadLayoutButtons(output) {
+  const dim = [LP_ARROW_DIM, LP_ARROW_DIM, LP_ARROW_DIM];
+  const [kr, kg, kb] = lpLayout === 'piano'     ? LP_RGB_APP_ACTIVE : dim;
+  const [ur, ug, ub] = lpLayout === 'fretboard' ? LP_RGB_APP_ACTIVE : dim;
+  setLaunchpadRGB(output, LP_CC_KEYS, kr, kg, kb);
+  setLaunchpadRGB(output, LP_CC_USER, ur, ug, ub);
+}
+
+/* set one button's full RGB color (0-127 per channel) — the arrows aren't part
+   of the 8x8 grid's simple palette-velocity scheme, so use Novation's RGB
+   SysEx directly for a real gradient instead of picking from the 128-color
+   palette. LED = the button's own CC/note number. */
+function setLaunchpadRGB(output, led, r, g, b) {
+  if (midiMonitorEnabled) console.log('[MIDI out] light up', led, 'rgb', r, g, b);
+  output.send([0xF0, 0x00, 0x20, 0x29, 0x02, LP_DEVICE_ID, 0x03, 0x03, led, r, g, b, 0xF7]);
+}
+
+/* each arrow lights up on its OWN — dim neutral at rest, then red in
+   proportion to how many steps have been taken in *that* arrow's own
+   direction. The opposite arrow of the pair stays dim regardless (e.g.
+   pressing Left twice reddens only Left; Right is untouched), so the two
+   arrows of a pair are independent indicators rather than a single shared
+   position readout. */
+const LP_ARROW_DIM   = 25; // dimmed neutral color at rest / wrong-direction
+const LP_ARROW_STEPS = 3;  // reach full saturation within this many steps — or at the
+                            // real limit, whichever is closer — so each press is a big, obvious jump
+
+function arrowDirectionColor(steps, maxSteps) {
+  if (steps <= 0) return { r: LP_ARROW_DIM, g: LP_ARROW_DIM, b: LP_ARROW_DIM };
+  const saturateAt = Math.min(maxSteps, LP_ARROW_STEPS);
+  const fade = Math.round(LP_ARROW_DIM * (1 - Math.min(1, steps / saturateAt)));
+  return { r: 127, g: fade, b: fade };
+}
+
+function paintLaunchpadArrows(output) {
+  if (!output) return;
+  const up    = arrowDirectionColor(Math.max(0,  lpOctaveShift), LP_OCTAVE_SHIFT_MAX);
+  const down  = arrowDirectionColor(Math.max(0, -lpOctaveShift), -LP_OCTAVE_SHIFT_MIN);
+  const left  = arrowDirectionColor(Math.max(0, -lpTranspose),   -LP_TRANSPOSE_MIN);
+  const right = arrowDirectionColor(Math.max(0,  lpTranspose),   LP_TRANSPOSE_MAX);
+  setLaunchpadRGB(output, LP_CC_UP,    up.r, up.g, up.b);
+  setLaunchpadRGB(output, LP_CC_DOWN,  down.r, down.g, down.b);
+  setLaunchpadRGB(output, LP_CC_LEFT,  left.r, left.g, left.b);
+  setLaunchpadRGB(output, LP_CC_RIGHT, right.r, right.g, right.b);
+}
+
+function setLaunchpadProgrammerMode(output, on) {
+  if (!output) return;
+  output.send([0xF0, 0x00, 0x20, 0x29, 0x02, LP_DEVICE_ID, 0x0E, on ? 0x01 : 0x00, 0xF7]);
+  if (on) { paintLaunchpadBacklight(output); paintLaunchpadArrows(output); paintLaunchpadLayoutButtons(output); paintLaunchpadWaveButtons(output); }
+}
+
+/* source: 'app' (mic, on-screen keys, keyboard shortcuts, chroma test — always
+   red) vs 'pad' (physically pressing the Launchpad's own pad — white, or a
+   brightened version of the note's own hue; its own LED feedback is handled
+   directly by onLaunchpadPadMessage/paintPressedPad, not here). octave: the
+   exact octave this 'app' note-on was detected/played at, if known — used
+   only for the optional full-range-detection purple highlight. */
+function sendMidiNote(noteIdx, on, source = 'app', octave = null) {
+  if (!midiOut) return;
+  if (launchpadProgrammerMode) {
+    if (source === 'app') {
+      if (on) {
+        lpNotePlaying[noteIdx]    = true; // pins brightness at full — see applyDecayTick()
+        lpNoteBrightness[noteIdx] = 1;
+        if (octave !== null) lpNoteOctave[noteIdx] = octave; else delete lpNoteOctave[noteIdx];
+        paintLaunchpadNoteFade(noteIdx);
+      } else {
+        lpNotePlaying[noteIdx] = false; // no longer held — starts fading on the next decay tick
+      }
+    }
+  } else {
+    midiOut.send([on ? 0x90 : 0x80, midiNoteNum(noteIdx), on ? 100 : 0]);
+  }
+}
+
+/* the physical pad's own LED. heldNoteCount (used by onNoteOn/onNoteOff to
+   gate audio/bar-timing/MIDI-echo per chroma, not per octave) would hide a
+   second simultaneous press of the same note class at another octave, so
+   this is driven straight from the raw incoming pad message instead — every
+   press/release of a given physical pad always repaints that exact pad.
+   Piano layout: only the pressed pad itself lights up (each pad is its own
+   independent light). Fretboard layout: keeps the existing behavior of
+   highlighting every pad sharing this chroma.
+   baseIdx: the pad's own fixed (pre-transpose) identity — used for color, so
+   a pad's own hue/dim-vs-white status never depends on the current
+   transpose. displayedNoteIdx: the chroma this press actually sounds (post-
+   transpose) — used only to find sibling pads on the fretboard layout. */
+function paintPressedPad(pad, baseIdx, displayedNoteIdx, on) {
+  if (!midiOut || !launchpadProgrammerMode || !lpLightPressedPads) return;
+  const [r, g, b] = on ? lpActiveColorForNote(baseIdx) : lpBacklightColorForNote(baseIdx);
+  const pads = lpLayout === 'piano' ? [pad] : allPadsForIndex(displayedNoteIdx);
+  pads.forEach(p => setLaunchpadRGB(midiOut, p, r, g, b));
+}
+
+/* two independent layers share the same physical grid: the LED side (above)
+   just displays whatever the app already knows about; this is the other
+   layer — physically pressing a pad is real input, decoded back through the
+   identical layout so it plays the exact note/octave the pad is labelled. */
+function onLaunchpadPadMessage(status, pad, velocity) {
+  const cmd  = status & 0xF0;
+  const info = lpPadToNote(pad);
+  if (!info) return; // an unmapped/gap pad — ignore
+  // apply the current transpose/octave-shift, carrying any semitone overflow into the octave
+  let noteIdx = info.noteIdx + lpTranspose;
+  let octave  = info.octave + lpOctaveShift + Math.floor(noteIdx / 12);
+  noteIdx     = ((noteIdx % 12) + 12) % 12;
+  const el = keyEls[noteIdx];
+  const isOn  = cmd === 0x90 && velocity > 0;
+  const isOff = cmd === 0x80 || (cmd === 0x90 && velocity === 0);
+  if (isOn)  onNoteOn(noteIdx, el, false, octave, 'pad');
+  if (isOff) onNoteOff(noteIdx, el, false, octave, 'pad');
+  if (isOn || isOff) paintPressedPad(pad, info.noteIdx, noteIdx, isOn);
+}
+
+/* arrow buttons only act on press (CC value > 0), never on release */
+function onLaunchpadArrowMessage(cc, value) {
+  if (value === 0) return;
+  if      (cc === LP_CC_UP)    lpOctaveShift = Math.min(LP_OCTAVE_SHIFT_MAX, lpOctaveShift + 1);
+  else if (cc === LP_CC_DOWN)  lpOctaveShift = Math.max(LP_OCTAVE_SHIFT_MIN, lpOctaveShift - 1);
+  else if (cc === LP_CC_LEFT)  lpTranspose   = Math.max(LP_TRANSPOSE_MIN, lpTranspose - 1);
+  else if (cc === LP_CC_RIGHT) lpTranspose   = Math.min(LP_TRANSPOSE_MAX, lpTranspose + 1);
+  else return;
+  if (midiOut && launchpadProgrammerMode) paintLaunchpadArrows(midiOut);
+}
+
+/* Keys/User (top row) pick the active layout — press only, ignore an
+   already-active pick */
+function onLaunchpadLayoutButtonMessage(cc, value) {
+  if (value === 0) return;
+  const newLayout = cc === LP_CC_KEYS ? 'piano' : cc === LP_CC_USER ? 'fretboard' : null;
+  if (!newLayout || newLayout === lpLayout) return;
+  lpLayout = newLayout;
+  if (midiOut && launchpadProgrammerMode) {
+    paintLaunchpadBacklight(midiOut);       // the set of playable pads/notes changed
+    paintLaunchpadLayoutButtons(midiOut);   // move the indicator
+  }
+}
+
+function onMidiMessage(e) {
+  const [status, data1, data2] = e.data;
+  if (midiMonitorEnabled) console.log('[MIDI in]', status.toString(16), data1, data2);
+  if (launchpadInputMode) {
+    const cmd = status & 0xF0;
+    if (cmd === 0xB0) {
+      if (data1 === LP_CC_KEYS || data1 === LP_CC_USER) { onLaunchpadLayoutButtonMessage(data1, data2); return; }
+      if (LP_CC_STOP_SOLO_MUTE.includes(data1)) { if (data2 > 0) reset(); return; } // side-column "Stop Solo Mute" — same as clicking the app title
+      const waveIdx = LP_CC_WAVE.indexOf(data1);
+      if (waveIdx !== -1) { if (data2 > 0) setWaveType(LP_WAVE_ORDER[waveIdx]); return; } // rest of the side column — pick a waveform
+      onLaunchpadArrowMessage(data1, data2);
+      return;
+    }
+    onLaunchpadPadMessage(status, data1, data2);
+    return;
+  }
+
+  const cmd     = status & 0xF0;
+  const noteIdx = data1 % 12;
+  const el      = keyEls[noteIdx];
+  if (!el) return;
+  if (cmd === 0x90 && data2 > 0) onNoteOn(noteIdx, el, true);
+  else if (cmd === 0x80 || (cmd === 0x90 && data2 === 0)) onNoteOff(noteIdx, el, true);
+}
+
+let launchpadInputMode = false; // true when the selected MIDI-in device is also a Launchpad
+
+function setMidiIn(id) {
+  if (midiIn) { midiIn.onmidimessage = null; }
+  midiIn = (id && midiAccess) ? midiAccess.inputs.get(id) || null : null;
+  if (midiIn) midiIn.onmidimessage = onMidiMessage;
+  launchpadInputMode = !!(midiIn && /launchpad/i.test(midiIn.name || ''));
+  updateMidiDot();
+}
+
+function setMidiOut(id) {
+  const newOut = (id && midiAccess) ? midiAccess.outputs.get(id) || null : null;
+  if (midiOut && midiOut !== newOut && launchpadProgrammerMode) {
+    setLaunchpadProgrammerMode(midiOut, false); // hand the old device back to normal standalone use
+  }
+  midiOut = newOut;
+  launchpadProgrammerMode = !!(midiOut && /launchpad/i.test(midiOut.name || ''));
+  if (launchpadProgrammerMode) {
+    for (const k in lpNoteBrightness) delete lpNoteBrightness[k]; // no stale fade state from a previous connection
+    for (const k in lpNotePlaying)    delete lpNotePlaying[k];
+    for (const k in lpNoteOctave)     delete lpNoteOctave[k];
+    setLaunchpadProgrammerMode(midiOut, true);
+  }
+  updateMidiDot();
+}
+
+function updateMidiDot() {
+  const dot = document.getElementById('midi-dot');
+  if (dot) dot.className = 'mdot' + (midiIn || midiOut ? ' on' : '');
+}
+
+function refreshMidiDevices() {
+  if (!midiAccess) return;
+  const inSel  = document.getElementById('midi-in-select');
+  const outSel = document.getElementById('midi-out-select');
+  const msg    = document.getElementById('midi-status-msg');
+  if (!inSel) return;
+
+  const prevIn  = inSel.value;
+  const prevOut = outSel.value;
+
+  inSel.innerHTML  = '<option value="">— None —</option>';
+  outSel.innerHTML = '<option value="">— None —</option>';
+
+  midiAccess.inputs.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.id; o.textContent = p.name;
+    inSel.appendChild(o);
+  });
+  midiAccess.outputs.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.id; o.textContent = p.name;
+    outSel.appendChild(o);
+  });
+
+  const prefs = loadDevicePrefs();
+  inSel.value  = restoreDeviceValue(inSel,  prevIn,  prefs.midiIn);
+  outSel.value = restoreDeviceValue(outSel, prevOut, prefs.midiOut);
+  setMidiIn(inSel.value);
+  setMidiOut(outSel.value);
+
+  const nI = midiAccess.inputs.size, nO = midiAccess.outputs.size;
+  if (msg) {
+    msg.textContent = (nI + nO) > 0
+      ? `${nI} input${nI !== 1 ? 's' : ''}, ${nO} output${nO !== 1 ? 's' : ''} detected`
+      : 'No MIDI devices found';
+    msg.className = 'sp-status' + ((nI + nO) > 0 ? ' ok' : '');
+  }
+}
+
+async function initMidi() {
+  const msg = document.getElementById('midi-status-msg');
+  const dot = document.getElementById('midi-dot');
+  if (!navigator.requestMIDIAccess) {
+    if (msg) { msg.textContent = 'Web MIDI not supported in this browser.'; msg.className = 'sp-status err'; }
+    if (dot) dot.className = 'mdot err';
+    return;
+  }
+  try {
+    midiAccess = await navigator.requestMIDIAccess({ sysex: true }); // needed to switch the Launchpad into Programmer Mode
+    midiAccess.onstatechange = refreshMidiDevices;
+    refreshMidiDevices();
+  } catch (err) {
+    if (msg) { msg.textContent = 'MIDI access denied.'; msg.className = 'sp-status err'; }
+    if (dot) dot.className = 'mdot err';
+  }
+}
+
+/* asks for MIDI access at most once, whatever triggers it first */
+function ensureMidiAccess() {
+  if (midiRequested) return;
+  midiRequested = true;
+  initMidi();
+}
+
+/* Browsers give no way to detect connected MIDI hardware without first
+   asking for permission, so we can't gate the prompt on "a device is
+   plugged in" directly. The next best thing: never ask on page load —
+   only silently reuse a permission already granted in an earlier visit
+   (no popup for that), and otherwise wait for the user to open Settings,
+   which is the one action that actually signals they want to use MIDI. */
+async function tryAutoMidi() {
+  if (!navigator.permissions?.query) return;
+  try {
+    const status = await navigator.permissions.query({ name: 'midi', sysex: true });
+    if (status.state === 'granted') ensureMidiAccess();
+  } catch (e) { /* 'midi' permission name unsupported in this browser */ }
+}
+
+/* ═══════════════════════════════════════
+   SETTINGS PANEL
+═══════════════════════════════════════ */
+function initSettings() {
+  const btn      = document.getElementById('settings-btn');
+  const panel    = document.getElementById('settings-panel');
+  const backdrop = document.getElementById('settings-backdrop');
+  const closeBtn = document.getElementById('sp-close');
+
+  function openPanel()  {
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    btn.classList.add('active');
+    ensureMidiAccess();   // ask for MIDI access here, not on page load
+    ensureAudioDevices(); // same for audio in/out device labels
+  }
+  function closePanel() {
+    panel.classList.remove('open');
+    backdrop.classList.remove('open');
+    btn.classList.remove('active');
+  }
+
+  btn.addEventListener('click', () =>
+    panel.classList.contains('open') ? closePanel() : openPanel()
+  );
+  backdrop.addEventListener('click', closePanel);
+  closeBtn.addEventListener('click', closePanel);
+
+  document.getElementById('midi-in-select').addEventListener('change', e => {
+    setMidiIn(e.target.value);
+    saveDevicePref('midiIn', e.target.value, e.target.selectedOptions[0]?.textContent || '');
+  });
+  document.getElementById('midi-out-select').addEventListener('change', e => {
+    setMidiOut(e.target.value);
+    saveDevicePref('midiOut', e.target.value, e.target.selectedOptions[0]?.textContent || '');
+  });
+
+  document.getElementById('audio-in-select').addEventListener('change', e => {
+    setAudioIn(e.target.value);
+    saveDevicePref('audioIn', e.target.value, e.target.selectedOptions[0]?.textContent || '');
+  });
+  document.getElementById('audio-out-select').addEventListener('change', e => {
+    setAudioOut(e.target.value);
+    saveDevicePref('audioOut', e.target.value, e.target.selectedOptions[0]?.textContent || '');
+  });
+
+  document.getElementById('wave-select').addEventListener('change', e => { setWaveType(e.target.value); });
+
+  document.getElementById('lp-light-pressed-check').addEventListener('change', e => {
+    lpLightPressedPads = e.target.checked;
+  });
+
+  document.getElementById('lp-full-range-check').addEventListener('change', e => {
+    lpFullRangeDetection = e.target.checked;
+  });
+
+  document.getElementById('midi-monitor-check').addEventListener('change', e => {
+    midiMonitorEnabled = e.target.checked;
+  });
+
+  document.getElementById('pitch-algo-select').addEventListener('change', e => {
+    setPitchAlgo(e.target.value);
+  });
+
+  document.getElementById('oct-down').addEventListener('click', () => shiftMidiOctave(-1));
+  document.getElementById('oct-up').addEventListener('click', () => shiftMidiOctave(1));
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE TOPBAR — on a slim window, move the mic/decay/octave
+   controls into the settings panel instead of letting the topbar overflow
+═══════════════════════════════════════ */
+function initResponsiveTopbar() {
+  const topbar   = document.getElementById('topbar');
+  const title    = document.getElementById('app-title');
+  const settingsBtn = document.getElementById('settings-btn');
+  const slot       = document.getElementById('sp-controls-slot');
+  const slotLabel  = document.getElementById('sp-controls-label');
+  const slotDivider = document.getElementById('sp-controls-divider');
+  const movable = [
+    document.getElementById('decay-ctrl'),
+    document.querySelector('.oct-ctrl'),
+  ];
+
+  /* natural widths, measured once while everything still lives in the topbar —
+     title uses scrollWidth since flex:auto lets it shrink below its own content */
+  const cs = getComputedStyle(topbar);
+  const gap = parseFloat(cs.gap) || 0;
+  const padding = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const titleW = title.scrollWidth;
+  const movableW = movable.reduce((sum, el) => sum + el.getBoundingClientRect().width, 0);
+  const settingsW = settingsBtn.getBoundingClientRect().width;
+  const requiredWidth = titleW + movableW + settingsW + gap * (movable.length + 1) + padding;
+
+  let inSettings = false;
+
+  function apply() {
+    const fits = topbar.getBoundingClientRect().width >= requiredWidth;
+    if (fits === !inSettings) return; // no change needed
+    inSettings = !fits;
+    if (inSettings) {
+      movable.forEach(el => slot.appendChild(el));
+    } else {
+      movable.forEach(el => topbar.insertBefore(el, settingsBtn));
+    }
+    slotLabel.style.display   = inSettings ? '' : 'none';
+    slotDivider.style.display = inSettings ? '' : 'none';
+  }
+
+  apply();
+  window.addEventListener('resize', apply);
+}
+
+function build() {
+  const barArea  = document.getElementById('bar-area');
+  const keyboard = document.getElementById('keyboard');
+
+  /* bars — white first (z:1) then black overlaid (z:2) */
+  WHITE_KEYS.forEach(k => barArea.appendChild(makeBarCol(k.noteIdx, 'white')));
+  BLACK_KEYS.forEach(k => barArea.appendChild(makeBarCol(k.noteIdx, 'black')));
+
+  /* keys — white first, black on top */
+  WHITE_KEYS.forEach(k => keyboard.appendChild(makeKey(k, 'white')));
+  BLACK_KEYS.forEach(k => keyboard.appendChild(makeKey(k, 'black')));
+
+  initResize();
+  initSettings();
+  initResponsiveTopbar();
+  tryAutoMidi();
+  initScrubDrag('decay-ctrl', () => decayPct, setDecayPct);
+  initScrubDrag('gain-ctrl', () => micGainPct, setMicGain);
+  setDecayPct(decayPct); // starts the decay interval for the default rate
+  applyLayout();
+
+  document.getElementById('mic-badge').addEventListener('click', () =>
+    setMode(mode === 'outside' ? 'inner' : 'outside')
+  );
+  document.getElementById('app-title').addEventListener('click', reset);
+  window.addEventListener('resize', applyLayout);
+
+  document.addEventListener('keydown', e => {
+    if (e.repeat) return;
+    const key = e.key.toLowerCase();
+    if (key === 'z') { shiftPreviewOctave(-1); return; }
+    if (key === 'x') { shiftPreviewOctave(1);  return; }
+    if (key === 'arrowup' || key === 'arrowdown') {
+      // don't hijack native arrow-key behavior on an actually-focused control
+      const el = document.activeElement;
+      const isFormControl = el && (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.isContentEditable);
+      if (!isFormControl) { cyclePitchAlgo(key === 'arrowdown' ? 1 : -1); return; }
+    }
+    const idx = KEY_MAP[key];
+    if (idx === undefined) return;
+    e.preventDefault();
+    if (heldKeys.has(key)) return;
+    heldKeys.add(key);
+    const el = keyEls[idx];
+    if (el) onNoteOn(idx, el, false, previewOctave);
+  });
+
+  document.addEventListener('keyup', e => {
+    const key = e.key.toLowerCase();
+    const idx = KEY_MAP[key];
+    heldKeys.delete(key);
+    if (idx !== undefined) {
+      const el = keyEls[idx];
+      if (el) onNoteOff(idx, el, false, previewOctave);
+    }
+  });
+
+  /* release any mouse-held note when button is lifted anywhere on page */
+  document.addEventListener('mouseup', () => {
+    keyEls.forEach((el, idx) => {
+      if (el && el.classList.contains('pressed')) onNoteOff(idx, el, false, previewOctave);
+    });
+  });
+}
+
+build();
+</script>
+</body>
+</html>
