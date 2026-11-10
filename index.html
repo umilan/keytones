@@ -1311,6 +1311,7 @@ async function startMic() {
     animateLevel();
     agcSum = 0; agcSamples = 0;
     agcInterval = setInterval(agcTick, AGC_INTERVAL_MS);
+    if (!navigator.mediaDevices.ondevicechange) watchAudioDevices(); // labels are available now — may switch to the built-in mic
   } catch(e) {
     console.error('[mic] getUserMedia failed:', e);
     setMicUI('error', '—', '');
@@ -2252,15 +2253,58 @@ function restoreDeviceValue(selectEl, prevValue, pref) {
 ═══════════════════════════════════════ */
 function setAudioIn(id) {
   audioInDeviceId = id;
-  if (mode === 'outside' && micActive) { stopMic(); startMic(); } // reopen with the new device
+  // reopen with the new device — unless the open stream already is that device
+  const current = micStream?.getAudioTracks()[0]?.getSettings?.().deviceId;
+  if (mode === 'outside' && micActive && !(id && current === id)) { stopMic(); startMic(); }
 }
 
 async function setAudioOut(id) {
   audioOutDeviceId = id;
-  const ac = getCtx();
-  if (typeof ac.setSinkId === 'function') {
-    try { await ac.setSinkId(id || ''); } catch (e) { /* unsupported device id — ignore */ }
+  // don't create the AudioContext just for this — getCtx() applies the sink when it does
+  if (audioCtx && typeof audioCtx.setSinkId === 'function') {
+    try { await audioCtx.setSinkId(id || ''); } catch (e) { /* unsupported device id — ignore */ }
   }
+}
+
+/* With nothing chosen, prefer the device's own built-in mic/speakers over
+   whatever the OS default happens to be (AirPods, a USB interface, a Continuity
+   iPhone mic on a Mac). Mac built-ins first, so a Mac never picks a nearby
+   iPhone; on an iPhone only the iPhone entries exist. Chrome's alias entries
+   ("Default - …", "Communications - …") are skipped in favour of the real
+   device. Not saved as a preference; an explicit "— Default —" pick disables it.
+   (iOS Safari lists no outputs and can't switch them, so out stays Default there.) */
+const BUILTIN_AUDIO_PATTERNS = [
+  /built-in|macbook|imac|mac mini|mac studio|mac pro/i,
+  /iphone|ipad/i,
+];
+
+function autoPickAudioDevice(selectEl, pref) {
+  if (pref && pref.id === '') return '';             // user explicitly chose Default
+  const opts = [...selectEl.options].filter(o =>
+    o.value && o.value !== 'default' && o.value !== 'communications' &&
+    !/^(default|communications)\s*-/i.test(o.textContent));
+  for (const re of BUILTIN_AUDIO_PATTERNS) {
+    const match = opts.find(o => re.test(o.textContent));
+    if (match) return match.value;
+  }
+  return '';
+}
+
+/* list devices without opening the mic — labels are only there once mic
+   permission has been granted, which is the case after startMic() or when
+   an earlier visit's grant persisted */
+function watchAudioDevices() {
+  if (!navigator.mediaDevices?.enumerateDevices) return;
+  navigator.mediaDevices.ondevicechange = refreshAudioDevices;
+  refreshAudioDevices();
+}
+
+async function tryAutoAudioDevices() {
+  if (!navigator.permissions?.query) return;
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' });
+    if (status.state === 'granted') watchAudioDevices();
+  } catch (e) { /* 'microphone' permission name unsupported in this browser */ }
 }
 
 async function refreshAudioDevices() {
@@ -2292,8 +2336,8 @@ async function refreshAudioDevices() {
   });
 
   const prefs  = loadDevicePrefs();
-  const newIn  = restoreDeviceValue(inSel,  prevIn,  prefs.audioIn);
-  const newOut = restoreDeviceValue(outSel, prevOut, prefs.audioOut);
+  const newIn  = restoreDeviceValue(inSel,  prevIn,  prefs.audioIn)  || autoPickAudioDevice(inSel,  prefs.audioIn);
+  const newOut = restoreDeviceValue(outSel, prevOut, prefs.audioOut) || autoPickAudioDevice(outSel, prefs.audioOut);
   inSel.value  = newIn;
   outSel.value = newOut;
   if (newIn  !== prevIn)  setAudioIn(newIn);
@@ -2323,8 +2367,7 @@ async function ensureAudioDevices() {
     const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     tempStream.getTracks().forEach(t => t.stop());
   } catch (e) { /* denied — device list will just show unlabelled entries */ }
-  navigator.mediaDevices.ondevicechange = refreshAudioDevices;
-  refreshAudioDevices();
+  watchAudioDevices();
 }
 
 /* ═══════════════════════════════════════
@@ -3098,6 +3141,7 @@ function build() {
   initResponsiveAlgoPicker();
   initSettings();
   tryAutoMidi();
+  tryAutoAudioDevices();
   initScrubDrag('decay-ctrl', () => decayPct, setDecayPct);
   initScrubDrag('gain-ctrl', () => micGainDb, setMicGain, 0.25);
   setDecayPct(decayPct); // starts the decay interval for the default rate
