@@ -2888,6 +2888,30 @@ function updateMidiDot() {
   if (dot) dot.className = 'mdot' + (midiIn || midiOut ? ' on' : '');
 }
 
+/* When nothing is selected (first run, or the remembered device isn't
+   plugged in), pick a known controller automatically — so a Launchpad or
+   Launchkey just works on connect without opening Settings. Runs again on
+   every hot-plug (onstatechange). Not saved as a preference, so an explicit
+   pick still wins; an explicit "— None —" pick is respected and disables it.
+   Port choice: Novation devices expose a "MIDI" and a "DAW" port (Windows:
+   "MIDIIN2/MIDIOUT2 (...)" is the DAW one). Launchkey pad lighting needs the
+   DAW port for output; everything else wants the plain MIDI port. */
+const AUTO_MIDI_DEVICES = [/launchpad/i, /launchkey/i];
+
+function autoPickMidiPort(selectEl, dir, pref) {
+  if (pref && pref.id === '') return '';             // user explicitly chose None
+  const isDaw = name => /\bDAW\b|MIDI(IN|OUT)2/i.test(name);
+  const opts = [...selectEl.options].filter(o => o.value);
+  for (const re of AUTO_MIDI_DEVICES) {
+    const matches = opts.filter(o => re.test(o.textContent));
+    if (!matches.length) continue;
+    const wantDaw = dir === 'out' && /launchkey/i.test(re.source);
+    const best = matches.find(o => isDaw(o.textContent) === wantDaw) || matches[0];
+    return best.value;
+  }
+  return '';
+}
+
 function refreshMidiDevices() {
   if (!midiAccess) return;
   const inSel  = document.getElementById('midi-in-select');
@@ -2913,8 +2937,8 @@ function refreshMidiDevices() {
   });
 
   const prefs = loadDevicePrefs();
-  inSel.value  = restoreDeviceValue(inSel,  prevIn,  prefs.midiIn);
-  outSel.value = restoreDeviceValue(outSel, prevOut, prefs.midiOut);
+  inSel.value  = restoreDeviceValue(inSel,  prevIn,  prefs.midiIn)  || autoPickMidiPort(inSel,  'in',  prefs.midiIn);
+  outSel.value = restoreDeviceValue(outSel, prevOut, prefs.midiOut) || autoPickMidiPort(outSel, 'out', prefs.midiOut);
   setMidiIn(inSel.value);
   setMidiOut(outSel.value);
 
