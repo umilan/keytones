@@ -55,6 +55,13 @@
       --chevron-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='10'%20height='6'%20viewBox='0%200%2010%206'%3E%3Cpath%20d='M1%201l4%204%204-4'%20stroke='%23c8c4ff'%20stroke-opacity='0.4'%20stroke-width='1.5'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     }
 
+    html {
+      /* iOS enlarges text in landscape unless told not to — that made the
+         Settings labels overflow into their values */
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
     html, body {
       height: 100%;
       overflow: hidden;
@@ -632,7 +639,7 @@
 			font-weight: 600;
 			letter-spacing: var(--let-spac);
       color: rgba(220,216,255,0.50);
-      flex: 1; min-width: 0;
+      flex: 1; min-width: min-content; /* never narrower than its longest word */
     }
 
     .sp-select {
@@ -655,7 +662,8 @@
     }
     .sp-row:has(.sp-range) { min-height: 34px; } /* same rhythm as the dropdown rows */
     .sp-range {
-      width: 120px; flex-shrink: 0; margin: 0;
+      /* the slider gives way first, so a long label (Confidence) never runs into its value */
+      flex: 0 1 120px; width: 120px; min-width: 56px; margin: 0;
       accent-color: var(--active-bg); cursor: pointer;
     }
     .sp-swatch {
@@ -693,7 +701,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.17</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.18</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
