@@ -693,7 +693,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.16</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.17</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -3415,6 +3415,33 @@ function setPadGlow(kind, pct) {
   }
 }
 
+/* swipe in from the right screen edge to open Settings. A touch that starts
+   in the outer EDGE_SWIPE_ZONE px is reserved for this (so it doesn't also
+   play the B key / bar underneath); it opens once it has moved ~40 px left. */
+const EDGE_SWIPE_ZONE = 18;
+function initEdgeSwipeOpen(panel, open) {
+  let start = null;
+  document.addEventListener('touchstart', e => {
+    if (panel.classList.contains('open') || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (t.clientX < window.innerWidth - EDGE_SWIPE_ZONE) return;
+    start = { x: t.clientX, y: t.clientY, id: t.identifier };
+    e.stopPropagation();
+  }, { capture: true, passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!start) return;
+    const t = [...e.touches].find(t => t.identifier === start.id);
+    if (!t) return;
+    const dx = t.clientX - start.x, dy = t.clientY - start.y;
+    if (dx < -40 && Math.abs(dx) > Math.abs(dy) * 1.5) { start = null; open(); }
+    else if (Math.abs(dy) > 60) start = null; // vertical — not a swipe
+    e.stopPropagation();
+  }, { capture: true, passive: true });
+  const end = e => { if (start) { start = null; e.stopPropagation(); } };
+  document.addEventListener('touchend', end, { capture: true, passive: true });
+  document.addEventListener('touchcancel', end, { capture: true, passive: true });
+}
+
 function initSettings() {
   const btn      = document.getElementById('settings-btn');
   const panel    = document.getElementById('settings-panel');
@@ -3438,6 +3465,7 @@ function initSettings() {
   );
   header.addEventListener('click', closePanel); // whole header closes — the ✕ inside it is just a visual affordance
   initPanelSwipe(panel, closePanel);
+  initEdgeSwipeOpen(panel, openPanel);
 
   document.getElementById('midi-in-select').addEventListener('change', e => {
     setMidiIn(e.target.value);
