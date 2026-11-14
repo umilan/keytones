@@ -29,6 +29,8 @@
       /* ── accent / status ── */
       --active-bg:  rgb(251, 91, 36) !important;
       --active-bg2: rgb(221, 61, 16) !important;
+      --latest-bg:  rgb(255, 214, 10);  /* Settings > Latest note yellow */
+      --latest-bg2: rgb(230, 186, 0);
       --ok:      #00D17C;
       --ok-glow: rgba(0,209,124,0.67);
       --err:     #EF4444;
@@ -470,6 +472,12 @@
     .white-key::after { background: var(--active-bg); }
     .black-key::after { background: var(--active-bg2); }
 
+    /* Settings > Latest note yellow — the most recent mic-detected note */
+    .white-key.latest { background: var(--latest-bg); }
+    .black-key.latest { background: var(--latest-bg2); }
+    .white-key.latest::after, .black-key.latest::after { opacity: 0; }
+    .white-key.latest .key-name, .black-key.latest .key-name { color: rgba(30,25,50,0.70); }
+
     .key-name {
       font-family: monospace;
       font-weight: 700;
@@ -628,6 +636,10 @@
     .sp-select:focus { border-color: var(--border-focus); }
     .sp-select option { background: var(--panel-bg); }
     .sp-row .sp-select { width: 140px; flex-shrink: 0; }
+    .sp-check {
+      width: 20px; height: 20px; margin: 0 4px 0 0; flex-shrink: 0;
+      accent-color: var(--latest-bg); cursor: pointer;
+    }
 
     .sp-status {
       font-family: monospace;
@@ -756,6 +768,10 @@
         <option value="octave">1 oct</option>
         <option value="full" selected>full range</option>
       </select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="latest-yellow-check">Latest note yellow</label>
+      <input type="checkbox" class="sp-check" id="latest-yellow-check" checked>
     </div>
     <div class="sp-row">
       <span class="sp-label">Press states</span>
@@ -1066,6 +1082,32 @@ let audioDevicesRequested = false; // guards against asking more than once
 
 let lastNote       = -1;
 let lastNoteOctave = -1; // exact octave of the currently-tracked pitch (full-range detection)
+
+/* Settings > Latest note yellow: the most recently detected note (mic mode)
+   is drawn yellow on both its key and its bar, and stays yellow until a
+   different note is detected or the counts are reset. Remembered per browser. */
+const LATEST_YELLOW_KEY = 'keymap-latest-yellow-v1';
+let latestYellow = (() => {
+  try { return localStorage.getItem(LATEST_YELLOW_KEY) !== '0'; } catch (e) { return true; }
+})();
+let latestNote = -1;
+
+function setLatestNote(idx) {
+  latestNote = idx;
+  paintLatestKey();
+}
+
+function paintLatestKey() {
+  const show = latestYellow && mode === 'outside';
+  for (let i = 0; i < 12; i++) keyEls[i]?.classList.toggle('latest', show && i === latestNote);
+}
+
+function setLatestYellow(on) {
+  latestYellow = on;
+  try { localStorage.setItem(LATEST_YELLOW_KEY, on ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+  paintLatestKey();
+  render();
+}
 let pendingNote  = -1;
 let pendingTicks = 0;
 const DEBOUNCE   = 2;
@@ -1780,6 +1822,7 @@ function runPolyDetection(sr) {
   for (const [nIdx, oct] of newActive) {
     if (!activePolyNotes.has(nIdx)) {
       outerCounts[nIdx]++;
+      setLatestNote(nIdx);
       flashBar(nIdx);
       sendMidiNote(nIdx, true, 'app', oct);
     }
@@ -1813,6 +1856,7 @@ function runDetection() {
       if (pendingTicks === DEBOUNCE && nIdx !== lastNote) {
         if (lastNote !== -1) sendMidiNote(lastNote, false); // release the previously tracked pitch
         lastNote = nIdx; lastNoteOctave = oct; outerCounts[nIdx]++;
+        setLatestNote(nIdx);
         flashBar(nIdx);
         sendMidiNote(nIdx, true, 'app', oct); // echo the tracked pitch out to MIDI (e.g. lights the matching Launchpad pad)
         if (mode === 'outside') render();
@@ -1868,6 +1912,7 @@ function setMode(newMode) {
   else                    stopMic();
   const sel = document.getElementById('mic-onoff-select');
   if (sel) sel.value = mode === 'outside' ? 'on' : 'off';
+  paintLatestKey(); // yellow is a mic-mode thing — hide it while playing keys
   render();
 }
 
@@ -1905,8 +1950,9 @@ function render() {
     /* bar height + linear colour */
     const ratio = maxCount > 0 ? counts[i] / maxCount : 0;
     barEl.style.height     = Math.round(ratio * availH) + 'px';
-    barEl.style.background = barColor(ratio);
-    barEl.style.boxShadow  = barGlow(ratio);
+    const isLatest = latestYellow && mode === 'outside' && i === latestNote && ratio > 0;
+    barEl.style.background = isLatest ? 'var(--latest-bg)' : barColor(ratio);
+    barEl.style.boxShadow  = isLatest ? barGlow(ratio).replace('255,0,0', '255,214,10') : barGlow(ratio);
 
     /* percentage label */
     const pct = total > 0 ? Math.round(counts[i] / total * 100) : 0;
@@ -1927,6 +1973,7 @@ function reset() {
     outerCounts.fill(0);
     if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
     lastNote = pendingNote = -1; pendingTicks = 0;
+    setLatestNote(-1);
     setMicUI('listening','—','');
   }
   for (let i = 0; i < 12; i++) { keyBrightness[i] = 0; paintKeyFade(i); }
@@ -3076,6 +3123,10 @@ function initSettings() {
   });
 
   document.getElementById('wave-select').addEventListener('change', e => { setWaveType(e.target.value); });
+
+  const latestCheck = document.getElementById('latest-yellow-check');
+  latestCheck.checked = latestYellow;
+  latestCheck.addEventListener('change', e => setLatestYellow(e.target.checked));
 
   document.getElementById('press-states-select').addEventListener('change', e => {
     lpLightPressedPads = e.target.value === 'yes';
