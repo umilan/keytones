@@ -527,8 +527,6 @@
     .black-key::after { background: var(--active-bg2); }
     /* full range detection: a detected note's key glows in the Exact octave
        colour, fading like its exact-octave Launchpad pad */
-    .white-key.exact::after { background: var(--octave-bg); }
-    .black-key.exact::after { background: var(--octave-bg2); }
     .white-key.exact.exact-latest::after { background: var(--latest-bg); }
     .black-key.exact.exact-latest::after { background: var(--latest-bg2); }
 
@@ -745,7 +743,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.32</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.33</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -926,11 +924,6 @@
       <label class="sp-label" for="color-cNote">C notes (LP/LK)</label>
       <span class="sp-swatch" id="color-cNote-swatch"></span>
       <select class="sp-select" id="color-cNote"></select>
-    </div>
-    <div class="sp-row">
-      <label class="sp-label" for="color-octave">Exact octave (LP)</label>
-      <span class="sp-swatch" id="color-octave-swatch"></span>
-      <select class="sp-select" id="color-octave"></select>
     </div>
     <div class="sp-row">
       <label class="sp-label" for="color-pressed">Pressed pad (LP)</label>
@@ -1213,7 +1206,7 @@ const PALETTE = {
   magenta: { web: [255, 0, 255],  lp: [127, 0, 127],   lk: 53 },
   white:   { web: [240, 240, 248], lp: [127, 127, 127], lk: 3  },
 };
-const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', cNote: 'blue', octave: 'purple', pressed: 'none' };
+const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', cNote: 'blue', pressed: 'none' };
 const COLORS_KEY = 'keytones-colors-v1';
 let colors = { ...COLOR_DEFAULTS };
 try {
@@ -1245,7 +1238,6 @@ let latestNote = -1;
 /* Launchpad / Launchkey colours that follow Settings > COLORS (see applyColors) */
 let LP_RGB_NOTE       = lpOf(colors.detected);   // note highlighted by the app (mic, on-screen key, chroma test); null = none
 let LP_RGB_APP_ACTIVE = LP_RGB_NOTE || LP_RGB_UI_NEUTRAL; // the same colour for the side/top buttons, never null
-let LP_RGB_APP_OCTAVE = lpOf(colors.octave);     // Detection "full range": the exact-octave pad; null = none
 let LP_RGB_C_BLUE     = lpOf(colors.cNote);      // idle backlight of every C; null = like the other pads
 let LP_RGB_ACTIVE     = lpOf(colors.pressed);    // a pad being physically pressed; null = no press colour
 
@@ -1257,14 +1249,9 @@ function applyColors() {
     root.setProperty('--latest-bg',  `rgb(${webRgb(colors.latest)})`);
     root.setProperty('--latest-bg2', `rgb(${webDark(colors.latest)})`);
   }
-  if (colors.octave !== 'none') {
-    root.setProperty('--octave-bg',  `rgb(${webRgb(colors.octave)})`);
-    root.setProperty('--octave-bg2', `rgb(${webDark(colors.octave)})`);
-  }
   latestColor       = colors.latest;
   LP_RGB_NOTE       = lpOf(colors.detected);
   LP_RGB_APP_ACTIVE = LP_RGB_NOTE || LP_RGB_UI_NEUTRAL;
-  LP_RGB_APP_OCTAVE = lpOf(colors.octave);
   LP_RGB_C_BLUE     = lpOf(colors.cNote);
   LP_RGB_ACTIVE     = lpOf(colors.pressed);
 }
@@ -2879,7 +2866,7 @@ function paintExactKey(noteIdx) {
   if (!el) return;
   const isLatest = isLatestShown(noteIdx);
   const show = mode === 'outside' && lpFullRangeDetection
-            && (isLatest || colors.octave !== 'none')
+            && isLatest                       // full range: only the latest note is marked
             && lpNoteOctave[noteIdx] !== undefined && lpNoteBrightness[noteIdx] > 0;
   el.classList.toggle('exact', show);
   el.classList.toggle('exact-latest', show && isLatest); // same fade, Latest colour
@@ -2912,7 +2899,7 @@ function paintLaunchpadNoteFade(noteIdx) {
   const active = (allLatest ? latest : LP_RGB_NOTE) || idle; // 'none' = stays idle
   const [r, g, b] = lpBlendColor(idle, active, allLatest ? tLatest : t);
   allPadsForIndex(noteIdx).forEach(pad => setLaunchpadRGB(midiOut, pad, r, g, b));
-  const exactColor = exactKnown ? (latest || LP_RGB_APP_OCTAVE) : null;
+  const exactColor = exactKnown ? latest : null; // full range: only the latest note gets its exact pad marked
   if (exactColor) {
     const [pr, pg, pb] = lpBlendColor(idle, exactColor, latest ? tLatest : t);
     lpPadsForNoteOctave(noteIdx, lpNoteOctave[noteIdx]).forEach(pad => setLaunchpadRGB(midiOut, pad, pr, pg, pb));
@@ -2951,7 +2938,7 @@ function paintLaunchpadWaveButtons(output) {
     const [r, g, b] = isSelected ? LP_RGB_APP_ACTIVE : LP_RGB_WAVE_DIM;
     setLaunchpadRGB(output, cc, r, g, b);
   });
-  LP_CC_STOP_SOLO_MUTE.forEach(cc => setLaunchpadRGB(output, cc, ...(LP_RGB_APP_OCTAVE || LP_RGB_UI_NEUTRAL))); // reset button — purple
+  LP_CC_STOP_SOLO_MUTE.forEach(cc => setLaunchpadRGB(output, cc, ...PALETTE.purple.lp)); // reset button — purple
 }
 
 function setWaveType(type) {
