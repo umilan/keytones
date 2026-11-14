@@ -648,6 +648,7 @@
       font-family: monospace; font-size: var(--ui-font-size);
       color: var(--text); min-width: 52px; text-align: right; flex-shrink: 0;
     }
+    .sp-row:has(.sp-range) { min-height: 34px; } /* same rhythm as the dropdown rows */
     .sp-range {
       width: 120px; flex-shrink: 0; margin: 0;
       accent-color: var(--active-bg); cursor: pointer;
@@ -683,7 +684,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.4</span></div>
+    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.5</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -820,19 +821,8 @@
     <div class="sp-section-label">VISUALISATION</div>
     <div class="sp-row">
       <span class="sp-label">Decay</span>
-      <select class="sp-select" id="decay-select">
-        <option value="0">0%</option>
-        <option value="10">10%</option>
-        <option value="20">20%</option>
-        <option value="30">30%</option>
-        <option value="40">40%</option>
-        <option value="50" selected>50%</option>
-        <option value="60">60%</option>
-        <option value="70">70%</option>
-        <option value="80">80%</option>
-        <option value="90">90%</option>
-        <option value="100">100%</option>
-      </select>
+      <span class="sp-value" id="decay-select-value"></span>
+      <input type="range" class="sp-range" id="decay-select" min="0" max="100" step="1" value="50">
     </div>
     <div class="sp-row">
       <span class="sp-label">Latest note</span>
@@ -877,45 +867,15 @@
     </div>
     <div class="sp-row">
       <span class="sp-label">Sound octave</span>
-      <select class="sp-select" id="sound-oct-select">
-        <option value="0">0</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3" selected>3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8">8</option>
-      </select>
+      <span class="sp-value" id="sound-oct-select-value"></span>
+      <input type="range" class="sp-range" id="sound-oct-select" min="0" max="8" step="1" value="3">
     </div>
     <div class="sp-row">
       <span class="sp-label">Gain</span>
       <!-- same underlying value (micGainDb) as the topbar GAIN drag —
            picking an option here calls the exact same setMicGain() -->
-      <select class="sp-select" id="gain-db-select">
-        <option value="-40">-40dB</option>
-        <option value="-30">-30dB</option>
-        <option value="-20">-20dB</option>
-        <option value="-15">-15dB</option>
-        <option value="-10">-10dB</option>
-        <option value="-6">-6dB</option>
-        <option value="-3">-3dB</option>
-        <option value="0" selected>0dB</option>
-        <option value="3">+3dB</option>
-        <option value="6">+6dB</option>
-        <option value="10">+10dB</option>
-        <option value="15">+15dB</option>
-        <option value="20">+20dB</option>
-        <option value="30">+30dB</option>
-        <option value="40">+40dB</option>
-        <option value="50">+50dB</option>
-        <option value="60">+60dB</option>
-        <option value="70">+70dB</option>
-        <option value="80">+80dB</option>
-        <option value="90">+90dB</option>
-        <option value="100">+100dB</option>
-      </select>
+      <span class="sp-value" id="gain-db-select-value"></span>
+      <input type="range" class="sp-range" id="gain-db-select" min="-40" max="100" step="1" value="0">
     </div>
     <div class="sp-row">
       <span class="sp-label">Audio in</span>
@@ -968,17 +928,8 @@
     </div>
     <div class="sp-row">
       <span class="sp-label">MIDI out transpose</span>
-      <select class="sp-select" id="midi-transpose-select">
-        <option value="-4">-4 oct</option>
-        <option value="-3">-3 oct</option>
-        <option value="-2">-2 oct</option>
-        <option value="-1">-1 oct</option>
-        <option value="0" selected>0 oct</option>
-        <option value="1">+1 oct</option>
-        <option value="2">+2 oct</option>
-        <option value="3">+3 oct</option>
-        <option value="4">+4 oct</option>
-      </select>
+      <span class="sp-value" id="midi-transpose-select-value"></span>
+      <input type="range" class="sp-range" id="midi-transpose-select" min="-4" max="4" step="1" value="0">
     </div>
     <div class="sp-status" id="midi-status-msg">Requesting MIDI access…</div>
     <div class="sp-row">
@@ -2118,12 +2069,18 @@ function applyDecayTick() {
   render();
 }
 
+/* the number shown next to a Settings slider */
+function setRangeLabel(id, text) {
+  const el = document.getElementById(id + '-value');
+  if (el) el.textContent = text;
+}
+
 function setDecayPct(v) {
   decayPct = Math.max(0, Math.min(100, Math.round(v)));
   document.getElementById('decay-val').textContent = decayPct + '%';
   const sel = document.getElementById('decay-select');
-  if (sel) sel.value = [0,10,20,30,40,50,60,70,80,90,100].reduce((a, b) =>
-    Math.abs(b - decayPct) < Math.abs(a - decayPct) ? b : a);
+  if (sel) sel.value = decayPct;
+  setRangeLabel('decay-select', decayPct + '%');
   if (decayInterval) { clearInterval(decayInterval); decayInterval = null; }
   if (decayPct > 0) decayInterval = setInterval(applyDecayTick, 1000);
 }
@@ -2166,14 +2123,12 @@ function applyMicGain() {
   if (micGainNode) micGainNode.gain.value = Math.pow(10, micGainDb / 20);
 }
 
-const GAIN_DB_STEPS = [-40, -30, -20, -15, -10, -6, -3, 0, 3, 6, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-
 function setMicGain(v) {
   micGainDb = Math.max(MIC_GAIN_DB_MIN, Math.min(MIC_GAIN_DB_MAX, Math.round(v)));
   document.getElementById('gain-val').textContent = (micGainDb > 0 ? '+' : '') + micGainDb + 'dB';
   const sel = document.getElementById('gain-db-select');
-  if (sel) sel.value = GAIN_DB_STEPS.reduce((a, b) =>
-    Math.abs(b - micGainDb) < Math.abs(a - micGainDb) ? b : a);
+  if (sel) sel.value = micGainDb;
+  setRangeLabel('gain-db-select', (micGainDb > 0 ? '+' : '') + micGainDb + ' dB');
   applyMicGain();
 }
 
@@ -2537,6 +2492,7 @@ function shiftMidiOctave(delta) {
   midiOctave = Math.max(0, Math.min(8, midiOctave + delta));
   const sel = document.getElementById('midi-transpose-select');
   if (sel) sel.value = midiOctave - 4;
+  setRangeLabel('midi-transpose-select', (midiOctave > 4 ? '+' : '') + (midiOctave - 4) + ' oct');
 }
 
 /* Z/X — shifts only what's actually heard from the speakers when clicking a
@@ -2549,6 +2505,7 @@ function shiftPreviewOctave(delta) {
   previewOctave = Math.max(0, Math.min(8, previewOctave + delta));
   const sel = document.getElementById('sound-oct-select');
   if (sel) sel.value = previewOctave;
+  setRangeLabel('sound-oct-select', String(previewOctave));
 }
 
 /* ── LAUNCHPAD (Mini MK3) — Programmer Mode direct pad lighting ──────────
@@ -3279,7 +3236,7 @@ function initSettings() {
   document.querySelectorAll('.algo-btn').forEach(btn =>
     btn.addEventListener('click', () => setPitchAlgo(btn.dataset.algo)));
 
-  document.getElementById('decay-select').addEventListener('change', e => {
+  document.getElementById('decay-select').addEventListener('input', e => {
     setDecayPct(parseInt(e.target.value, 10));
   });
 
@@ -3287,11 +3244,13 @@ function initSettings() {
     setMode(e.target.value === 'on' ? 'outside' : 'inner');
   });
 
-  document.getElementById('sound-oct-select').addEventListener('change', e => {
-    previewOctave = parseInt(e.target.value, 10);
+  document.getElementById('sound-oct-select').addEventListener('input', e => {
+    shiftPreviewOctave(parseInt(e.target.value, 10) - previewOctave);
   });
+  shiftPreviewOctave(0); // fill in the slider labels
+  shiftMidiOctave(0);
 
-  document.getElementById('gain-db-select').addEventListener('change', e => {
+  document.getElementById('gain-db-select').addEventListener('input', e => {
     setMicGain(parseInt(e.target.value, 10));
   });
 
@@ -3301,7 +3260,7 @@ function initSettings() {
   document.getElementById('midi-out-channel-select').addEventListener('change', e => {
     midiOutChannel = e.target.value === 'omni' ? 'omni' : parseInt(e.target.value, 10);
   });
-  document.getElementById('midi-transpose-select').addEventListener('change', e => {
+  document.getElementById('midi-transpose-select').addEventListener('input', e => {
     shiftMidiOctave(parseInt(e.target.value, 10) - (midiOctave - 4));
   });
 }
@@ -3326,6 +3285,7 @@ function build() {
   initScrubDrag('decay-ctrl', () => decayPct, setDecayPct);
   initScrubDrag('gain-ctrl', () => micGainDb, setMicGain, 0.25);
   setDecayPct(decayPct); // starts the decay interval for the default rate
+  setMicGain(micGainDb);  // fills in the Settings gain slider label
   applyLayout();
 
   document.getElementById('mic-badge').addEventListener('click', () =>
