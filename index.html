@@ -644,6 +644,20 @@
     .sp-select:focus { border-color: var(--border-focus); }
     .sp-select option { background: var(--panel-bg); }
     .sp-row .sp-select { width: 140px; flex-shrink: 0; }
+    .sp-value {
+      font-family: monospace; font-size: var(--ui-font-size);
+      color: var(--text); min-width: 52px; text-align: right; flex-shrink: 0;
+    }
+    .sp-range {
+      width: 120px; flex-shrink: 0; margin: 0;
+      accent-color: var(--active-bg); cursor: pointer;
+    }
+    .sp-reset {
+      background: var(--surface); color: var(--text);
+      border: 1px solid rgba(255,255,255,0.10); border-radius: var(--radius);
+      font-family: monospace; font-size: var(--ui-font-size);
+      padding: 6px 10px; cursor: pointer; margin-left: auto;
+    }
     .sp-check {
       width: 20px; height: 20px; margin: 0 4px 0 0; flex-shrink: 0;
       accent-color: var(--latest-bg); cursor: pointer;
@@ -673,7 +687,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.1</span></div>
+    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.2</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -883,6 +897,27 @@
       </select>
     </div>
     <div class="sp-status" id="audio-status-msg">Requesting audio device access…</div>
+
+    <div class="sp-divider"></div>
+
+    <div class="sp-section-label">DETECTION</div>
+    <div class="sp-row">
+      <label class="sp-label" for="gate-range">Noise gate</label>
+      <span class="sp-value" id="gate-value"></span>
+      <input type="range" class="sp-range" id="gate-range" min="-80" max="-20" step="1">
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="confidence-range">Confidence</label>
+      <span class="sp-value" id="confidence-value"></span>
+      <input type="range" class="sp-range" id="confidence-range" min="0" max="100" step="5">
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="stability-range">Stability</label>
+      <span class="sp-value" id="stability-value"></span>
+      <input type="range" class="sp-range" id="stability-range" min="1" max="6" step="1">
+    </div>
+    <div class="sp-status">Gate: lower hears quieter sound. Confidence: higher accepts only clean notes. Stability: frames a note must hold (×0.1 s).</div>
+    <div class="sp-row"><button class="sp-reset" id="detection-reset">Reset detection</button></div>
 
     <div class="sp-divider"></div>
 
@@ -1118,7 +1153,25 @@ function setLatestYellow(on) {
 }
 let pendingNote  = -1;
 let pendingTicks = 0;
-const DEBOUNCE   = 2;
+/* Settings > DETECTION. Defaults reproduce the app's earlier fixed values:
+   gate -40 dB (= the old RMS gate of 0.01), confidence 50 % (= each
+   algorithm's old threshold), stability 2 frames (= the old DEBOUNCE). */
+const DETECTION_KEY = 'keytones-detection-v1';
+const DETECTION_DEFAULTS = { gateDb: -40, confidence: 50, stability: 2 };
+let detection = { ...DETECTION_DEFAULTS };
+try { Object.assign(detection, JSON.parse(localStorage.getItem(DETECTION_KEY)) || {}); } catch (e) { /* storage unavailable */ }
+
+function saveDetection() {
+  try { localStorage.setItem(DETECTION_KEY, JSON.stringify(detection)); } catch (e) { /* storage unavailable */ }
+}
+
+/* confidence 0..100 → a threshold: `loose` at 0, the old fixed value at 50, `strict` at 100 */
+function confThreshold(loose, old, strict) {
+  const c = detection.confidence / 100;
+  return c <= 0.5 ? loose + (old - loose) * (c / 0.5) : old + (strict - old) * ((c - 0.5) / 0.5);
+}
+
+function gateRms() { return Math.pow(10, detection.gateDb / 20); }
 
 let decayPct        = 50;   // % of value shed per second
 let decayInterval   = null;
@@ -1395,7 +1448,6 @@ function stopMic() {
    time-domain methods operating directly on a short window of raw samples. */
 let pitchAlgo = 'multif0'; // Settings > Algorithm — Multi-F0 is the most direct of the polyphonic methods, so it's the default
 const TD_WINDOW = 2048; // sample window for time-domain algorithms
-const RMS_GATE  = 0.01; // minimum signal level before attempting time-domain detection
 
 function getTimeFrame() {
   const full = new Float32Array(analyser.fftSize);
@@ -1420,7 +1472,7 @@ function detectFFTPeak(sr) {
   for (let i = minBin; i <= maxBin && i < bufLen; i++) {
     if (fData[i] > peakDb) { peakDb = fData[i]; peakBin = i; }
   }
-  if (peakDb <= -46) return null;
+  if (peakDb <= detection.gateDb - 6 + confThreshold(-6, 0, 12)) return null;
   const a = peakBin > 0        ? fData[peakBin-1] : fData[peakBin];
   const b = fData[peakBin];
   const g = peakBin < bufLen-1 ? fData[peakBin+1] : fData[peakBin];
@@ -1432,7 +1484,7 @@ function detectFFTPeak(sr) {
 /* plain autocorrelation — lag with the strongest self-similarity */
 function detectACF(sr) {
   const buf = getTimeFrame();
-  if (rms(buf) < RMS_GATE) return null;
+  if (rms(buf) < gateRms()) return null;
   const minLag = Math.floor(sr / 1400);
   const maxLag = Math.min(Math.ceil(sr / 80), buf.length - 1);
   let energy = 0;
@@ -1448,7 +1500,7 @@ function detectACF(sr) {
   // (unnormalized) sum is biased toward short lags by window overlap alone —
   // the fundamental period is the *first* genuine local peak, not the global max
   for (let lag = minLag + 1; lag < maxLag; lag++) {
-    if (corr[lag] > 0.3 && corr[lag] >= corr[lag - 1] && corr[lag] >= corr[lag + 1]) {
+    if (corr[lag] > confThreshold(0.1, 0.3, 0.7) && corr[lag] >= corr[lag - 1] && corr[lag] >= corr[lag + 1]) {
       return { freq: sr / lag };
     }
   }
@@ -1458,7 +1510,7 @@ function detectACF(sr) {
 /* average magnitude difference function — first genuine dip, not the global minimum */
 function detectAMDF(sr) {
   const buf = getTimeFrame();
-  if (rms(buf) < RMS_GATE) return null;
+  if (rms(buf) < gateRms()) return null;
   const minLag = Math.floor(sr / 1400);
   const maxLag = Math.min(Math.ceil(sr / 80), buf.length - 1);
   const diffs = new Float32Array(maxLag + 1);
@@ -1471,7 +1523,7 @@ function detectAMDF(sr) {
   }
   if (maxDiff <= 0) return null;
   for (let lag = minLag + 1; lag < maxLag; lag++) {
-    if (diffs[lag] < maxDiff * 0.5 && diffs[lag] <= diffs[lag - 1] && diffs[lag] <= diffs[lag + 1]) {
+    if (diffs[lag] < maxDiff * confThreshold(0.75, 0.5, 0.2) && diffs[lag] <= diffs[lag - 1] && diffs[lag] <= diffs[lag + 1]) {
       return { freq: sr / lag };
     }
   }
@@ -1481,7 +1533,7 @@ function detectAMDF(sr) {
 /* YIN — cumulative mean normalized difference function + parabolic refinement */
 function detectYIN(sr) {
   const buf = getTimeFrame();
-  if (rms(buf) < RMS_GATE) return null;
+  if (rms(buf) < gateRms()) return null;
   const minLag = Math.floor(sr / 1400);
   const maxLag = Math.min(Math.ceil(sr / 80), Math.floor(buf.length / 2));
   const d = new Float32Array(maxLag + 1);
@@ -1500,7 +1552,7 @@ function detectYIN(sr) {
     running += d[tau];
     dPrime[tau] = d[tau] * tau / (running || 1e-9);
   }
-  const THRESHOLD = 0.15;
+  const THRESHOLD = confThreshold(0.3, 0.15, 0.05);
   let tau = -1;
   for (let t = minLag; t <= maxLag; t++) {
     if (dPrime[t] < THRESHOLD) {
@@ -1519,7 +1571,7 @@ function detectYIN(sr) {
 /* MPM (McLeod Pitch Method) — normalized square difference peak-picking */
 function detectMPM(sr) {
   const buf = getTimeFrame();
-  if (rms(buf) < RMS_GATE) return null;
+  if (rms(buf) < gateRms()) return null;
   const minLag = Math.floor(sr / 1400);
   const maxLag = Math.min(Math.ceil(sr / 80), Math.floor(buf.length / 2));
   const nsdf = new Float32Array(maxLag + 1);
@@ -1532,8 +1584,9 @@ function detectMPM(sr) {
     nsdf[tau] = energy > 0 ? 2 * acf / energy : 0;
   }
   const peaks = [];
+  const clarity = confThreshold(0.3, 0.5, 0.85);
   for (let tau = minLag + 1; tau < maxLag; tau++) {
-    if (nsdf[tau] > nsdf[tau - 1] && nsdf[tau] >= nsdf[tau + 1] && nsdf[tau] > 0.5) peaks.push(tau);
+    if (nsdf[tau] > nsdf[tau - 1] && nsdf[tau] >= nsdf[tau + 1] && nsdf[tau] > clarity) peaks.push(tau);
   }
   if (!peaks.length) return null;
   // McLeod's "key maximum" pick: the first peak close enough to the global
@@ -1592,7 +1645,7 @@ function detectHPCP(sr) {
   const maxV = Math.max(...hpcp);
   if (maxV <= 0) return [];
   const results = [];
-  for (let i = 0; i < 12; i++) if (hpcp[i] / maxV > 0.65) results.push({ freq: FREQS[i] }); // FREQS = octave 4
+  for (let i = 0; i < 12; i++) if (hpcp[i] / maxV > confThreshold(0.45, 0.65, 0.85)) results.push({ freq: FREQS[i] }); // FREQS = octave 4
   return results;
 }
 
@@ -1645,7 +1698,7 @@ function detectNNLS(sr) {
   if (maxA <= 1e-4) return [];
   const results = [];
   for (let p = 0; p < NNLS_NUM_PITCHES; p++) {
-    if (activation[p] / maxA > 0.3) results.push({ freq: 440 * Math.pow(2, (NNLS_MIN_MIDI + p - 69) / 12) });
+    if (activation[p] / maxA > confThreshold(0.15, 0.3, 0.6)) results.push({ freq: 440 * Math.pow(2, (NNLS_MIN_MIDI + p - 69) / 12) });
   }
   return results;
 }
@@ -1698,7 +1751,7 @@ function detectCQTNMF(sr) {
   if (maxA <= 1e-4) return [];
   const results = [];
   for (let p = 0; p < CQT_NUM_BINS; p++) {
-    if (activation[p] / maxA > 0.3) results.push({ freq: 440 * Math.pow(2, (CQT_MIN_MIDI + p - 69) / 12) });
+    if (activation[p] / maxA > confThreshold(0.15, 0.3, 0.6)) results.push({ freq: 440 * Math.pow(2, (CQT_MIN_MIDI + p - 69) / 12) });
   }
   return results;
 }
@@ -1730,7 +1783,7 @@ function detectMultiF0(sr) {
       }
       if (score > bestScore) { bestScore = score; bestBin = b; }
     }
-    if (bestBin < 0 || bestScore < 0.05) break;
+    if (bestBin < 0 || bestScore < confThreshold(0.02, 0.05, 0.2)) break;
     results.push({ freq: bestBin * binHz });
     for (let h = 1; h <= 6; h++) { // spectral subtraction so the next pass finds a different pitch
       const hb = Math.round(bestBin * h);
@@ -1816,17 +1869,26 @@ function cyclePitchAlgo(delta) {
    appeared chroma classes trigger a note-on, newly-disappeared ones a
    note-off, reusing the exact same per-note primitives (bar count, flash,
    Launchpad LED) the monophonic path uses one at a time. */
+const polyStreak = new Array(12).fill(0); // consecutive frames each note class has been heard
+
 function runPolyDetection(sr) {
-  const results = detectPitchPoly(sr);
-  const newActive = new Map(); // nIdx -> octave
+  const results = rms(getTimeFrame()) < gateRms() ? [] : detectPitchPoly(sr);
+  const heard = new Map(); // nIdx -> octave
   const labelParts = [];
   for (const { freq } of results) {
     const nNum = Math.round(12 * Math.log2(freq / C0_HZ));
     const nIdx = ((nNum % 12) + 12) % 12;
     const oct  = Math.floor(nNum / 12);
-    if (!newActive.has(nIdx)) newActive.set(nIdx, oct);
+    if (!heard.has(nIdx)) heard.set(nIdx, oct);
     labelParts.push(NOTES[nIdx] + oct);
   }
+  // Settings > Stability: a new note must be heard this many frames in a row
+  // (frame 1 = immediately); one already sounding stays until it's gone
+  const newActive = new Map();
+  for (let i = 0; i < 12; i++) polyStreak[i] = heard.has(i) ? polyStreak[i] + 1 : 0;
+  heard.forEach((oct, nIdx) => {
+    if (activePolyNotes.has(nIdx) || polyStreak[nIdx] >= detection.stability) newActive.set(nIdx, oct);
+  });
   for (const [nIdx, oct] of newActive) {
     if (!activePolyNotes.has(nIdx)) {
       outerCounts[nIdx]++;
@@ -1861,7 +1923,7 @@ function runDetection() {
     setMicUI('mic on', NOTES[nIdx] + oct, freq.toFixed(1) + ' Hz');
     if (nIdx === pendingNote) {
       pendingTicks++;
-      if (pendingTicks === DEBOUNCE && nIdx !== lastNote) {
+      if (pendingTicks === detection.stability && nIdx !== lastNote) {
         if (lastNote !== -1) sendMidiNote(lastNote, false); // release the previously tracked pitch
         lastNote = nIdx; lastNoteOctave = oct; outerCounts[nIdx]++;
         setLatestNote(nIdx);
@@ -1891,7 +1953,9 @@ function animateLevel() {
   let rms = 0; for (const v of tData) rms += v*v;
   rms = Math.sqrt(rms / tData.length);
   const levelPct = Math.min(rms*380, 100);
+  const gatePct  = Math.min(gateRms()*380, 100); // Settings > Noise gate, on the same scale
   document.getElementById('mic-badge').style.background =
+    `linear-gradient(90deg, transparent calc(${gatePct}% - 1px), rgba(255,214,10,0.8) calc(${gatePct}% - 1px), rgba(255,214,10,0.8) calc(${gatePct}% + 1px), transparent calc(${gatePct}% + 1px)), ` +
     `linear-gradient(90deg, rgba(0,209,124,0.28) ${levelPct}%, transparent ${levelPct}%), var(--surface)`;
   agcSum += levelPct; agcSamples++; // fed to agcTick() every ~10s
   levelRaf = requestAnimationFrame(animateLevel);
@@ -3091,6 +3155,29 @@ async function tryAutoMidi() {
 /* ═══════════════════════════════════════
    SETTINGS PANEL
 ═══════════════════════════════════════ */
+function initDetectionControls() {
+  const controls = [
+    ['gate-range',       'gateDb',     v => v + ' dB'],
+    ['confidence-range', 'confidence', v => v + '%'],
+    ['stability-range',  'stability',  v => v + (v === 1 ? ' frame' : ' fr')],
+  ];
+  const sync = () => controls.forEach(([id, key, fmt]) => {
+    document.getElementById(id).value = detection[key];
+    document.getElementById(id.replace('-range', '-value')).textContent = fmt(detection[key]);
+  });
+  controls.forEach(([id, key]) => {
+    document.getElementById(id).addEventListener('input', e => {
+      detection[key] = Number(e.target.value);
+      saveDetection(); sync();
+    });
+  });
+  document.getElementById('detection-reset').addEventListener('click', () => {
+    detection = { ...DETECTION_DEFAULTS };
+    saveDetection(); sync();
+  });
+  sync();
+}
+
 function initSettings() {
   const btn      = document.getElementById('settings-btn');
   const panel    = document.getElementById('settings-panel');
@@ -3131,6 +3218,8 @@ function initSettings() {
   });
 
   document.getElementById('wave-select').addEventListener('change', e => { setWaveType(e.target.value); });
+
+  initDetectionControls();
 
   const latestCheck = document.getElementById('latest-yellow-check');
   latestCheck.checked = latestYellow;
