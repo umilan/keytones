@@ -136,6 +136,13 @@
     }
 
     .app-title:active { opacity: 0.45; }
+    /* bumped before every push to main — see CLAUDE.md */
+    .app-version {
+      text-transform: none;
+      font-weight: 600;
+      color: var(--dim);
+      margin-left: 6px;
+    }
 
     /* ── DECAY CONTROL (drag to scrub) ───── */
     .decay-ctrl {
@@ -665,7 +672,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Keymap</div>
+    <div class="app-title" id="app-title">Keymap <span class="app-version" id="app-version">v1.0</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>
