@@ -683,7 +683,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.3</span></div>
+    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.4</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -793,6 +793,27 @@
         <option value="off">OFF</option>
       </select>
     </div>
+
+    <div class="sp-divider"></div>
+
+    <div class="sp-section-label">DETECTION</div>
+    <div class="sp-row">
+      <label class="sp-label" for="gate-range">Noise gate</label>
+      <span class="sp-value" id="gate-value"></span>
+      <input type="range" class="sp-range" id="gate-range" min="-80" max="-20" step="1">
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="confidence-range">Confidence</label>
+      <span class="sp-value" id="confidence-value"></span>
+      <input type="range" class="sp-range" id="confidence-range" min="0" max="100" step="5">
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="stability-range">Stability</label>
+      <span class="sp-value" id="stability-value"></span>
+      <input type="range" class="sp-range" id="stability-range" min="1" max="6" step="1">
+    </div>
+    <div class="sp-status">Gate: lower hears quieter sound. Confidence: higher accepts only clean notes. Stability: frames a note must hold (×0.1 s).</div>
+    <div class="sp-row"><button class="sp-reset" id="detection-reset">Reset detection</button></div>
 
     <div class="sp-divider"></div>
 
@@ -909,27 +930,6 @@
       </select>
     </div>
     <div class="sp-status" id="audio-status-msg">Requesting audio device access…</div>
-
-    <div class="sp-divider"></div>
-
-    <div class="sp-section-label">DETECTION</div>
-    <div class="sp-row">
-      <label class="sp-label" for="gate-range">Noise gate</label>
-      <span class="sp-value" id="gate-value"></span>
-      <input type="range" class="sp-range" id="gate-range" min="-80" max="-20" step="1">
-    </div>
-    <div class="sp-row">
-      <label class="sp-label" for="confidence-range">Confidence</label>
-      <span class="sp-value" id="confidence-value"></span>
-      <input type="range" class="sp-range" id="confidence-range" min="0" max="100" step="5">
-    </div>
-    <div class="sp-row">
-      <label class="sp-label" for="stability-range">Stability</label>
-      <span class="sp-value" id="stability-value"></span>
-      <input type="range" class="sp-range" id="stability-range" min="1" max="6" step="1">
-    </div>
-    <div class="sp-status">Gate: lower hears quieter sound. Confidence: higher accepts only clean notes. Stability: frames a note must hold (×0.1 s).</div>
-    <div class="sp-row"><button class="sp-reset" id="detection-reset">Reset detection</button></div>
 
     <div class="sp-divider"></div>
 
