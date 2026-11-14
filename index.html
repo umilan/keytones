@@ -732,7 +732,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.26</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.27</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -952,6 +952,13 @@
       <select class="sp-select" id="mic-onoff-select">
         <option value="off">off</option>
         <option value="on" selected>on</option>
+      </select>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Phone call mode</span>
+      <select class="sp-select" id="call-mode-select">
+        <option value="off" selected>off</option>
+        <option value="on">on</option>
       </select>
     </div>
     <div class="sp-row">
@@ -1563,6 +1570,29 @@ function onNoteOff(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
 /* ═══════════════════════════════════════
    MICROPHONE
 ═══════════════════════════════════════ */
+/* Settings > Audio > Phone call mode (off by default). Off: the mic is opened
+   without call-style processing, and on iOS the audio session is set to
+   plain playback whenever the mic is off, so sound plays at full media
+   quality. On: echo cancellation / noise suppression / auto gain, like a
+   phone call — less of the app's own sound gets picked up by the mic,
+   at the cost of sound quality. Remembered per browser. */
+const CALL_MODE_KEY = 'keytones-call-mode-v1';
+let phoneCallMode = false;
+try { phoneCallMode = localStorage.getItem(CALL_MODE_KEY) === 'on'; } catch (e) { /* storage unavailable */ }
+
+/* iOS 17+ / Safari: tell the system what kind of audio this is (no-op elsewhere) */
+function setAudioSessionType(type) {
+  try { if (navigator.audioSession) navigator.audioSession.type = type; } catch (e) { /* unsupported */ }
+}
+
+function setPhoneCallMode(on) {
+  phoneCallMode = on;
+  try { localStorage.setItem(CALL_MODE_KEY, on ? 'on' : 'off'); } catch (e) { /* storage unavailable */ }
+  const sel = document.getElementById('call-mode-select');
+  if (sel) sel.value = on ? 'on' : 'off';
+  if (micActive) { stopMic(); startMic(); } // reopen the mic with the new processing
+}
+
 async function startMic() {
   if (micActive) return;
   setMicUI('connecting','—','');
@@ -1577,9 +1607,12 @@ async function startMic() {
     // mic switches the audio session (rate, route), and a context created
     // earlier keeps the old settings and crackles. Creating it afterwards,
     // at the mic's own sample rate, keeps mic and speaker in step.
+    setAudioSessionType('play-and-record');
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        echoCancellation:false, noiseSuppression:false, autoGainControl:false,
+        // Settings > Phone call mode: the phone's call-style voice processing
+        // (echo cancellation, noise suppression, auto gain) — off = clean, full-quality input
+        echoCancellation: phoneCallMode, noiseSuppression: phoneCallMode, autoGainControl: phoneCallMode,
         ...(audioInDeviceId ? { deviceId: { exact: audioInDeviceId } } : {}),
       },
       video: false,
@@ -1630,6 +1663,7 @@ function stopMic() {
   if (micSrc)      { micSrc.disconnect();            micSrc      = null; }
   if (micGainNode) { micGainNode.disconnect();       micGainNode = null; }
   if (micStream)   { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  setAudioSessionType('playback'); // mic off: back to full-quality media playback on iOS
   if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
   releasePolyNotes();
   analyser = null; lastNote = pendingNote = -1; pendingTicks = 0;
@@ -2702,7 +2736,7 @@ async function ensureAudioDevices() {
     return;
   }
   try {
-    const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const tempStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: phoneCallMode, noiseSuppression: phoneCallMode, autoGainControl: phoneCallMode } });
     tempStream.getTracks().forEach(t => t.stop());
   } catch (e) { /* denied — device list will just show unlabelled entries */ }
   watchAudioDevices();
@@ -3735,6 +3769,9 @@ function initSettings() {
   document.getElementById('decay-select').addEventListener('input', e => {
     setDecayPct(parseInt(e.target.value, 10));
   });
+
+  document.getElementById('call-mode-select').value = phoneCallMode ? 'on' : 'off';
+  document.getElementById('call-mode-select').addEventListener('change', e => setPhoneCallMode(e.target.value === 'on'));
 
   document.getElementById('mic-onoff-select').addEventListener('change', e => {
     setMode(e.target.value === 'on' ? 'outside' : 'inner');
