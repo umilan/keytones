@@ -701,7 +701,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.18</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.19</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2718,11 +2718,18 @@ function paintLaunchpadNoteFade(noteIdx) {
   const baseIdx = ((noteIdx - lpTranspose) % 12 + 12) % 12;
   const t = lpNoteBrightness[noteIdx] || 0;
   const idle   = lpBacklightColorForNote(baseIdx);
-  const active = (isLatestShown(noteIdx) ? lpOf(latestColor) : LP_RGB_NOTE) || idle; // 'none' = stays idle
+  const latest = isLatestShown(noteIdx) ? lpOf(latestColor) : null;
+  // full range detection: the exact-octave pad carries the Latest note colour
+  // (or Exact octave for a note that isn't the latest); the note's other
+  // octaves keep the plain Notes colour. Otherwise every octave of the latest
+  // note shows the Latest colour.
+  const exactKnown = lpFullRangeDetection && lpNoteOctave[noteIdx] !== undefined;
+  const active = ((exactKnown ? null : latest) || LP_RGB_NOTE) || idle; // 'none' = stays idle
   const [r, g, b] = lpBlendColor(idle, active, t);
   allPadsForIndex(noteIdx).forEach(pad => setLaunchpadRGB(midiOut, pad, r, g, b));
-  if (lpFullRangeDetection && LP_RGB_APP_OCTAVE && lpNoteOctave[noteIdx] !== undefined) {
-    const [pr, pg, pb] = lpBlendColor(lpBacklightColorForNote(baseIdx), LP_RGB_APP_OCTAVE, t);
+  const exactColor = exactKnown ? (latest || LP_RGB_APP_OCTAVE) : null;
+  if (exactColor) {
+    const [pr, pg, pb] = lpBlendColor(idle, exactColor, t);
     lpPadsForNoteOctave(noteIdx, lpNoteOctave[noteIdx]).forEach(pad => setLaunchpadRGB(midiOut, pad, pr, pg, pb));
   }
 }
