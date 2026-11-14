@@ -29,7 +29,7 @@
       /* ── accent / status ── */
       --active-bg:  rgb(251, 91, 36) !important;
       --active-bg2: rgb(221, 61, 16) !important;
-      --latest-bg:  rgb(255, 214, 10);  /* Settings > Latest note — set from LATEST_COLORS */
+      --latest-bg:  rgb(255, 214, 10);  /* Settings > COLORS — set by applyColors() */
       --latest-bg2: rgb(230, 186, 0);
       --ok:      #00D17C;
       --ok-glow: rgba(0,209,124,0.67);
@@ -268,7 +268,7 @@
       position: absolute;
       top: 0; left: 0; right: 0;
       height: 4px;
-      background: #f0f;
+      background: var(--flash-color, #f0f); /* Settings > COLORS > Bar hit flash */
       border-radius: var(--radius);
       opacity: 0;
       transition: opacity 0.14s;
@@ -671,6 +671,10 @@
       width: 120px; flex-shrink: 0; margin: 0;
       accent-color: var(--active-bg); cursor: pointer;
     }
+    .sp-swatch {
+      width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
     .sp-reset {
       background: var(--surface); color: var(--text);
       border: 1px solid rgba(255,255,255,0.10); border-radius: var(--radius);
@@ -702,7 +706,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.10</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.11</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -847,16 +851,6 @@
       <input type="range" class="sp-range" id="decay-select" min="0" max="100" step="1" value="50">
     </div>
     <div class="sp-row">
-      <span class="sp-label">Latest note</span>
-      <select class="sp-select" id="latest-color-select">
-        <option value="off">off</option>
-        <option value="yellow" selected>yellow</option>
-        <option value="white">white</option>
-        <option value="green">green</option>
-        <option value="cyan">cyan</option>
-      </select>
-    </div>
-    <div class="sp-row">
       <span class="sp-label">Press states</span>
       <select class="sp-select" id="press-states-select">
         <option value="no" selected>no</option>
@@ -868,6 +862,42 @@
       <span class="sp-value" id="side-pad-range-value"></span>
       <input type="range" class="sp-range" id="side-pad-range" min="0" max="80" step="2" value="0">
     </div>
+
+    <div class="sp-divider"></div>
+
+    <div class="sp-section-label">COLORS</div>
+    <div class="sp-row">
+      <label class="sp-label" for="color-detected">Notes</label>
+      <span class="sp-swatch" id="color-detected-swatch"></span>
+      <select class="sp-select" id="color-detected"></select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="color-latest">Latest note</label>
+      <span class="sp-swatch" id="color-latest-swatch"></span>
+      <select class="sp-select" id="color-latest"></select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="color-flash">Bar hit flash</label>
+      <span class="sp-swatch" id="color-flash-swatch"></span>
+      <select class="sp-select" id="color-flash"></select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="color-cNote">C notes (LP/LK)</label>
+      <span class="sp-swatch" id="color-cNote-swatch"></span>
+      <select class="sp-select" id="color-cNote"></select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="color-octave">Exact octave (LP)</label>
+      <span class="sp-swatch" id="color-octave-swatch"></span>
+      <select class="sp-select" id="color-octave"></select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="color-pressed">Pressed pad (LP)</label>
+      <span class="sp-swatch" id="color-pressed-swatch"></span>
+      <select class="sp-select" id="color-pressed"></select>
+    </div>
+    <div class="sp-status">Used in the app and on a connected Launchpad / Launchkey.</div>
+    <div class="sp-row"><button class="sp-reset" id="colors-reset">Reset colors</button></div>
 
     <div class="sp-divider"></div>
 
@@ -1034,7 +1064,7 @@ function barGlow(ratio) {
   if (ratio < 0.12) return 'none';
   const a    = (ratio * 0.40).toFixed(2);
   const size = Math.round(8 + ratio * 10);
-  return `0 0 ${size}px 2px rgba(255,0,0,${a})`;
+  return `0 0 ${size}px 2px rgba(${webRgb(colors.detected)},${a})`;
 }
 
 /* Piano layout */
@@ -1117,37 +1147,100 @@ let audioDevicesRequested = false; // guards against asking more than once
 let lastNote       = -1;
 let lastNoteOctave = -1; // exact octave of the currently-tracked pitch (full-range detection)
 
-/* Settings > Latest note: the most recently detected note (mic mode) is
-   drawn in this colour on both its key and its bar, and keeps it until a
-   different note is detected or the counts are reset. Remembered per browser. */
-const LATEST_COLOR_KEY = 'keytones-latest-color-v1';
-const LATEST_COLORS = {          // [white key + bar, black key]
-  yellow: ['255,214,10',  '230,186,0'],
-  white:  ['240,240,248', '205,205,215'],
-  green:  ['0,209,124',   '0,176,104'],
-  cyan:   ['0,220,255',   '0,186,220'],
+/* Settings > COLORS — one palette shared by the web app and the controllers,
+   so a colour picked here looks the same on screen, on a Launchpad (RGB,
+   0-127 per channel) and on a Launchkey (its fixed 128-colour palette). */
+const PALETTE = {
+  //        web RGB (0-255)    Launchpad RGB (0-127)  Launchkey palette index
+  red:     { web: [251, 91, 36],  lp: [127, 20, 6],    lk: 5  },
+  orange:  { web: [255, 140, 0],  lp: [127, 50, 0],    lk: 9  },
+  yellow:  { web: [255, 214, 10], lp: [127, 100, 0],   lk: 13 },
+  green:   { web: [0, 209, 124],  lp: [0, 127, 40],    lk: 21 },
+  cyan:    { web: [0, 220, 255],  lp: [0, 110, 127],   lk: 37 },
+  blue:    { web: [40, 120, 255], lp: [10, 60, 127],   lk: 45 },
+  purple:  { web: [170, 60, 255], lp: [110, 10, 127],  lk: 49 },
+  magenta: { web: [255, 0, 255],  lp: [127, 0, 127],   lk: 53 },
+  white:   { web: [240, 240, 248], lp: [127, 127, 127], lk: 3  },
 };
-let latestColor = (() => {
-  try {
-    const saved = localStorage.getItem(LATEST_COLOR_KEY);
-    if (saved && (saved === 'off' || LATEST_COLORS[saved])) return saved;
-    if (localStorage.getItem('keymap-latest-yellow-v1') === '0') return 'off'; // the old on/off checkbox
-  } catch (e) { /* storage unavailable */ }
-  return 'yellow';
-})();
+const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', flash: 'magenta', cNote: 'blue', octave: 'purple', pressed: 'white' };
+const COLORS_KEY = 'keytones-colors-v1';
+let colors = { ...COLOR_DEFAULTS };
+try {
+  Object.assign(colors, JSON.parse(localStorage.getItem(COLORS_KEY)) || {});
+  if (!localStorage.getItem(COLORS_KEY)) {        // carry over the older Latest-note-only setting
+    const old = localStorage.getItem('keytones-latest-color-v1');
+    if (old) colors.latest = old;
+    else if (localStorage.getItem('keymap-latest-yellow-v1') === '0') colors.latest = 'off';
+  }
+} catch (e) { /* storage unavailable */ }
+for (const k in colors) if (!(k in COLOR_DEFAULTS) || (colors[k] !== 'off' && !PALETTE[colors[k]]) || (colors[k] === 'off' && k !== 'latest')) colors[k] = COLOR_DEFAULTS[k];
+
+const webRgb  = name => PALETTE[name].web.join(',');
+const webDark = name => PALETTE[name].web.map(c => Math.round(c * 0.88)).join(','); // black keys
+let latestColor = colors.latest; // 'off' or a palette name — kept as its own name for the code below
 let latestNote = -1;
 
-function applyLatestColorVars() {
-  const c = LATEST_COLORS[latestColor];
-  if (!c) return;
-  document.documentElement.style.setProperty('--latest-bg',  `rgb(${c[0]})`);
-  document.documentElement.style.setProperty('--latest-bg2', `rgb(${c[1]})`);
+/* Launchpad / Launchkey colours that follow Settings > COLORS (see applyColors) */
+let LP_RGB_APP_ACTIVE = PALETTE[colors.detected].lp; // note highlighted by the app (mic, on-screen key, chroma test)
+let LP_RGB_APP_OCTAVE = PALETTE[colors.octave].lp;   // Detection "full range": the exact-octave pad
+let LP_RGB_C_BLUE     = PALETTE[colors.cNote].lp;    // idle backlight of every C
+let LP_RGB_ACTIVE     = PALETTE[colors.pressed].lp;  // a pad being physically pressed
+
+function applyColors() {
+  const root = document.documentElement.style;
+  root.setProperty('--active-bg',  `rgb(${webRgb(colors.detected)})`, 'important');
+  root.setProperty('--active-bg2', `rgb(${webDark(colors.detected)})`, 'important');
+  root.setProperty('--flash-color', `rgb(${webRgb(colors.flash)})`);
+  if (colors.latest !== 'off') {
+    root.setProperty('--latest-bg',  `rgb(${webRgb(colors.latest)})`);
+    root.setProperty('--latest-bg2', `rgb(${webDark(colors.latest)})`);
+  }
+  latestColor       = colors.latest;
+  LP_RGB_APP_ACTIVE = PALETTE[colors.detected].lp;
+  LP_RGB_APP_OCTAVE = PALETTE[colors.octave].lp;
+  LP_RGB_C_BLUE     = PALETTE[colors.cNote].lp;
+  LP_RGB_ACTIVE     = PALETTE[colors.pressed].lp;
 }
-applyLatestColorVars();
+applyColors();
+
+/* after a colour change: repaint the screen and any connected controller */
+function repaintColors() {
+  paintLatestKey();
+  render();
+  if (typeof midiOut !== 'undefined' && midiOut) {
+    if (launchpadProgrammerMode) {
+      paintLaunchpadBacklight(midiOut); paintLaunchpadArrows(midiOut);
+      paintLaunchpadLayoutButtons(midiOut); paintLaunchpadWaveButtons(midiOut);
+      for (let i = 0; i < 12; i++) if (lpNoteBrightness[i]) paintLaunchpadNoteFade(i);
+    }
+    if (launchkeyDawMode) {
+      paintLaunchkeyBacklight(midiOut);
+      for (let i = 0; i < 12; i++) if (lkNoteActive[i]) paintLaunchkeyNote(i, true);
+    }
+  }
+}
+
+function setColor(role, name) {
+  colors[role] = name;
+  try { localStorage.setItem(COLORS_KEY, JSON.stringify(colors)); } catch (e) { /* storage unavailable */ }
+  applyColors();
+  repaintColors();
+}
 
 function setLatestNote(idx) {
+  const prev = latestNote;
   latestNote = idx;
   paintLatestKey();
+  // the previous latest note's controller pads go back to the Notes colour
+  if (prev !== -1 && prev !== idx) {
+    if (lpNoteBrightness[prev]) paintLaunchpadNoteFade(prev);
+    if (lkNoteActive[prev]) paintLaunchkeyNote(prev, true);
+  }
+}
+
+/* is this note drawn in the Latest-note colour right now (screen and controllers)? */
+function isLatestShown(noteIdx) {
+  return latestColor !== 'off' && mode === 'outside' && noteIdx === latestNote;
 }
 
 function paintLatestKey() {
@@ -1155,13 +1248,6 @@ function paintLatestKey() {
   for (let i = 0; i < 12; i++) keyEls[i]?.classList.toggle('latest', show && i === latestNote);
 }
 
-function setLatestColor(name) {
-  latestColor = name;
-  try { localStorage.setItem(LATEST_COLOR_KEY, name); } catch (e) { /* storage unavailable */ }
-  applyLatestColorVars();
-  paintLatestKey();
-  render();
-}
 let pendingNote  = -1;
 let pendingTicks = 0;
 /* Settings > DETECTION. Defaults reproduce the app's earlier fixed values:
@@ -2045,7 +2131,7 @@ function render() {
     barEl.style.height     = Math.round(ratio * availH) + 'px';
     const isLatest = latestColor !== 'off' && mode === 'outside' && i === latestNote && ratio > 0;
     barEl.style.background = isLatest ? 'var(--latest-bg)' : barColor(ratio);
-    barEl.style.boxShadow  = isLatest ? barGlow(ratio).replace('255,0,0', LATEST_COLORS[latestColor][0]) : barGlow(ratio);
+    barEl.style.boxShadow  = isLatest ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
 
     /* percentage label */
     const pct = total > 0 ? Math.round(counts[i] / total * 100) : 0;
@@ -2563,15 +2649,10 @@ const LP_BANDS       = 4;    // stacked octave bands (2 grid rows each = 8 rows 
    palette) specifically so the intensity gap between "idle" states is
    guaranteed and large, rather than picking two palette indices that turn
    out to look nearly identical on the actual hardware. */
-const LP_RGB_ACTIVE    = [127, 127, 127]; // actively-sounding pad — full white
 const LP_RGB_DIM       = [4, 4, 4];       // idle backlight, regular notes — barely lit
 const LP_RGB_DIM_WHITE = [28, 28, 28];    // idle backlight, black/sharp notes (fretboard layout) —
-                                           // kept well below LP_RGB_ACTIVE so pressed vs idle stays obvious
-const LP_RGB_C_BLUE    = [10, 60, 127];   // idle backlight, every C (fretboard layout)
-const LP_RGB_APP_ACTIVE = [127, 10, 10];  // note highlighted BY THE APP (mic, on-screen key, chroma test —
-                                           // anything other than physically pressing the pad itself) — always red
-const LP_RGB_APP_OCTAVE = [110, 10, 127]; // Settings > "full range detection" — the one pad matching the
-                                           // exact detected octave, layered on top of the all-octaves red
+                                           // kept well below the pressed colour so pressed vs idle stays obvious
+/* LP_RGB_APP_ACTIVE / _APP_OCTAVE / _C_BLUE / _ACTIVE follow Settings > COLORS — see PALETTE */
 
 /* app-triggered red isn't a plain on/off — it snaps to full brightness the
    moment a note is detected and *stays* there for as long as the note is
@@ -2621,7 +2702,8 @@ function paintLaunchpadNoteFade(noteIdx) {
   // stuck as the wrong note's shade once transpose is anything but 0
   const baseIdx = ((noteIdx - lpTranspose) % 12 + 12) % 12;
   const t = lpNoteBrightness[noteIdx] || 0;
-  const [r, g, b] = lpBlendColor(lpBacklightColorForNote(baseIdx), LP_RGB_APP_ACTIVE, t);
+  const active = isLatestShown(noteIdx) ? PALETTE[latestColor].lp : LP_RGB_APP_ACTIVE;
+  const [r, g, b] = lpBlendColor(lpBacklightColorForNote(baseIdx), active, t);
   allPadsForIndex(noteIdx).forEach(pad => setLaunchpadRGB(midiOut, pad, r, g, b));
   if (lpFullRangeDetection && lpNoteOctave[noteIdx] !== undefined) {
     const [pr, pg, pb] = lpBlendColor(lpBacklightColorForNote(baseIdx), LP_RGB_APP_OCTAVE, t);
@@ -2830,8 +2912,9 @@ const LP_ARROW_STEPS = 3;  // reach full saturation within this many steps — o
 function arrowDirectionColor(steps, maxSteps) {
   if (steps <= 0) return { r: LP_ARROW_DIM, g: LP_ARROW_DIM, b: LP_ARROW_DIM };
   const saturateAt = Math.min(maxSteps, LP_ARROW_STEPS);
-  const fade = Math.round(LP_ARROW_DIM * (1 - Math.min(1, steps / saturateAt)));
-  return { r: 127, g: fade, b: fade };
+  const t = 0.4 + 0.6 * Math.min(1, steps / saturateAt); // a first step is already clearly coloured
+  const [r, g, b] = lpBlendColor([LP_ARROW_DIM, LP_ARROW_DIM, LP_ARROW_DIM], LP_RGB_APP_ACTIVE, t);
+  return { r, g, b };
 }
 
 function paintLaunchpadArrows(output) {
@@ -2990,8 +3073,8 @@ function onMidiMessage(e) {
 let launchkeyDawMode = false; // true once the connected device has been switched into DAW mode
 const LK_COLOR_OFF    = 0;  // palette index — LED off
 const LK_COLOR_DIM    = 1;  // idle backlight, regular notes (dark grey)
-const LK_COLOR_C_BLUE = 45; // idle backlight, every C (blue)
-const LK_COLOR_ACTIVE = 5;  // currently sounding, app-triggered (red)
+const lkNoteActive = {}; // noteIdx -> true while lit as sounding (so colour changes can repaint it)
+// sounding / C colours come from Settings > COLORS (PALETTE[...].lk)
 
 const LK_NOTE_PAD = [
   [112, 119], // C (+ duplicate at the far end of the row, like Launchpad)
@@ -3014,7 +3097,7 @@ function setLaunchkeyPad(output, pad, colorIndex) {
 }
 
 function lkColorForNote(noteIdx) {
-  return noteIdx === 0 ? LK_COLOR_C_BLUE : LK_COLOR_DIM;
+  return noteIdx === 0 ? PALETTE[colors.cNote].lk : LK_COLOR_DIM;
 }
 
 function paintLaunchkeyBacklight(output) {
@@ -3025,7 +3108,9 @@ function paintLaunchkeyBacklight(output) {
 /* the only per-note entry point — see sendMidiNote()'s launchkeyDawMode branch */
 function paintLaunchkeyNote(noteIdx, active) {
   if (!midiOut || !launchkeyDawMode) return;
-  const color = active ? LK_COLOR_ACTIVE : lkColorForNote(noteIdx);
+  lkNoteActive[noteIdx] = active;
+  const color = !active ? lkColorForNote(noteIdx)
+              : isLatestShown(noteIdx) ? PALETTE[latestColor].lk : PALETTE[colors.detected].lk;
   LK_NOTE_PAD[noteIdx].forEach(pad => setLaunchkeyPad(midiOut, pad, color));
 }
 
@@ -3285,6 +3370,27 @@ function fitTopbar() {
   }
 }
 
+function initColorControls() {
+  const roles = Object.keys(COLOR_DEFAULTS);
+  const sync = () => roles.forEach(role => {
+    document.getElementById('color-' + role).value = colors[role];
+    const sw = document.getElementById('color-' + role + '-swatch');
+    sw.style.background = colors[role] === 'off' ? 'transparent' : `rgb(${webRgb(colors[role])})`;
+  });
+  roles.forEach(role => {
+    const sel = document.getElementById('color-' + role);
+    const names = (role === 'latest' ? ['off'] : []).concat(Object.keys(PALETTE));
+    sel.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
+    sel.addEventListener('change', e => { setColor(role, e.target.value); sync(); });
+  });
+  document.getElementById('colors-reset').addEventListener('click', () => {
+    roles.forEach(role => { colors[role] = COLOR_DEFAULTS[role]; });
+    setColor('detected', COLOR_DEFAULTS.detected); // saves + repaints everything
+    sync();
+  });
+  sync();
+}
+
 function initSettings() {
   const btn      = document.getElementById('settings-btn');
   const panel    = document.getElementById('settings-panel');
@@ -3336,9 +3442,7 @@ function initSettings() {
   setSidePad(sidePad);
   document.getElementById('side-pad-range').addEventListener('input', e => setSidePad(Number(e.target.value)));
 
-  const latestSel = document.getElementById('latest-color-select');
-  latestSel.value = latestColor;
-  latestSel.addEventListener('change', e => setLatestColor(e.target.value));
+  initColorControls();
 
   document.getElementById('press-states-select').addEventListener('change', e => {
     lpLightPressedPads = e.target.value === 'yes';
