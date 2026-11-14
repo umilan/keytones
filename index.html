@@ -738,7 +738,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.30</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.31</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -895,13 +895,6 @@
       <span class="sp-label">Decay</span>
       <span class="sp-value" id="decay-select-value"></span>
       <input type="range" class="sp-range" id="decay-select" min="0" max="100" step="1" value="50">
-    </div>
-    <div class="sp-row">
-      <span class="sp-label">Press states</span>
-      <select class="sp-select" id="press-states-select">
-        <option value="no" selected>no</option>
-        <option value="yes">yes</option>
-      </select>
     </div>
     <div class="sp-row">
       <label class="sp-label" for="side-pad-range">Side padding</label>
@@ -1213,7 +1206,7 @@ const PALETTE = {
   magenta: { web: [255, 0, 255],  lp: [127, 0, 127],   lk: 53 },
   white:   { web: [240, 240, 248], lp: [127, 127, 127], lk: 3  },
 };
-const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', cNote: 'blue', octave: 'purple', pressed: 'white' };
+const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', cNote: 'blue', octave: 'purple', pressed: 'none' };
 const COLORS_KEY = 'keytones-colors-v1';
 let colors = { ...COLOR_DEFAULTS };
 try {
@@ -2961,7 +2954,6 @@ function setWaveType(type) {
   if (lpOn()) paintLaunchpadWaveButtons(midiOut);
 }
 let lpLayout = 'piano'; // 'piano' | 'fretboard'
-let lpLightPressedPads = false; // Settings > Press states — physically pressing a pad lights it
 let midiMonitorEnabled = true; // Settings > MIDI monitor in console — log incoming MIDI + outgoing LED commands
 let midiInChannel  = 'omni'; // Settings > MIDI in channel — 'omni' or 0-15
 let midiOutChannel = 0;      // Settings > MIDI out channel — 0-15 ('omni' falls back to channel 1 on send)
@@ -3188,7 +3180,7 @@ function sendMidiNote(noteIdx, on, source = 'app', octave = null) {
    transpose. displayedNoteIdx: the chroma this press actually sounds (post-
    transpose) — used only to find sibling pads on the fretboard layout. */
 function paintPressedPad(pad, baseIdx, displayedNoteIdx, on) {
-  if (!lpOn() || !lpLightPressedPads) return;
+  if (!lpOn() || !LP_RGB_ACTIVE) return; // Settings > Colors > Pressed pad: none = pads don't light when pressed
   const [r, g, b] = on ? lpActiveColorForNote(baseIdx) : lpBacklightColorForNote(baseIdx);
   const pads = lpLayout === 'piano' ? [pad] : allPadsForIndex(displayedNoteIdx);
   pads.forEach(p => setLaunchpadRGB(midiOut, p, r, g, b));
@@ -3789,9 +3781,6 @@ function initSettings() {
   document.getElementById('halftone-range').addEventListener('input', e => setPadGlow('halftone', Number(e.target.value)));
   document.getElementById('natural-range').addEventListener('input', e => setPadGlow('natural', Number(e.target.value)));
 
-  document.getElementById('press-states-select').addEventListener('change', e => {
-    lpLightPressedPads = e.target.value === 'yes';
-  });
 
   document.getElementById('detection-select').addEventListener('change', e => {
     lpFullRangeDetection = e.target.value === 'full';
