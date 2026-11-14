@@ -221,10 +221,12 @@
     #lp-view {
       position: absolute; inset: 0; z-index: 5;
       display: flex; align-items: center; justify-content: center;
-      background: var(--bar-bg); padding: 0;
+      background: none; padding: 0;
       container-type: size;
     }
     #lp-view[hidden] { display: none; }
+    #bar-area.lp-mode { background: var(--bg); }          /* no panel colour around the grid */
+    #bar-area.lp-mode .bar-col { visibility: hidden; }   /* bars stay counted, just not drawn */
     #lp-grid {
       display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
       gap: min(6px, 1.2vmin);
@@ -730,7 +732,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.24</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.25</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -3232,6 +3234,7 @@ function setView(view) {
   const sel = document.getElementById('view-select');
   if (sel) sel.value = view;
   document.getElementById('lp-view').hidden = !lpSim;
+  document.getElementById('bar-area').classList.toggle('lp-mode', lpSim);
   if (lpSim) {
     if (!lpViewCells) buildLpView();
     repaintColors(); // paints the whole Launchpad (on screen, and the real one if connected)
