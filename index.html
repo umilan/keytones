@@ -75,6 +75,12 @@
       height: 100dvh;
       flex: 1 1 auto;
       min-width: 0;
+      /* Landscape iPhone: keep everything clear of the notch / rounded
+         corners on both sides, plus Settings > Side padding on top. The
+         padding is page background, so the app itself is cropped inward.
+         While Settings is open the panel owns the right edge (and its inset). */
+      padding-left:  calc(env(safe-area-inset-left, 0px)  + var(--side-pad, 0px));
+      padding-right: calc(env(safe-area-inset-right, 0px) + var(--side-pad, 0px));
       overflow: hidden; /* clip rows (topbar, mic-strip) that don't fit once
                             the settings panel narrows #app, instead of
                             spilling into the panel — it used to be masked
@@ -82,6 +88,8 @@
       display: flex;
       flex-direction: column;
     }
+
+    body.sp-open #app { padding-right: var(--side-pad, 0px); }
 
     /* ── SAFE-AREA SPACERS — keep the UI clear of the iPhone Dynamic
        Island / notch (top) and the home-indicator strip (bottom). Plain
@@ -105,7 +113,7 @@
       height: 56px;
       display: flex;
       align-items: center;
-      padding: 0 calc(16px + env(safe-area-inset-right, 0px)) 0 calc(16px + env(safe-area-inset-left, 0px));
+      padding: 0 16px; /* side insets are on #app */
       background: var(--top-bg);
       border-bottom: 1px solid var(--border);
       z-index: 20;
@@ -268,7 +276,7 @@
       height: 46px;
       display: flex;
       align-items: center;
-      padding: 0 calc(14px + env(safe-area-inset-right, 0px)) 0 calc(14px + env(safe-area-inset-left, 0px));
+      padding: 0 14px; /* side insets are on #app */
       gap: 10px;
       background: var(--top-bg);
       border-top: 1px solid var(--border);
@@ -556,11 +564,13 @@
       overflow-x: hidden;
       overflow-y: auto;
       padding-top: env(safe-area-inset-top, 0px);
-      padding-right: env(safe-area-inset-right, 0px);
       padding-bottom: env(safe-area-inset-bottom, 0px);
+      /* no right inset while closed: at width 0 it used to leave a strip of
+         the panel showing beside the notch in landscape */
     }
     #settings-panel.open {
       width: min(300px, 88vw);
+      padding-right: env(safe-area-inset-right, 0px);
       border-left-width: 1px;
     }
 
@@ -684,7 +694,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.5</span></div>
+    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.6</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -840,6 +850,11 @@
         <option value="no" selected>no</option>
         <option value="yes">yes</option>
       </select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="side-pad-range">Side padding</label>
+      <span class="sp-value" id="side-pad-range-value"></span>
+      <input type="range" class="sp-range" id="side-pad-range" min="0" max="80" step="2" value="0">
     </div>
 
     <div class="sp-divider"></div>
@@ -3168,6 +3183,18 @@ function initDetectionControls() {
   sync();
 }
 
+/* Settings > Side padding: extra page margin left and right, on top of the
+   notch / safe-area insets the app always keeps clear of. Remembered per browser. */
+const SIDE_PAD_KEY = 'keytones-side-pad-v1';
+
+function setSidePad(px) {
+  document.documentElement.style.setProperty('--side-pad', px + 'px');
+  setRangeLabel('side-pad-range', px + ' px');
+  const el = document.getElementById('side-pad-range');
+  if (el) el.value = px;
+  try { localStorage.setItem(SIDE_PAD_KEY, String(px)); } catch (e) { /* storage unavailable */ }
+}
+
 function initSettings() {
   const btn      = document.getElementById('settings-btn');
   const panel    = document.getElementById('settings-panel');
@@ -3175,12 +3202,14 @@ function initSettings() {
 
   function openPanel()  {
     panel.classList.add('open');
+    document.body.classList.add('sp-open');
     btn.classList.add('active');
     ensureMidiAccess();   // ask for MIDI access here, not on page load
     ensureAudioDevices(); // same for audio in/out device labels
   }
   function closePanel() {
     panel.classList.remove('open');
+    document.body.classList.remove('sp-open');
     btn.classList.remove('active');
   }
 
@@ -3210,6 +3239,11 @@ function initSettings() {
   document.getElementById('wave-select').addEventListener('change', e => { setWaveType(e.target.value); });
 
   initDetectionControls();
+
+  let sidePad = 0;
+  try { sidePad = Number(localStorage.getItem(SIDE_PAD_KEY)) || 0; } catch (e) { /* storage unavailable */ }
+  setSidePad(sidePad);
+  document.getElementById('side-pad-range').addEventListener('input', e => setSidePad(Number(e.target.value)));
 
   const latestSel = document.getElementById('latest-color-select');
   latestSel.value = latestColor;
