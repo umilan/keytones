@@ -597,12 +597,12 @@
 			text-transform: uppercase;
       color: var(--text);
     }
-    .sp-close {
-      width: 28px; height: 28px;
-      background: transparent; border: none;
-      color: var(--dim); cursor: pointer;
+    .sp-close { /* same box and icon size as #settings-btn */
+      width: var(--ctrl-size); height: var(--ctrl-size);
+      background: var(--surface);
+      border: 1px solid var(--surface-strong);
+      color: var(--text); cursor: pointer; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
-      font-size: var(--ui-font-size); 
 			border-radius: var(--radius);
       transition: all 0.15s;
       -webkit-tap-highlight-color: transparent;
@@ -694,7 +694,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.6</span></div>
+    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.7</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -771,7 +771,11 @@
 <div id="settings-panel">
   <div class="sp-header">
     <span class="sp-title">Settings</span>
-    <button class="sp-close" id="sp-close">✕</button>
+    <button class="sp-close" id="sp-close" title="Close settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <path d="M6 6l12 12M18 6L6 18"/>
+      </svg>
+    </button>
   </div>
   <div class="sp-body">
     <div class="sp-section-label">BEHAVIOR</div>
