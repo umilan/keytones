@@ -29,7 +29,7 @@
       /* ── accent / status ── */
       --active-bg:  rgb(251, 91, 36) !important;
       --active-bg2: rgb(221, 61, 16) !important;
-      --latest-bg:  rgb(255, 214, 10);  /* Settings > Latest note yellow */
+      --latest-bg:  rgb(255, 214, 10);  /* Settings > Latest note — set from LATEST_COLORS */
       --latest-bg2: rgb(230, 186, 0);
       --ok:      #00D17C;
       --ok-glow: rgba(0,209,124,0.67);
@@ -480,7 +480,7 @@
     .white-key::after { background: var(--active-bg); }
     .black-key::after { background: var(--active-bg2); }
 
-    /* Settings > Latest note yellow — the most recent mic-detected note */
+    /* Settings > Latest note — the most recent mic-detected note */
     .white-key.latest { background: var(--latest-bg); }
     .black-key.latest { background: var(--latest-bg2); }
     .white-key.latest::after, .black-key.latest::after { opacity: 0; }
@@ -658,10 +658,6 @@
       font-family: monospace; font-size: var(--ui-font-size);
       padding: 6px 10px; cursor: pointer; margin-left: auto;
     }
-    .sp-check {
-      width: 20px; height: 20px; margin: 0 4px 0 0; flex-shrink: 0;
-      accent-color: var(--latest-bg); cursor: pointer;
-    }
 
     .sp-status {
       font-family: monospace;
@@ -687,7 +683,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.2</span></div>
+    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.3</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -769,37 +765,10 @@
   <div class="sp-body">
     <div class="sp-section-label">BEHAVIOR</div>
     <div class="sp-row">
-      <span class="sp-label">Decay</span>
-      <select class="sp-select" id="decay-select">
-        <option value="0">0%</option>
-        <option value="10">10%</option>
-        <option value="20">20%</option>
-        <option value="30">30%</option>
-        <option value="40">40%</option>
-        <option value="50" selected>50%</option>
-        <option value="60">60%</option>
-        <option value="70">70%</option>
-        <option value="80">80%</option>
-        <option value="90">90%</option>
-        <option value="100">100%</option>
-      </select>
-    </div>
-    <div class="sp-row">
       <span class="sp-label">Detection</span>
       <select class="sp-select" id="detection-select">
         <option value="octave">1 oct</option>
         <option value="full" selected>full range</option>
-      </select>
-    </div>
-    <div class="sp-row">
-      <label class="sp-label" for="latest-yellow-check">Latest note yellow</label>
-      <input type="checkbox" class="sp-check" id="latest-yellow-check" checked>
-    </div>
-    <div class="sp-row">
-      <span class="sp-label">Press states</span>
-      <select class="sp-select" id="press-states-select">
-        <option value="no" selected>no</option>
-        <option value="yes">yes</option>
       </select>
     </div>
     <div class="sp-row">
@@ -822,6 +791,43 @@
           <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
         </optgroup>
         <option value="off">OFF</option>
+      </select>
+    </div>
+
+    <div class="sp-divider"></div>
+
+    <div class="sp-section-label">VISUALISATION</div>
+    <div class="sp-row">
+      <span class="sp-label">Decay</span>
+      <select class="sp-select" id="decay-select">
+        <option value="0">0%</option>
+        <option value="10">10%</option>
+        <option value="20">20%</option>
+        <option value="30">30%</option>
+        <option value="40">40%</option>
+        <option value="50" selected>50%</option>
+        <option value="60">60%</option>
+        <option value="70">70%</option>
+        <option value="80">80%</option>
+        <option value="90">90%</option>
+        <option value="100">100%</option>
+      </select>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Latest note</span>
+      <select class="sp-select" id="latest-color-select">
+        <option value="off">off</option>
+        <option value="yellow" selected>yellow</option>
+        <option value="white">white</option>
+        <option value="green">green</option>
+        <option value="cyan">cyan</option>
+      </select>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Press states</span>
+      <select class="sp-select" id="press-states-select">
+        <option value="no" selected>no</option>
+        <option value="yes">yes</option>
       </select>
     </div>
 
@@ -882,6 +888,12 @@
         <option value="20">+20dB</option>
         <option value="30">+30dB</option>
         <option value="40">+40dB</option>
+        <option value="50">+50dB</option>
+        <option value="60">+60dB</option>
+        <option value="70">+70dB</option>
+        <option value="80">+80dB</option>
+        <option value="90">+90dB</option>
+        <option value="100">+100dB</option>
       </select>
     </div>
     <div class="sp-row">
@@ -1087,7 +1099,8 @@ let micSrc      = null;
 let micGainNode = null;
 let micGainDb   = 0;    // dB trim applied to the mic signal before detection/metering —
                          // shared by the topbar GAIN drag and Settings > Gain
-const MIC_GAIN_DB_MIN = -40, MIC_GAIN_DB_MAX = 40;
+const MIC_GAIN_DB_MIN = -40, MIC_GAIN_DB_MAX = 100;
+const AGC_MAX_DB = 40; // auto-gain never boosts past this; only a manual pick goes higher
 let micActive   = false;
 let detInterval = null;
 let levelRaf    = null;
@@ -1110,9 +1123,9 @@ function agcTick() {
   if (!micActive || agcSamples === 0) return;
   const avgLevel = agcSum / agcSamples;
   agcSum = 0; agcSamples = 0;
-  if (avgLevel < AGC_LOW_PCT && micGainDb < MIC_GAIN_DB_MAX) {
+  if (avgLevel < AGC_LOW_PCT && micGainDb < AGC_MAX_DB) {
     console.log('[agc] level low (' + avgLevel.toFixed(1) + '%) — boosting gain to', micGainDb + AGC_STEP_DB, 'dB');
-    setMicGain(Math.min(MIC_GAIN_DB_MAX, micGainDb + AGC_STEP_DB));
+    setMicGain(Math.min(AGC_MAX_DB, micGainDb + AGC_STEP_DB));
   } else if (avgLevel > AGC_HIGH_PCT && micGainDb > MIC_GAIN_DB_MIN) {
     console.log('[agc] level high (' + avgLevel.toFixed(1) + '%) — cutting gain to', micGainDb - AGC_STEP_DB, 'dB');
     setMicGain(Math.max(MIC_GAIN_DB_MIN, micGainDb - AGC_STEP_DB));
@@ -1126,14 +1139,33 @@ let audioDevicesRequested = false; // guards against asking more than once
 let lastNote       = -1;
 let lastNoteOctave = -1; // exact octave of the currently-tracked pitch (full-range detection)
 
-/* Settings > Latest note yellow: the most recently detected note (mic mode)
-   is drawn yellow on both its key and its bar, and stays yellow until a
+/* Settings > Latest note: the most recently detected note (mic mode) is
+   drawn in this colour on both its key and its bar, and keeps it until a
    different note is detected or the counts are reset. Remembered per browser. */
-const LATEST_YELLOW_KEY = 'keymap-latest-yellow-v1';
-let latestYellow = (() => {
-  try { return localStorage.getItem(LATEST_YELLOW_KEY) !== '0'; } catch (e) { return true; }
+const LATEST_COLOR_KEY = 'keytones-latest-color-v1';
+const LATEST_COLORS = {          // [white key + bar, black key]
+  yellow: ['255,214,10',  '230,186,0'],
+  white:  ['240,240,248', '205,205,215'],
+  green:  ['0,209,124',   '0,176,104'],
+  cyan:   ['0,220,255',   '0,186,220'],
+};
+let latestColor = (() => {
+  try {
+    const saved = localStorage.getItem(LATEST_COLOR_KEY);
+    if (saved && (saved === 'off' || LATEST_COLORS[saved])) return saved;
+    if (localStorage.getItem('keymap-latest-yellow-v1') === '0') return 'off'; // the old on/off checkbox
+  } catch (e) { /* storage unavailable */ }
+  return 'yellow';
 })();
 let latestNote = -1;
+
+function applyLatestColorVars() {
+  const c = LATEST_COLORS[latestColor];
+  if (!c) return;
+  document.documentElement.style.setProperty('--latest-bg',  `rgb(${c[0]})`);
+  document.documentElement.style.setProperty('--latest-bg2', `rgb(${c[1]})`);
+}
+applyLatestColorVars();
 
 function setLatestNote(idx) {
   latestNote = idx;
@@ -1141,13 +1173,14 @@ function setLatestNote(idx) {
 }
 
 function paintLatestKey() {
-  const show = latestYellow && mode === 'outside';
+  const show = latestColor !== 'off' && mode === 'outside';
   for (let i = 0; i < 12; i++) keyEls[i]?.classList.toggle('latest', show && i === latestNote);
 }
 
-function setLatestYellow(on) {
-  latestYellow = on;
-  try { localStorage.setItem(LATEST_YELLOW_KEY, on ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+function setLatestColor(name) {
+  latestColor = name;
+  try { localStorage.setItem(LATEST_COLOR_KEY, name); } catch (e) { /* storage unavailable */ }
+  applyLatestColorVars();
   paintLatestKey();
   render();
 }
@@ -2022,9 +2055,9 @@ function render() {
     /* bar height + linear colour */
     const ratio = maxCount > 0 ? counts[i] / maxCount : 0;
     barEl.style.height     = Math.round(ratio * availH) + 'px';
-    const isLatest = latestYellow && mode === 'outside' && i === latestNote && ratio > 0;
+    const isLatest = latestColor !== 'off' && mode === 'outside' && i === latestNote && ratio > 0;
     barEl.style.background = isLatest ? 'var(--latest-bg)' : barColor(ratio);
-    barEl.style.boxShadow  = isLatest ? barGlow(ratio).replace('255,0,0', '255,214,10') : barGlow(ratio);
+    barEl.style.boxShadow  = isLatest ? barGlow(ratio).replace('255,0,0', LATEST_COLORS[latestColor][0]) : barGlow(ratio);
 
     /* percentage label */
     const pct = total > 0 ? Math.round(counts[i] / total * 100) : 0;
@@ -2133,7 +2166,7 @@ function applyMicGain() {
   if (micGainNode) micGainNode.gain.value = Math.pow(10, micGainDb / 20);
 }
 
-const GAIN_DB_STEPS = [-40, -30, -20, -15, -10, -6, -3, 0, 3, 6, 10, 15, 20, 30, 40];
+const GAIN_DB_STEPS = [-40, -30, -20, -15, -10, -6, -3, 0, 3, 6, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
 function setMicGain(v) {
   micGainDb = Math.max(MIC_GAIN_DB_MIN, Math.min(MIC_GAIN_DB_MAX, Math.round(v)));
@@ -3221,9 +3254,9 @@ function initSettings() {
 
   initDetectionControls();
 
-  const latestCheck = document.getElementById('latest-yellow-check');
-  latestCheck.checked = latestYellow;
-  latestCheck.addEventListener('change', e => setLatestYellow(e.target.checked));
+  const latestSel = document.getElementById('latest-color-select');
+  latestSel.value = latestColor;
+  latestSel.addEventListener('change', e => setLatestColor(e.target.value));
 
   document.getElementById('press-states-select').addEventListener('change', e => {
     lpLightPressedPads = e.target.value === 'yes';
