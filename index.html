@@ -519,6 +519,10 @@
     }
     .white-key::after { background: var(--active-bg); }
     .black-key::after { background: var(--active-bg2); }
+    /* full range detection: a detected note's key glows in the Exact octave
+       colour, fading like its exact-octave Launchpad pad */
+    .white-key.exact::after { background: var(--octave-bg); }
+    .black-key.exact::after { background: var(--octave-bg2); }
 
     /* Settings > Latest note — the most recent mic-detected note */
     .white-key.latest { background: var(--latest-bg); }
@@ -732,7 +736,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.28</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.29</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1251,6 +1255,10 @@ function applyColors() {
     root.setProperty('--latest-bg',  `rgb(${webRgb(colors.latest)})`);
     root.setProperty('--latest-bg2', `rgb(${webDark(colors.latest)})`);
   }
+  if (colors.octave !== 'none') {
+    root.setProperty('--octave-bg',  `rgb(${webRgb(colors.octave)})`);
+    root.setProperty('--octave-bg2', `rgb(${webDark(colors.octave)})`);
+  }
   latestColor       = colors.latest;
   LP_RGB_NOTE       = lpOf(colors.detected);
   LP_RGB_APP_ACTIVE = LP_RGB_NOTE || LP_RGB_UI_NEUTRAL;
@@ -1263,6 +1271,7 @@ applyColors();
 /* after a colour change: repaint the screen and any connected controller */
 function repaintColors() {
   paintLatestKey();
+  for (let i = 0; i < 12; i++) paintExactKey(i);
   render();
   if (lpOn()) {
     paintLaunchpadBacklight(midiOut); paintLaunchpadArrows(midiOut);
@@ -2227,6 +2236,7 @@ function setMode(newMode) {
   const sel = document.getElementById('mic-onoff-select');
   if (sel) sel.value = mode === 'outside' ? 'on' : 'off';
   paintLatestKey(); // yellow is a mic-mode thing — hide it while playing keys
+  for (let i = 0; i < 12; i++) paintExactKey(i);
   render();
 }
 
@@ -2858,7 +2868,21 @@ function lpPadsForNoteOctave(targetNoteIdx, targetOctave) {
   return pads;
 }
 
+/* the on-screen key mirrors the Launchpad's exact-octave pad (full range
+   detection, mic mode): same Exact octave colour, same fade. The latest note
+   keeps its own solid Latest colour (.latest wins). */
+function paintExactKey(noteIdx) {
+  const el = keyEls[noteIdx];
+  if (!el) return;
+  const show = mode === 'outside' && lpFullRangeDetection && colors.octave !== 'none'
+            && lpNoteOctave[noteIdx] !== undefined && lpNoteBrightness[noteIdx] > 0;
+  el.classList.toggle('exact', show);
+  if (show) el.style.setProperty('--press-t', lpNoteBrightness[noteIdx]);
+  else paintKeyFade(noteIdx);
+}
+
 function paintLaunchpadNoteFade(noteIdx) {
+  paintExactKey(noteIdx);
   if (!lpOn()) return;
   // the pads lit here are found by their own fixed (pre-transpose) identity —
   // the idle color to fade back toward must use that same identity, not the
@@ -3122,7 +3146,7 @@ function setLaunchpadProgrammerMode(output, on) {
    exact octave this 'app' note-on was detected/played at, if known — used
    only for the optional full-range-detection purple highlight. */
 function sendMidiNote(noteIdx, on, source = 'app', octave = null) {
-  if (lpOn() && source === 'app') { // real and/or on-screen Launchpad
+  if (source === 'app') { // tracked even with no Launchpad: the keys use it too (exact octave)
     if (on) {
       lpNotePlaying[noteIdx]    = true; // pins brightness at full — see applyDecayTick()
       lpNoteBrightness[noteIdx] = 1;
@@ -3763,6 +3787,7 @@ function initSettings() {
 
   document.getElementById('detection-select').addEventListener('change', e => {
     lpFullRangeDetection = e.target.value === 'full';
+    for (let i = 0; i < 12; i++) paintExactKey(i);
   });
 
   document.getElementById('midi-monitor-select').addEventListener('change', e => {
