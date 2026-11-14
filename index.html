@@ -732,7 +732,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.27</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.28</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1267,7 +1267,7 @@ function repaintColors() {
   if (lpOn()) {
     paintLaunchpadBacklight(midiOut); paintLaunchpadArrows(midiOut);
     paintLaunchpadLayoutButtons(midiOut); paintLaunchpadWaveButtons(midiOut);
-    for (let i = 0; i < 12; i++) if (lpNoteBrightness[i]) paintLaunchpadNoteFade(i);
+    for (let i = 0; i < 12; i++) if (lpNoteBrightness[i] || i === latestNote) paintLaunchpadNoteFade(i);
   }
   if (midiOut) {
     if (launchkeyDawMode) {
@@ -1288,10 +1288,15 @@ function setLatestNote(idx) {
   const prev = latestNote;
   latestNote = idx;
   paintLatestKey();
-  // the previous latest note's controller pads go back to the Notes colour
-  if (prev !== -1 && prev !== idx) {
-    if (lpNoteBrightness[prev]) paintLaunchpadNoteFade(prev);
-    if (lkNoteActive[prev]) paintLaunchkeyNote(prev, true);
+  // the latest note is pinned on the controllers too (like its key and bar),
+  // so the previous one must always be repainted back to its normal state,
+  // and the new one painted even if it has already stopped sounding
+  if (prev !== idx) {
+    for (const n of [prev, idx]) {
+      if (n === -1) continue;
+      paintLaunchpadNoteFade(n);
+      if (midiOut && launchkeyDawMode) paintLaunchkeyNote(n, !!lkNoteActive[n]);
+    }
   }
 }
 
@@ -2868,12 +2873,16 @@ function paintLaunchpadNoteFade(noteIdx) {
   // octaves keep the plain Notes colour. Otherwise every octave of the latest
   // note shows the Latest colour.
   const exactKnown = lpFullRangeDetection && lpNoteOctave[noteIdx] !== undefined;
-  const active = ((exactKnown ? null : latest) || LP_RGB_NOTE) || idle; // 'none' = stays idle
-  const [r, g, b] = lpBlendColor(idle, active, t);
+  // the Latest colour doesn't fade: it stays at full until another note becomes
+  // the latest — exactly like the yellow key and bar on screen
+  const tLatest = latest ? 1 : t;
+  const allLatest = latest && !exactKnown;
+  const active = (allLatest ? latest : LP_RGB_NOTE) || idle; // 'none' = stays idle
+  const [r, g, b] = lpBlendColor(idle, active, allLatest ? tLatest : t);
   allPadsForIndex(noteIdx).forEach(pad => setLaunchpadRGB(midiOut, pad, r, g, b));
   const exactColor = exactKnown ? (latest || LP_RGB_APP_OCTAVE) : null;
   if (exactColor) {
-    const [pr, pg, pb] = lpBlendColor(idle, exactColor, t);
+    const [pr, pg, pb] = lpBlendColor(idle, exactColor, latest ? tLatest : t);
     lpPadsForNoteOctave(noteIdx, lpNoteOctave[noteIdx]).forEach(pad => setLaunchpadRGB(midiOut, pad, pr, pg, pb));
   }
 }
@@ -3194,6 +3203,7 @@ function onLaunchpadLayoutButtonMessage(cc, value) {
   if (lpOn()) {
     paintLaunchpadBacklight(midiOut);       // the set of playable pads/notes changed
     paintLaunchpadLayoutButtons(midiOut);   // move the indicator
+    for (let i = 0; i < 12; i++) if (lpNoteBrightness[i] || i === latestNote) paintLaunchpadNoteFade(i); // re-light notes on the new layout
   }
 }
 
@@ -3359,8 +3369,10 @@ function paintLaunchkeyBacklight(output) {
 function paintLaunchkeyNote(noteIdx, active) {
   if (!midiOut || !launchkeyDawMode) return;
   lkNoteActive[noteIdx] = active;
-  const color = !active ? lkColorForNote(noteIdx)
-              : (isLatestShown(noteIdx) ? lkOf(latestColor) : lkOf(colors.detected)) ?? lkColorForNote(noteIdx);
+  // the latest note stays in the Latest colour even after it stops, like on screen
+  const color = isLatestShown(noteIdx) && lkOf(latestColor) !== null ? lkOf(latestColor)
+              : !active ? lkColorForNote(noteIdx)
+              : lkOf(colors.detected) ?? lkColorForNote(noteIdx);
   LK_NOTE_PAD[noteIdx].forEach(pad => setLaunchkeyPad(midiOut, pad, color));
 }
 
@@ -3652,7 +3664,7 @@ function setPadGlow(kind, pct) {
   try { localStorage.setItem(key, String(pct)); } catch (e) { /* storage unavailable */ }
   if (lpOn()) {
     paintLaunchpadBacklight(midiOut);
-    for (let i = 0; i < 12; i++) if (lpNoteBrightness[i]) paintLaunchpadNoteFade(i);
+    for (let i = 0; i < 12; i++) if (lpNoteBrightness[i] || i === latestNote) paintLaunchpadNoteFade(i);
   }
 }
 
