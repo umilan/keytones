@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Keymap</title>
+  <title>Keytones</title>
 
   <!-- PWA: installable "Add to Home Screen" once served over http(s), not file:// -->
   <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Keymap">
+  <meta name="apple-mobile-web-app-title" content="Keytones">
   <style>
     *, *::before, *::after {box-sizing: border-box;margin: 0;padding: 0;}
 
@@ -136,6 +136,7 @@
     }
 
     .app-title:active { opacity: 0.45; }
+    .app-title-accent { color: var(--active-bg); } /* same red as the bars */
     /* bumped before every push to main — see CLAUDE.md */
     .app-version {
       text-transform: none;
@@ -672,7 +673,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Keymap <span class="app-version" id="app-version">v1.0</span></div>
+    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.1</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>

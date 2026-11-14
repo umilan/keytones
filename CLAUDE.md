@@ -1,4 +1,4 @@
-# Keymap (keytones)
+# Keytones
 
 Single-file PWA: everything lives in `index.html`, served by GitHub Pages from `main`.
 

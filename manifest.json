@@ -1,6 +1,6 @@
 {
-  "name": "Keymap",
-  "short_name": "Keymap",
+  "name": "Keytones",
+  "short_name": "Keytones",
   "description": "Note-usage keyboard with mic pitch tracking and MIDI/Launchpad output",
   "start_url": "./index.html",
   "scope": "./",
