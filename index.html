@@ -702,7 +702,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.9</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.10</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -875,8 +875,8 @@
     <div class="sp-row">
       <span class="sp-label">Mic</span>
       <select class="sp-select" id="mic-onoff-select">
-        <option value="off" selected>off</option>
-        <option value="on">on</option>
+        <option value="off">off</option>
+        <option value="on" selected>on</option>
       </select>
     </div>
     <div class="sp-row">
@@ -902,7 +902,7 @@
       <!-- same underlying value (micGainDb) as the topbar GAIN drag —
            picking an option here calls the exact same setMicGain() -->
       <span class="sp-value" id="gain-db-select-value"></span>
-      <input type="range" class="sp-range" id="gain-db-select" min="-40" max="100" step="1" value="0">
+      <input type="range" class="sp-range" id="gain-db-select" min="-40" max="100" step="1" value="50">
     </div>
     <div class="sp-row">
       <span class="sp-label">Audio in</span>
@@ -1075,7 +1075,7 @@ let analyser    = null;
 let micStream   = null;
 let micSrc      = null;
 let micGainNode = null;
-let micGainDb   = 0;    // dB trim applied to the mic signal before detection/metering —
+let micGainDb   = 50;    // dB trim applied to the mic signal before detection/metering —
                          // shared by the topbar GAIN drag and Settings > Gain
 const MIC_GAIN_DB_MIN = -40, MIC_GAIN_DB_MAX = 100;
 const AGC_MAX_DB = 40; // auto-gain never boosts past this; only a manual pick goes higher
@@ -1265,6 +1265,14 @@ document.addEventListener('touchstart', unlockIOSAudio, { once: true, passive: t
 document.addEventListener('mousedown',  unlockIOSAudio, { once: true });
 document.addEventListener('keydown',    unlockIOSAudio, { once: true });
 
+/* the mic starts on page load, before any tap, so the AudioContext may start
+   suspended (autoplay rules) — wake it on the first gesture(s) until it runs */
+function resumeAudioOnGesture() {
+  if (audioCtx && audioCtx.state !== 'running') audioCtx.resume().catch(() => {});
+}
+['pointerdown', 'touchend', 'keydown'].forEach(t =>
+  document.addEventListener(t, resumeAudioOnGesture, { passive: true }));
+
 /* ═══════════════════════════════════════
    AUDIO CONTEXT
 ═══════════════════════════════════════ */
@@ -1403,7 +1411,9 @@ async function startMic() {
     return;
   }
   try {
-    const ac = getCtx(); await ac.resume();
+    // not awaited: on page load (mic on by default) there's no user gesture
+    // yet, and resume() would stay pending until one — resumeAudioOnGesture() finishes it
+    const ac = getCtx(); ac.resume().catch(() => {});
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation:false, noiseSuppression:false, autoGainControl:false,
@@ -3401,6 +3411,7 @@ function build() {
   initScrubDrag('gain-ctrl', () => micGainDb, setMicGain, 0.25);
   setDecayPct(decayPct); // starts the decay interval for the default rate
   setMicGain(micGainDb);  // fills in the Settings gain slider label
+  setMode('outside');     // mic on by default
   applyLayout();
 
   document.getElementById('mic-badge').addEventListener('click', () =>
