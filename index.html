@@ -523,6 +523,8 @@
        colour, fading like its exact-octave Launchpad pad */
     .white-key.exact::after { background: var(--octave-bg); }
     .black-key.exact::after { background: var(--octave-bg2); }
+    .white-key.exact.exact-latest::after { background: var(--latest-bg); }
+    .black-key.exact.exact-latest::after { background: var(--latest-bg2); }
 
     /* Settings > Latest note — the most recent mic-detected note */
     .white-key.latest { background: var(--latest-bg); }
@@ -736,7 +738,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.29</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.30</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1315,7 +1317,8 @@ function isLatestShown(noteIdx) {
 }
 
 function paintLatestKey() {
-  const show = latestColor !== 'none' && mode === 'outside';
+  // full range: the latest note fades like the others (see paintExactKey), so no solid key
+  const show = latestColor !== 'none' && mode === 'outside' && !lpFullRangeDetection;
   for (let i = 0; i < 12; i++) keyEls[i]?.classList.toggle('latest', show && i === latestNote);
 }
 
@@ -2874,9 +2877,12 @@ function lpPadsForNoteOctave(targetNoteIdx, targetOctave) {
 function paintExactKey(noteIdx) {
   const el = keyEls[noteIdx];
   if (!el) return;
-  const show = mode === 'outside' && lpFullRangeDetection && colors.octave !== 'none'
+  const isLatest = isLatestShown(noteIdx);
+  const show = mode === 'outside' && lpFullRangeDetection
+            && (isLatest || colors.octave !== 'none')
             && lpNoteOctave[noteIdx] !== undefined && lpNoteBrightness[noteIdx] > 0;
   el.classList.toggle('exact', show);
+  el.classList.toggle('exact-latest', show && isLatest); // same fade, Latest colour
   if (show) el.style.setProperty('--press-t', lpNoteBrightness[noteIdx]);
   else paintKeyFade(noteIdx);
 }
@@ -2899,7 +2905,9 @@ function paintLaunchpadNoteFade(noteIdx) {
   const exactKnown = lpFullRangeDetection && lpNoteOctave[noteIdx] !== undefined;
   // the Latest colour doesn't fade: it stays at full until another note becomes
   // the latest — exactly like the yellow key and bar on screen
-  const tLatest = latest ? 1 : t;
+  // full range: the latest's exact pad behaves exactly like any exact pad
+  // (fades with Decay), just in the Latest colour; otherwise it stays pinned
+  const tLatest = latest && !exactKnown ? 1 : t;
   const allLatest = latest && !exactKnown;
   const active = (allLatest ? latest : LP_RGB_NOTE) || idle; // 'none' = stays idle
   const [r, g, b] = lpBlendColor(idle, active, allLatest ? tLatest : t);
@@ -3394,7 +3402,7 @@ function paintLaunchkeyNote(noteIdx, active) {
   if (!midiOut || !launchkeyDawMode) return;
   lkNoteActive[noteIdx] = active;
   // the latest note stays in the Latest colour even after it stops, like on screen
-  const color = isLatestShown(noteIdx) && lkOf(latestColor) !== null ? lkOf(latestColor)
+  const color = isLatestShown(noteIdx) && lkOf(latestColor) !== null && (active || !lpFullRangeDetection) ? lkOf(latestColor)
               : !active ? lkColorForNote(noteIdx)
               : lkOf(colors.detected) ?? lkColorForNote(noteIdx);
   LK_NOTE_PAD[noteIdx].forEach(pad => setLaunchkeyPad(midiOut, pad, color));
@@ -3787,7 +3795,7 @@ function initSettings() {
 
   document.getElementById('detection-select').addEventListener('change', e => {
     lpFullRangeDetection = e.target.value === 'full';
-    for (let i = 0; i < 12; i++) paintExactKey(i);
+    repaintColors(); // keys and Launchpad: pinned vs fading latest
   });
 
   document.getElementById('midi-monitor-select').addEventListener('change', e => {
