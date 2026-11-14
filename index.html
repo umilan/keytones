@@ -693,7 +693,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.13</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.14</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -812,6 +812,13 @@
 
     <div class="sp-section-label">DETECTION</div>
     <div class="sp-row">
+      <span class="sp-label">Gain</span>
+      <!-- same underlying value (micGainDb) as the topbar GAIN drag —
+           picking an option here calls the exact same setMicGain() -->
+      <span class="sp-value" id="gain-db-select-value"></span>
+      <input type="range" class="sp-range" id="gain-db-select" min="-40" max="100" step="1" value="50">
+    </div>
+    <div class="sp-row">
       <label class="sp-label" for="gate-range">Noise gate</label>
       <span class="sp-value" id="gate-value"></span>
       <input type="range" class="sp-range" id="gate-range" min="-80" max="-20" step="1">
@@ -913,13 +920,6 @@
       <span class="sp-label">Sound octave</span>
       <span class="sp-value" id="sound-oct-select-value"></span>
       <input type="range" class="sp-range" id="sound-oct-select" min="0" max="8" step="1" value="3">
-    </div>
-    <div class="sp-row">
-      <span class="sp-label">Gain</span>
-      <!-- same underlying value (micGainDb) as the topbar GAIN drag —
-           picking an option here calls the exact same setMicGain() -->
-      <span class="sp-value" id="gain-db-select-value"></span>
-      <input type="range" class="sp-range" id="gain-db-select" min="-40" max="100" step="1" value="50">
     </div>
     <div class="sp-row">
       <span class="sp-label">Audio in</span>
