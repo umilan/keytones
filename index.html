@@ -78,7 +78,13 @@
                          settings pushes/shrinks #app instead of overlaying it */
     }
 
+    /* while Settings is open, a tap anywhere on the app closes it (and
+       doesn't also play a key or press a button underneath) */
+    #app-dismiss { display: none; position: absolute; inset: 0; z-index: 50; cursor: pointer; }
+    body.sp-open #app-dismiss { display: block; }
+
     #app {
+      position: relative;
       height: 100dvh;
       flex: 1 1 auto;
       min-width: 0;
@@ -734,11 +740,12 @@
 </head>
 <body>
 <div id="app">
+  <div id="app-dismiss" title="Close settings"></div>
 
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.31</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.32</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -3740,7 +3747,8 @@ function initSettings() {
   btn.addEventListener('click', () =>
     panel.classList.contains('open') ? closePanel() : openPanel()
   );
-  header.addEventListener('click', closePanel); // whole header closes — the ✕ inside it is just a visual affordance
+  header.addEventListener('click', closePanel);
+  document.getElementById('app-dismiss').addEventListener('pointerdown', e => { e.preventDefault(); closePanel(); }); // whole header closes — the ✕ inside it is just a visual affordance
   initPanelSwipe(panel, closePanel);
   initEdgeSwipeOpen(panel, openPanel);
 
