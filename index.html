@@ -216,6 +216,36 @@
       overflow: hidden;
     }
 
+    /* Settings > Visualisation > View: Launchpad — an on-screen Launchpad Mini
+       showing exactly what the app sends to the real one, and playable */
+    #lp-view {
+      position: absolute; inset: 0; z-index: 5;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bar-bg); padding: 8px;
+      container-type: size;
+    }
+    #lp-view[hidden] { display: none; }
+    #lp-grid {
+      display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
+      gap: min(6px, 1.2vmin);
+      width: min(100cqw, 100cqh); height: min(100cqw, 100cqh); /* square, as large as fits */
+      padding: min(10px, 2vmin); border-radius: 10px;
+      background: #15151c; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+    }
+    .lp-cell {
+      border-radius: 4px; background: #23232e; position: relative;
+      transition: background 0.06s linear, box-shadow 0.06s linear;
+      touch-action: none; cursor: pointer;
+    }
+    .lp-cell.btn { border-radius: 3px; background: #101016; }
+    .lp-cell.btn::after {
+      content: attr(data-label); position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      font-family: monospace; font-size: clamp(6px, 1.6vmin, 10px); line-height: 1.05;
+      color: var(--lp-led, rgba(255,255,255,0.35)); pointer-events: none;
+    }
+    .lp-cell.logo { background: #2a2a34; border-radius: 3px; cursor: default; }
+
     .bar-col {
       position: absolute;
       top: 0; bottom: 0;
@@ -701,7 +731,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.21</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.22</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -725,7 +755,7 @@
     </button>
   </div>
 
-  <div id="bar-area"></div>
+  <div id="bar-area"><div id="lp-view" hidden><div id="lp-grid"></div></div></div>
 
   <div id="mic-strip">
     <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
@@ -847,6 +877,13 @@
     <div class="sp-divider"></div>
 
     <div class="sp-section-label">VISUALISATION</div>
+    <div class="sp-row">
+      <span class="sp-label">View</span>
+      <select class="sp-select" id="view-select">
+        <option value="bars">bars</option>
+        <option value="launchpad">Launchpad</option>
+      </select>
+    </div>
     <div class="sp-row">
       <span class="sp-label">Decay</span>
       <span class="sp-value" id="decay-select-value"></span>
@@ -1219,12 +1256,12 @@ applyColors();
 function repaintColors() {
   paintLatestKey();
   render();
-  if (typeof midiOut !== 'undefined' && midiOut) {
-    if (launchpadProgrammerMode) {
-      paintLaunchpadBacklight(midiOut); paintLaunchpadArrows(midiOut);
-      paintLaunchpadLayoutButtons(midiOut); paintLaunchpadWaveButtons(midiOut);
-      for (let i = 0; i < 12; i++) if (lpNoteBrightness[i]) paintLaunchpadNoteFade(i);
-    }
+  if (lpOn()) {
+    paintLaunchpadBacklight(midiOut); paintLaunchpadArrows(midiOut);
+    paintLaunchpadLayoutButtons(midiOut); paintLaunchpadWaveButtons(midiOut);
+    for (let i = 0; i < 12; i++) if (lpNoteBrightness[i]) paintLaunchpadNoteFade(i);
+  }
+  if (midiOut) {
     if (launchkeyDawMode) {
       paintLaunchkeyBacklight(midiOut);
       for (let i = 0; i < 12; i++) if (lkNoteActive[i]) paintLaunchkeyNote(i, true);
@@ -2683,6 +2720,11 @@ function shiftPreviewOctave(delta) {
    4 octaves across the full 8-row grid. Which octave-band lights up follows
    the existing OCT control (wrapped into 0–3), same one used for MIDI-out. */
 let launchpadProgrammerMode = false; // true once the connected device has been switched over
+let lpSim = false;    // Settings > View: Launchpad — paint an on-screen Launchpad too
+const lpLeds = {};    // led number -> [r,g,b] (0-127), what the on-screen Launchpad shows
+
+/* is there any Launchpad to paint — a real one, the on-screen one, or both? */
+function lpOn() { return lpSim || !!(midiOut && launchpadProgrammerMode); }
 const LP_DEVICE_ID   = 0x0D; // Launchpad Mini MK3 (differs for X / Pro MK3)
 const LP_BANDS       = 4;    // stacked octave bands (2 grid rows each = 8 rows total)
 
@@ -2748,7 +2790,7 @@ function lpPadsForNoteOctave(targetNoteIdx, targetOctave) {
 }
 
 function paintLaunchpadNoteFade(noteIdx) {
-  if (!midiOut || !launchpadProgrammerMode) return;
+  if (!lpOn()) return;
   // the pads lit here are found by their own fixed (pre-transpose) identity —
   // the idle color to fade back toward must use that same identity, not the
   // currently-sounding noteIdx, or the pad's idle color gets permanently
@@ -2811,7 +2853,7 @@ function setWaveType(type) {
   waveType = type;
   const sel = document.getElementById('wave-select');
   if (sel) sel.value = type;
-  if (midiOut && launchpadProgrammerMode) paintLaunchpadWaveButtons(midiOut);
+  if (lpOn()) paintLaunchpadWaveButtons(midiOut);
 }
 let lpLayout = 'piano'; // 'piano' | 'fretboard'
 let lpLightPressedPads = false; // Settings > Press states — physically pressing a pad lights it
@@ -2957,6 +2999,9 @@ function paintLaunchpadLayoutButtons(output) {
    SysEx directly for a real gradient instead of picking from the 128-color
    palette. LED = the button's own CC/note number. */
 function setLaunchpadRGB(output, led, r, g, b) {
+  lpLeds[led] = [r, g, b];
+  if (lpSim) scheduleLpView();
+  if (!output || !launchpadProgrammerMode) return; // on-screen only (no real Launchpad selected)
   if (midiMonitorEnabled) console.log('[MIDI out] light up', led, 'rgb', r, g, b);
   output.send([0xF0, 0x00, 0x20, 0x29, 0x02, LP_DEVICE_ID, 0x03, 0x03, led, r, g, b, 0xF7]);
 }
@@ -2980,7 +3025,7 @@ function arrowDirectionColor(steps, maxSteps) {
 }
 
 function paintLaunchpadArrows(output) {
-  if (!output) return;
+  // output may be null with only the on-screen Launchpad — setLaunchpadRGB handles that
   const up    = arrowDirectionColor(Math.max(0,  lpOctaveShift), LP_OCTAVE_SHIFT_MAX);
   const down  = arrowDirectionColor(Math.max(0, -lpOctaveShift), -LP_OCTAVE_SHIFT_MIN);
   const left  = arrowDirectionColor(Math.max(0, -lpTranspose),   -LP_TRANSPOSE_MIN);
@@ -3004,18 +3049,19 @@ function setLaunchpadProgrammerMode(output, on) {
    exact octave this 'app' note-on was detected/played at, if known — used
    only for the optional full-range-detection purple highlight. */
 function sendMidiNote(noteIdx, on, source = 'app', octave = null) {
+  if (lpOn() && source === 'app') { // real and/or on-screen Launchpad
+    if (on) {
+      lpNotePlaying[noteIdx]    = true; // pins brightness at full — see applyDecayTick()
+      lpNoteBrightness[noteIdx] = 1;
+      if (octave !== null) lpNoteOctave[noteIdx] = octave; else delete lpNoteOctave[noteIdx];
+      paintLaunchpadNoteFade(noteIdx);
+    } else {
+      lpNotePlaying[noteIdx] = false; // no longer held — starts fading on the next decay tick
+    }
+  }
   if (!midiOut) return;
   if (launchpadProgrammerMode) {
-    if (source === 'app') {
-      if (on) {
-        lpNotePlaying[noteIdx]    = true; // pins brightness at full — see applyDecayTick()
-        lpNoteBrightness[noteIdx] = 1;
-        if (octave !== null) lpNoteOctave[noteIdx] = octave; else delete lpNoteOctave[noteIdx];
-        paintLaunchpadNoteFade(noteIdx);
-      } else {
-        lpNotePlaying[noteIdx] = false; // no longer held — starts fading on the next decay tick
-      }
-    }
+    // handled above
   } else if (launchkeyDawMode) {
     if (source === 'app') paintLaunchkeyNote(noteIdx, on);
   } else {
@@ -3037,7 +3083,7 @@ function sendMidiNote(noteIdx, on, source = 'app', octave = null) {
    transpose. displayedNoteIdx: the chroma this press actually sounds (post-
    transpose) — used only to find sibling pads on the fretboard layout. */
 function paintPressedPad(pad, baseIdx, displayedNoteIdx, on) {
-  if (!midiOut || !launchpadProgrammerMode || !lpLightPressedPads) return;
+  if (!lpOn() || !lpLightPressedPads) return;
   const [r, g, b] = on ? lpActiveColorForNote(baseIdx) : lpBacklightColorForNote(baseIdx);
   const pads = lpLayout === 'piano' ? [pad] : allPadsForIndex(displayedNoteIdx);
   pads.forEach(p => setLaunchpadRGB(midiOut, p, r, g, b));
@@ -3071,7 +3117,7 @@ function onLaunchpadArrowMessage(cc, value) {
   else if (cc === LP_CC_LEFT)  lpTranspose   = Math.max(LP_TRANSPOSE_MIN, lpTranspose - 1);
   else if (cc === LP_CC_RIGHT) lpTranspose   = Math.min(LP_TRANSPOSE_MAX, lpTranspose + 1);
   else return;
-  if (midiOut && launchpadProgrammerMode) paintLaunchpadArrows(midiOut);
+  if (lpOn()) paintLaunchpadArrows(midiOut);
 }
 
 /* Keys/User (top row) pick the active layout — press only, ignore an
@@ -3081,28 +3127,105 @@ function onLaunchpadLayoutButtonMessage(cc, value) {
   const newLayout = cc === LP_CC_KEYS ? 'piano' : cc === LP_CC_USER ? 'fretboard' : null;
   if (!newLayout || newLayout === lpLayout) return;
   lpLayout = newLayout;
-  if (midiOut && launchpadProgrammerMode) {
+  if (lpOn()) {
     paintLaunchpadBacklight(midiOut);       // the set of playable pads/notes changed
     paintLaunchpadLayoutButtons(midiOut);   // move the indicator
+  }
+}
+
+/* one Launchpad message — from the real device, or from tapping the on-screen one */
+function handleLaunchpadInput(status, data1, data2) {
+  const cmd = status & 0xF0;
+  if (cmd === 0xB0) {
+    if (data1 === LP_CC_KEYS || data1 === LP_CC_USER) { onLaunchpadLayoutButtonMessage(data1, data2); return; }
+    if (LP_CC_STOP_SOLO_MUTE.includes(data1)) { if (data2 > 0) reset(); return; } // side-column "Stop Solo Mute" — same as clicking the app title
+    const waveIdx = LP_CC_WAVE.indexOf(data1);
+    if (waveIdx !== -1) { if (data2 > 0) setWaveType(LP_WAVE_ORDER[waveIdx]); return; } // rest of the side column — pick a waveform
+    onLaunchpadArrowMessage(data1, data2);
+    return;
+  }
+  onLaunchpadPadMessage(status, data1, data2);
+}
+
+/* ── ON-SCREEN LAUNCHPAD (Settings > View) ─────────────────────────────
+   9x9 like a Launchpad Mini: top row = round buttons 91-98 + logo, then
+   8 grid rows (88..11, top to bottom) each ending in its side button x9.
+   Colours come from lpLeds, i.e. from the very same setLaunchpadRGB calls
+   that drive the real device; tapping sends the same messages a real
+   press would (note on/off for pads, CC for the buttons). */
+const LP_TOP_LABELS  = ['▲', '▼', '◀', '▶', 'Session', 'Drums', 'Keys', 'User'];
+const VIEW_KEY = 'keytones-view-v1';
+let lpViewCells = null;
+let lpViewRaf = null;
+
+function lpLedCss([r, g, b]) {
+  if (!r && !g && !b) return null;
+  const f = c => Math.round(255 * Math.pow(c / 127, 0.55)); // LEDs read brighter than their numbers
+  return `rgb(${f(r)},${f(g)},${f(b)})`;
+}
+
+function buildLpView() {
+  const grid = document.getElementById('lp-grid');
+  lpViewCells = [];
+  const add = (led, kind, label) => {
+    const el = document.createElement('div');
+    el.className = 'lp-cell' + (kind ? ' ' + kind : '');
+    if (label) el.dataset.label = label;
+    if (led) { el.dataset.led = led; lpViewCells.push(el); }
+    grid.appendChild(el);
+    if (!led) return;
+    const isCC = kind === 'btn';
+    let held = false;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault(); el.setPointerCapture?.(e.pointerId); held = true;
+      handleLaunchpadInput(isCC ? 0xB0 : 0x90, led, 127);
+    });
+    const up = () => { if (!held) return; held = false; handleLaunchpadInput(isCC ? 0xB0 : 0x80, led, 0); };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  };
+  LP_TOP_LABELS.forEach((l, i) => add(91 + i, 'btn', l));
+  add(0, 'logo');
+  for (let row = 8; row >= 1; row--) {
+    for (let col = 1; col <= 8; col++) add(row * 10 + col);
+    add(row * 10 + 9, 'btn', row === 1 ? 'Stop Solo Mute' : '›');
+  }
+}
+
+function scheduleLpView() {
+  if (lpViewRaf || !lpViewCells) return;
+  lpViewRaf = requestAnimationFrame(() => {
+    lpViewRaf = null;
+    for (const el of lpViewCells) {
+      const css = lpLedCss(lpLeds[el.dataset.led] || [0, 0, 0]);
+      if (el.classList.contains('btn')) {
+        el.style.setProperty('--lp-led', css || '');
+        el.style.boxShadow = css ? `inset 0 0 0 1px ${css}` : '';
+      } else {
+        el.style.background = css || '';
+        el.style.boxShadow  = css ? `0 0 8px ${css.replace('rgb', 'rgba').replace(')', ',0.35)')}` : '';
+      }
+    }
+  });
+}
+
+function setView(view) {
+  lpSim = view === 'launchpad';
+  try { localStorage.setItem(VIEW_KEY, view); } catch (e) { /* storage unavailable */ }
+  const sel = document.getElementById('view-select');
+  if (sel) sel.value = view;
+  document.getElementById('lp-view').hidden = !lpSim;
+  if (lpSim) {
+    if (!lpViewCells) buildLpView();
+    repaintColors(); // paints the whole Launchpad (on screen, and the real one if connected)
+    scheduleLpView();
   }
 }
 
 function onMidiMessage(e) {
   const [status, data1, data2] = e.data;
   if (midiMonitorEnabled) console.log('[MIDI in]', status.toString(16), data1, data2);
-  if (launchpadInputMode) {
-    const cmd = status & 0xF0;
-    if (cmd === 0xB0) {
-      if (data1 === LP_CC_KEYS || data1 === LP_CC_USER) { onLaunchpadLayoutButtonMessage(data1, data2); return; }
-      if (LP_CC_STOP_SOLO_MUTE.includes(data1)) { if (data2 > 0) reset(); return; } // side-column "Stop Solo Mute" — same as clicking the app title
-      const waveIdx = LP_CC_WAVE.indexOf(data1);
-      if (waveIdx !== -1) { if (data2 > 0) setWaveType(LP_WAVE_ORDER[waveIdx]); return; } // rest of the side column — pick a waveform
-      onLaunchpadArrowMessage(data1, data2);
-      return;
-    }
-    onLaunchpadPadMessage(status, data1, data2);
-    return;
-  }
+  if (launchpadInputMode) { handleLaunchpadInput(status, data1, data2); return; }
 
   const cmd = status & 0xF0;
   const ch  = status & 0x0F;
@@ -3462,7 +3585,7 @@ function setPadGlow(kind, pct) {
   const el = document.getElementById(id);
   if (el) el.value = pct;
   try { localStorage.setItem(key, String(pct)); } catch (e) { /* storage unavailable */ }
-  if (midiOut && launchpadProgrammerMode) {
+  if (lpOn()) {
     paintLaunchpadBacklight(midiOut);
     for (let i = 0; i < 12; i++) if (lpNoteBrightness[i]) paintLaunchpadNoteFade(i);
   }
@@ -3548,6 +3671,10 @@ function initSettings() {
   document.getElementById('side-pad-range').addEventListener('input', e => setSidePad(Number(e.target.value)));
 
   initColorControls();
+  let view = 'bars';
+  try { view = localStorage.getItem(VIEW_KEY) || 'bars'; } catch (e) { /* storage unavailable */ }
+  setView(view === 'launchpad' ? 'launchpad' : 'bars');
+  document.getElementById('view-select').addEventListener('change', e => setView(e.target.value));
   setPadGlow('halftone', lpHalftoneGlow);
   setPadGlow('natural', lpNaturalGlow);
   document.getElementById('halftone-range').addEventListener('input', e => setPadGlow('halftone', Number(e.target.value)));
