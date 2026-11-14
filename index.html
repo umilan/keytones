@@ -743,7 +743,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.33</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.34</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1300,12 +1300,12 @@ function setLatestNote(idx) {
 
 /* is this note drawn in the Latest-note colour right now (screen and controllers)? */
 function isLatestShown(noteIdx) {
-  return latestColor !== 'none' && mode === 'outside' && noteIdx === latestNote;
+  return latestColor !== 'none' && noteIdx === latestNote; // mic-detected or played
 }
 
 function paintLatestKey() {
   // full range: the latest note fades like the others (see paintExactKey), so no solid key
-  const show = latestColor !== 'none' && mode === 'outside' && !lpFullRangeDetection;
+  const show = latestColor !== 'none' && !lpFullRangeDetection;
   for (let i = 0; i < 12; i++) keyEls[i]?.classList.toggle('latest', show && i === latestNote);
 }
 
@@ -1538,6 +1538,10 @@ function paintKeyFade(noteIdx) {
    (physically pressing the Launchpad's own pad) — see sendMidiNote(). */
 function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
   noteOn(noteIdx, octave);
+  // a note you play (on-screen key, computer keyboard, MIDI in) is the latest
+  // note too, not only what the mic hears. Launchpad pad presses have their
+  // own Pressed pad colour, so they don't move it.
+  if (source !== 'pad') setLatestNote(noteIdx);
   const wasIdle = !heldNoteCount[noteIdx];
   heldNoteCount[noteIdx] = (heldNoteCount[noteIdx] || 0) + 1;
   // while the mic is listening, a Launchpad pad press plays/lights the pad
@@ -2225,7 +2229,7 @@ function setMode(newMode) {
   else                    stopMic();
   const sel = document.getElementById('mic-onoff-select');
   if (sel) sel.value = mode === 'outside' ? 'on' : 'off';
-  paintLatestKey(); // yellow is a mic-mode thing — hide it while playing keys
+  paintLatestKey();
   for (let i = 0; i < 12; i++) paintExactKey(i);
   render();
 }
@@ -2258,7 +2262,7 @@ function render() {
     /* bar height + linear colour */
     const ratio = maxCount > 0 ? counts[i] / maxCount : 0;
     barEl.style.height     = Math.round(ratio * availH) + 'px';
-    const isLatest = latestColor !== 'none' && mode === 'outside' && i === latestNote && ratio > 0;
+    const isLatest = latestColor !== 'none' && i === latestNote && ratio > 0;
     barEl.style.background = isLatest ? 'var(--latest-bg)' : barColor(ratio);
     barEl.style.boxShadow  = isLatest ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
 
@@ -2865,7 +2869,7 @@ function paintExactKey(noteIdx) {
   const el = keyEls[noteIdx];
   if (!el) return;
   const isLatest = isLatestShown(noteIdx);
-  const show = mode === 'outside' && lpFullRangeDetection
+  const show = lpFullRangeDetection
             && isLatest                       // full range: only the latest note is marked
             && lpNoteOctave[noteIdx] !== undefined && lpNoteBrightness[noteIdx] > 0;
   el.classList.toggle('exact', show);
