@@ -701,7 +701,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.20</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.21</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1392,12 +1392,15 @@ function getSynthBus(ac) {
   return synthBus;
 }
 
-function getCtx() {
+function getCtx(sampleRate) {
   if (!audioCtx) {
     // 'balanced' gives the audio thread a bit more buffer than the default
-    // 'interactive' — fewer dropouts on phones, still fine for playing keys
+    // 'interactive' — fewer dropouts on phones, still fine for playing keys.
+    // sampleRate: the mic's own rate when known (see startMic), so iOS never
+    // has to resample between the mic and the speaker — a known crackle source
     const AC = window.AudioContext || window.webkitAudioContext;
-    try { audioCtx = new AC({ latencyHint: 'balanced' }); } catch (e) { audioCtx = new AC(); }
+    const opts = { latencyHint: 'balanced', ...(sampleRate ? { sampleRate } : {}) };
+    try { audioCtx = new AC(opts); } catch (e) { audioCtx = new AC(); }
     if (audioOutDeviceId && typeof audioCtx.setSinkId === 'function') {
       audioCtx.setSinkId(audioOutDeviceId).catch(() => {});
     }
@@ -1532,9 +1535,10 @@ async function startMic() {
     return;
   }
   try {
-    // not awaited: on page load (mic on by default) there's no user gesture
-    // yet, and resume() would stay pending until one — resumeAudioOnGesture() finishes it
-    const ac = getCtx(); ac.resume().catch(() => {});
+    // the mic is opened BEFORE the AudioContext exists: on iOS, opening the
+    // mic switches the audio session (rate, route), and a context created
+    // earlier keeps the old settings and crackles. Creating it afterwards,
+    // at the mic's own sample rate, keeps mic and speaker in step.
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation:false, noiseSuppression:false, autoGainControl:false,
@@ -1542,6 +1546,16 @@ async function startMic() {
       },
       video: false,
     });
+    const micRate = stream.getAudioTracks()[0]?.getSettings?.().sampleRate;
+    if (audioCtx && micRate && audioCtx.sampleRate !== micRate && !Object.keys(activeNotes).length) {
+      // a context from before the mic (e.g. a key was played first) at another
+      // rate: start a fresh one at the mic's rate — nothing is sounding right now
+      audioCtx.close().catch(() => {});
+      audioCtx = null; synthBus = null;
+    }
+    // not awaited: on page load (mic on by default) there's no user gesture
+    // yet, and resume() would stay pending until one — resumeAudioOnGesture() finishes it
+    const ac = getCtx(micRate); ac.resume().catch(() => {});
     micStream = stream;
     micSrc    = ac.createMediaStreamSource(stream);
     micGainNode = ac.createGain();
