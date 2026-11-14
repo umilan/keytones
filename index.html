@@ -305,8 +305,8 @@
       flex-shrink: 0;
       height: 46px;
       display: flex;
-      align-items: center;
-      padding: 0 14px; /* side insets are on #app */
+      align-items: stretch; /* the button row fills the strip edge to edge, no padding */
+      padding: 0; /* side insets are on #app */
       gap: 10px;
       background: var(--top-bg);
       border-top: 1px solid var(--border);
@@ -418,11 +418,11 @@
       align-items: stretch;
       flex: 1;
       min-width: 0;
-      border-radius: var(--radius);
-      border: 1px solid var(--surface-strong);
-      overflow: hidden; /* clips buttons to the group's own rounded corners */
+      border: none;
+      overflow: hidden;
     }
 
+    #algo-badge { align-self: center; margin: 0 8px; } /* compact picker (narrow screens) */
     .algo-btn {
       flex: 1;
       font-family: monospace;
@@ -730,7 +730,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.23</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.24</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2478,23 +2478,41 @@ function initResize() {
     document.body.style.cursor     = '';
   }
 
+  /* the algorithm buttons now fill the whole strip, so a press on one can
+     still become a resize: it turns into a drag once it moves 8 px up/down,
+     and then that press doesn't also pick the algorithm */
+  const group = document.getElementById('algo-btn-group');
+  let pendingY = null, suppressClick = false;
+  const maybeStart = y => {
+    if (pendingY !== null && !dragging && Math.abs(y - pendingY) > 8) {
+      dragStart(pendingY); suppressClick = true; pendingY = null;
+    }
+  };
+  group.addEventListener('click', e => {
+    if (suppressClick) { suppressClick = false; e.stopPropagation(); e.preventDefault(); }
+  }, true);
+
   /* mouse */
   strip.addEventListener('mousedown', e => {
+    if (e.target.closest('#algo-btn-group')) { pendingY = e.clientY; suppressClick = false; return; }
     if (isInteractiveChild(e.target)) return;
     e.preventDefault();
     dragStart(e.clientY);
   });
-  document.addEventListener('mousemove', e => dragMove(e.clientY));
-  document.addEventListener('mouseup',   dragEnd);
+  document.addEventListener('mousemove', e => { maybeStart(e.clientY); dragMove(e.clientY); });
+  document.addEventListener('mouseup',   () => { pendingY = null; dragEnd(); });
 
   /* touch */
   strip.addEventListener('touchstart', e => {
+    if (e.target.closest('#algo-btn-group')) { pendingY = e.touches[0].clientY; suppressClick = false; return; }
     if (isInteractiveChild(e.target)) return;
     dragStart(e.touches[0].clientY);
   }, { passive: true });
   document.addEventListener('touchmove', e => {
+    if (pendingY !== null) maybeStart(e.touches[0].clientY);
     if (dragging) { e.preventDefault(); dragMove(e.touches[0].clientY); }
   }, { passive: false });
+  document.addEventListener('touchend', () => { pendingY = null; }, { passive: true });
   document.addEventListener('touchend',    dragEnd, { passive: true });
   document.addEventListener('touchcancel', dragEnd, { passive: true });
 }
