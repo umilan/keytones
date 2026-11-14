@@ -701,7 +701,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.19</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.20</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1374,9 +1374,30 @@ function resumeAudioOnGesture() {
 /* ═══════════════════════════════════════
    AUDIO CONTEXT
 ═══════════════════════════════════════ */
+/* every synth voice goes through one master bus with a limiter, so several
+   notes at once (chords, Launchpad, held keys) can't sum past full scale and
+   clip — clipping was the main source of crackle */
+let synthBus = null;
+function getSynthBus(ac) {
+  if (!synthBus) {
+    const limiter = ac.createDynamicsCompressor();
+    limiter.threshold.value = -10; // dB — single notes (peak ~0.3) pass untouched
+    limiter.knee.value      = 6;
+    limiter.ratio.value     = 20;
+    limiter.attack.value    = 0.003;
+    limiter.release.value   = 0.15;
+    limiter.connect(ac.destination);
+    synthBus = limiter;
+  }
+  return synthBus;
+}
+
 function getCtx() {
   if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // 'balanced' gives the audio thread a bit more buffer than the default
+    // 'interactive' — fewer dropouts on phones, still fine for playing keys
+    const AC = window.AudioContext || window.webkitAudioContext;
+    try { audioCtx = new AC({ latencyHint: 'balanced' }); } catch (e) { audioCtx = new AC(); }
     if (audioOutDeviceId && typeof audioCtx.setSinkId === 'function') {
       audioCtx.setSinkId(audioOutDeviceId).catch(() => {});
     }
@@ -1399,7 +1420,7 @@ function noteOn(idx, octave = 4) {
   if (ac.state === 'suspended') ac.resume();
   const osc  = ac.createOscillator();
   const gain = ac.createGain();
-  osc.connect(gain); gain.connect(ac.destination);
+  osc.connect(gain); gain.connect(getSynthBus(ac));
   if (WAVEFORMS[waveType]) osc.setPeriodicWave(getPeriodicWave(ac, waveType));
   else osc.type = waveType;
   const freq = FREQS[idx] * Math.pow(2, octave - 4); // FREQS is tuned to octave 4
@@ -1419,10 +1440,13 @@ function noteOff(idx, octave = 4) {
   const { osc, gain } = note;
   const ac  = getCtx();
   const now = ac.currentTime;
-  gain.gain.cancelScheduledValues(now);
-  gain.gain.setValueAtTime(gain.gain.value, now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18); // release
-  osc.stop(now + 0.18);
+  // hold the level exactly where it is (even mid-attack) before releasing —
+  // re-setting it from .value can jump on Safari, which is an audible click
+  if (gain.gain.cancelAndHoldAtTime) gain.gain.cancelAndHoldAtTime(now);
+  else { gain.gain.cancelScheduledValues(now); gain.gain.setValueAtTime(gain.gain.value, now); }
+  gain.gain.setTargetAtTime(0, now, 0.04);  // smooth release (~0.2 s to silence)
+  osc.stop(now + 0.3);
+  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   delete activeNotes[key];
 }
 
