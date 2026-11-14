@@ -732,7 +732,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.25</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.26</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2064,6 +2064,8 @@ function cyclePitchAlgo(delta) {
    note-off, reusing the exact same per-note primitives (bar count,
    Launchpad LED) the monophonic path uses one at a time. */
 const polyStreak = new Array(12).fill(0); // consecutive frames each note class has been heard
+const polyLastHeard = {};                 // nIdx -> time (ms) it was last heard, for the Latest note
+const LATEST_REARM_MS = 600;
 
 function runPolyDetection(sr) {
   const results = rms(getTimeFrame()) < gateRms() ? [] : detectPitchPoly(sr);
@@ -2083,13 +2085,22 @@ function runPolyDetection(sr) {
   heard.forEach((oct, nIdx) => {
     if (activePolyNotes.has(nIdx) || polyStreak[nIdx] >= detection.stability) newActive.set(nIdx, oct);
   });
+  // Latest note: chord algorithms flicker — a held note can drop out for a
+  // frame and come straight back, which used to count as "new" and grab the
+  // Latest colour every time. Only a note that has been silent for at least
+  // LATEST_REARM_MS can become the latest, and of several such notes in one
+  // frame the strongest (first reported) wins.
+  const now = performance.now();
+  let newLatest = -1;
   for (const [nIdx, oct] of newActive) {
     if (!activePolyNotes.has(nIdx)) {
       outerCounts[nIdx]++;
-      setLatestNote(nIdx);
+      if (newLatest === -1 && now - (polyLastHeard[nIdx] ?? -Infinity) > LATEST_REARM_MS) newLatest = nIdx;
       sendMidiNote(nIdx, true, 'app', oct);
     }
   }
+  heard.forEach((_, nIdx) => { polyLastHeard[nIdx] = now; });
+  if (newLatest !== -1) setLatestNote(newLatest);
   for (const nIdx of activePolyNotes.keys()) {
     if (!newActive.has(nIdx)) sendMidiNote(nIdx, false);
   }
