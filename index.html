@@ -262,19 +262,6 @@
                   box-shadow 0.35s ease;
     }
 
-    /* bright cap flash on hit */
-    .bar::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 4px;
-      background: var(--flash-color, #f0f); /* Settings > COLORS > Bar hit flash */
-      border-radius: var(--radius);
-      opacity: 0;
-      transition: opacity 0.14s;
-    }
-
-    .bar.flash::after { opacity: 1; transition: opacity 0s; }
 
 
     /* ── MIC STRIP — always visible; the badge doubles as the on/off toggle ── */
@@ -706,7 +693,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.12</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.13</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -880,11 +867,6 @@
       <label class="sp-label" for="color-latest">Latest note</label>
       <span class="sp-swatch" id="color-latest-swatch"></span>
       <select class="sp-select" id="color-latest"></select>
-    </div>
-    <div class="sp-row">
-      <label class="sp-label" for="color-flash">Bar hit flash</label>
-      <span class="sp-swatch" id="color-flash-swatch"></span>
-      <select class="sp-select" id="color-flash"></select>
     </div>
     <div class="sp-row">
       <label class="sp-label" for="color-cNote">C notes (LP/LK)</label>
@@ -1167,7 +1149,7 @@ const PALETTE = {
   magenta: { web: [255, 0, 255],  lp: [127, 0, 127],   lk: 53 },
   white:   { web: [240, 240, 248], lp: [127, 127, 127], lk: 3  },
 };
-const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', flash: 'magenta', cNote: 'blue', octave: 'purple', pressed: 'white' };
+const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', cNote: 'blue', octave: 'purple', pressed: 'white' };
 const COLORS_KEY = 'keytones-colors-v1';
 let colors = { ...COLOR_DEFAULTS };
 try {
@@ -1178,7 +1160,7 @@ try {
     else if (localStorage.getItem('keymap-latest-yellow-v1') === '0') colors.latest = 'off';
   }
 } catch (e) { /* storage unavailable */ }
-for (const k in colors) if (!(k in COLOR_DEFAULTS) || (colors[k] !== 'off' && !PALETTE[colors[k]]) || (colors[k] === 'off' && k !== 'latest')) colors[k] = COLOR_DEFAULTS[k];
+for (const k in colors) if (!(k in COLOR_DEFAULTS)) delete colors[k]; else if ((colors[k] !== 'off' && !PALETTE[colors[k]]) || (colors[k] === 'off' && k !== 'latest')) colors[k] = COLOR_DEFAULTS[k];
 
 const webRgb  = name => PALETTE[name].web.join(',');
 const webDark = name => PALETTE[name].web.map(c => Math.round(c * 0.88)).join(','); // black keys
@@ -1195,7 +1177,6 @@ function applyColors() {
   const root = document.documentElement.style;
   root.setProperty('--active-bg',  `rgb(${webRgb(colors.detected)})`, 'important');
   root.setProperty('--active-bg2', `rgb(${webDark(colors.detected)})`, 'important');
-  root.setProperty('--flash-color', `rgb(${webRgb(colors.flash)})`);
   if (colors.latest !== 'off') {
     root.setProperty('--latest-bg',  `rgb(${webRgb(colors.latest)})`);
     root.setProperty('--latest-bg2', `rgb(${webDark(colors.latest)})`);
@@ -1465,11 +1446,10 @@ function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
     keyBrightness[noteIdx] = 1; // pin the key's own decaying glow at full — see applyDecayTick()
     paintKeyFade(noteIdx);
   }
-  if (!wasIdle) { flashBar(noteIdx); return; } // already sounding at another octave — just a re-trigger flash
+  if (!wasIdle) return; // already sounding at another octave
   if (!fromMidi) sendMidiNote(noteIdx, true, source, octave);   // echo to MIDI out
   if (mode === 'inner') {
     noteStartTimes[noteIdx] = Date.now(); // begin timing this note
-    flashBar(noteIdx);
     startHoldLoop();                      // bars grow in real time
   }
   // outside: mic detects the sound and counts
@@ -1979,7 +1959,7 @@ function cyclePitchAlgo(delta) {
 /* polyphonic path — no debounce (each algorithm's own frame-to-frame output
    is taken as-is), just a diff against what was active last frame: newly-
    appeared chroma classes trigger a note-on, newly-disappeared ones a
-   note-off, reusing the exact same per-note primitives (bar count, flash,
+   note-off, reusing the exact same per-note primitives (bar count,
    Launchpad LED) the monophonic path uses one at a time. */
 const polyStreak = new Array(12).fill(0); // consecutive frames each note class has been heard
 
@@ -2005,7 +1985,6 @@ function runPolyDetection(sr) {
     if (!activePolyNotes.has(nIdx)) {
       outerCounts[nIdx]++;
       setLatestNote(nIdx);
-      flashBar(nIdx);
       sendMidiNote(nIdx, true, 'app', oct);
     }
   }
@@ -2039,7 +2018,6 @@ function runDetection() {
         if (lastNote !== -1) sendMidiNote(lastNote, false); // release the previously tracked pitch
         lastNote = nIdx; lastNoteOctave = oct; outerCounts[nIdx]++;
         setLatestNote(nIdx);
-        flashBar(nIdx);
         sendMidiNote(nIdx, true, 'app', oct); // echo the tracked pitch out to MIDI (e.g. lights the matching Launchpad pad)
         if (mode === 'outside') render();
       } else if (nIdx === lastNote && lpFullRangeDetection && oct !== lastNoteOctave) {
@@ -2103,12 +2081,6 @@ function setMode(newMode) {
 /* ═══════════════════════════════════════
    RENDER
 ═══════════════════════════════════════ */
-function flashBar(idx) {
-  const el = barEls[idx];
-  if (!el) return;
-  el.classList.add('flash');
-  setTimeout(() => el.classList.remove('flash'), 220);
-}
 
 function render() {
   let counts;
