@@ -568,6 +568,7 @@
       /* no right inset while closed: at width 0 it used to leave a strip of
          the panel showing beside the notch in landscape */
     }
+    #settings-panel { touch-action: pan-y; } /* vertical scroll stays native; sideways drags reach the swipe-to-close handler */
     #settings-panel.open {
       width: min(300px, 88vw);
       padding-right: env(safe-area-inset-right, 0px);
@@ -694,7 +695,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.7</span></div>
+    <div class="app-title" id="app-title">Key<span class="app-title-accent">tones</span> <span class="app-version" id="app-version">v1.8</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl">decay</span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -3199,6 +3200,61 @@ function setSidePad(px) {
   try { localStorage.setItem(SIDE_PAD_KEY, String(px)); } catch (e) { /* storage unavailable */ }
 }
 
+/* swipe the open Settings panel to the right to close it: it follows the
+   finger, and closes past ~1/4 of its width or on a quick flick; otherwise
+   it springs back. Drags starting on a slider, dropdown or button are left
+   alone, and a mostly-vertical drag is the panel's own scroll. */
+function initPanelSwipe(panel, close) {
+  let startX = 0, startY = 0, startT = 0, dx = 0, id = null, dragging = false;
+
+  const reset = () => { id = null; dragging = false; dx = 0; };
+
+  panel.addEventListener('pointerdown', e => {
+    if (!panel.classList.contains('open') || e.pointerType === 'mouse') return;
+    if (e.target.closest('input, select, button, label')) return;
+    id = e.pointerId; startX = e.clientX; startY = e.clientY; startT = performance.now(); dx = 0; dragging = false;
+  });
+
+  panel.addEventListener('pointermove', e => {
+    if (e.pointerId !== id) return;
+    const mx = e.clientX - startX, my = e.clientY - startY;
+    if (!dragging) {
+      if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
+      if (mx <= 0 || Math.abs(mx) < Math.abs(my) * 1.5) { reset(); return; } // left or vertical: not a close swipe
+      dragging = true;
+      panel.setPointerCapture(id);
+      panel.style.transition = 'none';
+    }
+    dx = Math.max(0, mx);
+    panel.style.transform = `translateX(${dx}px)`;
+  });
+
+  const end = e => {
+    if (e.pointerId !== id) return;
+    if (dragging) {
+      const w = panel.offsetWidth;
+      const fast = dx / Math.max(1, performance.now() - startT) > 0.6; // px per ms
+      panel.style.transition = 'transform 0.18s ease-out';
+      if (dx > w / 4 || (fast && dx > 30)) {
+        panel.style.transform = `translateX(${w}px)`;
+        setTimeout(() => {
+          panel.style.transition = 'none';
+          close();
+          panel.style.transform = '';
+          void panel.offsetWidth;          // apply the snap before restoring transitions
+          panel.style.transition = '';
+        }, 180);
+      } else {
+        panel.style.transform = '';
+        setTimeout(() => { panel.style.transition = ''; }, 180);
+      }
+    }
+    reset();
+  };
+  panel.addEventListener('pointerup', end);
+  panel.addEventListener('pointercancel', end);
+}
+
 function initSettings() {
   const btn      = document.getElementById('settings-btn');
   const panel    = document.getElementById('settings-panel');
@@ -3221,6 +3277,7 @@ function initSettings() {
     panel.classList.contains('open') ? closePanel() : openPanel()
   );
   header.addEventListener('click', closePanel); // whole header closes — the ✕ inside it is just a visual affordance
+  initPanelSwipe(panel, closePanel);
 
   document.getElementById('midi-in-select').addEventListener('change', e => {
     setMidiIn(e.target.value);
