@@ -739,6 +739,19 @@
       pointer-events: none;
     }
     #sp-tip[hidden] { display: none; }
+    /* grouped switch (segmented control), e.g. Settings > View */
+    .sp-seg {
+      display: flex; flex-shrink: 0; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.10); border-radius: var(--radius);
+    }
+    .sp-seg button {
+      background: var(--surface); color: var(--dim); border: none;
+      border-right: 1px solid rgba(255,255,255,0.10);
+      font-family: monospace; font-size: var(--ui-font-size); font-weight: 600;
+      padding: 8px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .sp-seg button:last-child { border-right: none; }
+    .sp-seg button.active { background: var(--surface-strong); color: var(--text); }
     .sp-swatch {
       width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
       border: 1px solid rgba(255,255,255,0.18);
@@ -792,7 +805,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.51</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.52</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -913,10 +926,10 @@
     <div class="sp-section-label">VISUALISATION</div>
     <div class="sp-row">
       <span class="sp-label">View</span>
-      <select class="sp-select" id="view-select">
-        <option value="bars">bars</option>
-        <option value="launchpad">Launchpad</option>
-      </select>
+      <div class="sp-seg" id="view-select" role="radiogroup" aria-label="View">
+        <button type="button" role="radio" data-value="bars">Bars</button>
+        <button type="button" role="radio" data-value="launchpad">Launchpad</button>
+      </div>
     </div>
     <div class="sp-row">
       <span class="sp-label">Decay</span>
@@ -3445,8 +3458,10 @@ function scheduleLpView() {
 function setView(view) {
   lpSim = view === 'launchpad';
   try { localStorage.setItem(VIEW_KEY, view); } catch (e) { /* storage unavailable */ }
-  const sel = document.getElementById('view-select');
-  if (sel) sel.value = view;
+  document.querySelectorAll('#view-select button').forEach(b => {
+    const on = b.dataset.value === view;
+    b.classList.toggle('active', on); b.setAttribute('aria-checked', on);
+  });
   document.getElementById('lp-view').hidden = !lpSim;
   document.getElementById('bar-area').classList.toggle('lp-mode', lpSim);
   if (lpSim) {
@@ -3973,7 +3988,7 @@ function initSettings() {
   let view = 'bars';
   try { view = localStorage.getItem(VIEW_KEY) || 'bars'; } catch (e) { /* storage unavailable */ }
   setView(view === 'launchpad' ? 'launchpad' : 'bars');
-  document.getElementById('view-select').addEventListener('change', e => setView(e.target.value));
+  document.querySelectorAll('#view-select button').forEach(b => b.addEventListener('click', () => setView(b.dataset.value)));
   setPadGlow('halftone', lpHalftoneGlow);
   setPadGlow('natural', lpNaturalGlow);
   document.getElementById('halftone-range').addEventListener('input', e => setPadGlow('halftone', Number(e.target.value)));
