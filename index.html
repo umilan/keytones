@@ -861,6 +861,26 @@
       padding: 6px 10px; cursor: pointer; margin-left: auto;
     }
 
+    /* Settings > Detection: audio file player (Listen to: Audio file) */
+    .fp-box { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; margin: 2px 0 4px;
+              border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); background: rgba(255,255,255,0.02); }
+    .fp-top { display: flex; align-items: center; gap: 8px; }
+    .fp-name { flex: 1; min-width: 0; font-family: monospace; font-size: 11px; color: var(--dim);
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fp-top .sp-reset { margin-left: 0; flex-shrink: 0; }
+    .fp-ctrl { display: flex; align-items: center; gap: 6px; }
+    .fp-btn {
+      width: var(--ctrl-size); height: var(--ctrl-size); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; gap: 1px;
+      background: var(--surface); border: 1px solid var(--surface-strong); border-radius: var(--radius);
+      color: var(--text); cursor: pointer; font: 700 9px/1 monospace; -webkit-tap-highlight-color: transparent;
+    }
+    .fp-btn:active { background: var(--surface-hover); }
+    .fp-btn:disabled { opacity: 0.35; cursor: default; }
+    .fp-time { margin-left: auto; font-family: monospace; font-size: 11px; color: var(--dim); white-space: nowrap; }
+    .fp-seek { width: 100%; margin: 0; accent-color: var(--active-bg); cursor: pointer; }
+    .fp-seek:disabled { opacity: 0.35; cursor: default; }
+
     .sp-status {
       font-family: monospace;
       font-size: var(--ui-font-size);
@@ -886,7 +906,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.71</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.72</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1022,7 +1042,25 @@
         <option value="mic">Mic</option>
         <option value="app">App sound</option>
         <option value="both">Mic + app sound</option>
+        <option value="file">Audio file</option>
       </select>
+    </div>
+    <div class="fp-box" id="file-player">
+      <div class="fp-top">
+        <button type="button" class="sp-reset" id="fp-load">Load audio…</button>
+        <span class="fp-name" id="fp-name">wav, mp3… — played into the detector</span>
+        <input type="file" id="fp-input" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac" hidden>
+      </div>
+      <div class="fp-ctrl">
+        <button type="button" class="fp-btn" id="fp-back" title="Back 15 s" aria-label="Back 15 seconds" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M11 6v12L2.5 12zM21 6v12l-8.5-6z"/></svg>15</button>
+        <button type="button" class="fp-btn" id="fp-play" title="Play" aria-label="Play" disabled>
+          <svg id="fp-play-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg></button>
+        <button type="button" class="fp-btn" id="fp-fwd" title="Forward 15 s" aria-label="Forward 15 seconds" disabled>
+          15<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6zM3 6v12l8.5-6z"/></svg></button>
+        <span class="fp-time" id="fp-time">0:00 / 0:00</span>
+      </div>
+      <input type="range" class="fp-seek" id="fp-seek" min="0" max="1000" step="1" value="0" disabled aria-label="Position">
     </div>
     <div class="sp-row">
       <span class="sp-label">Detection</span>
@@ -1862,13 +1900,90 @@ function setPhoneCallMode(on) {
    both = the two summed
    The app sound goes in at a fixed level, not through the mic Gain. */
 const LISTEN_KEY = 'keytones-listen-v1';
+const LISTEN_SOURCES = ['mic', 'app', 'both', 'file'];
 let listenSource = 'mic';
-try { const v = localStorage.getItem(LISTEN_KEY); if (['mic', 'app', 'both'].includes(v)) listenSource = v; } catch (e) { /* storage unavailable */ }
-let appTap = null; // synth bus -> analyser, while listening to the app sound
+try { const v = localStorage.getItem(LISTEN_KEY); if (['mic', 'app', 'both'].includes(v)) listenSource = v; } catch (e) { /* storage unavailable */ } // 'file' isn't restored: the file is gone after a reload
+let appTap = null;  // synth bus -> analyser, while listening to the app sound
+let fileTap = null; // audio file -> analyser, while listening to the file
+
+/* ── AUDIO FILE PLAYER (Settings > Detection) ─────────────────────────
+   An <audio> element routed through the AudioContext: it plays to the
+   speakers, and with Listen to: Audio file it also feeds the detector at a
+   fixed level. If the AudioContext is replaced (e.g. a mic at another sample
+   rate), the element is recreated on the new one at the same position. */
+let fileEl = null, fileNode = null, fileUrl = null, fileName = '';
+function fileSourceNode(ac) {
+  if (fileNode && fileNode.context === ac) return fileNode;
+  if (!fileUrl) return null;
+  const t = fileEl ? fileEl.currentTime : 0, wasPlaying = fileEl && !fileEl.paused;
+  if (fileEl) { fileEl.pause(); fileEl.removeAttribute('src'); }
+  fileEl = new Audio(fileUrl); fileEl.preload = 'auto';
+  fileEl.addEventListener('loadedmetadata', () => { fileEl.currentTime = Math.min(t, fileEl.duration || t); updateFilePlayer(); });
+  ['play', 'pause', 'ended', 'timeupdate', 'durationchange'].forEach(ev => fileEl.addEventListener(ev, updateFilePlayer));
+  fileNode = ac.createMediaElementSource(fileEl);
+  fileNode.connect(ac.destination); // you hear it
+  if (wasPlaying) fileEl.play().catch(() => {});
+  return fileNode;
+}
+
+function loadAudioFile(file) {
+  if (!file) return;
+  if (fileEl) { fileEl.pause(); fileEl.removeAttribute('src'); }
+  if (fileTap) { try { fileNode?.disconnect(fileTap); } catch (e) { /* gone */ } }
+  if (fileUrl) URL.revokeObjectURL(fileUrl);
+  fileUrl = URL.createObjectURL(file); fileName = file.name;
+  fileEl = null; fileNode = null;
+  fileSourceNode(getCtx());
+  document.getElementById('fp-name').textContent = fileName;
+  ['fp-back', 'fp-play', 'fp-fwd', 'fp-seek'].forEach(id => { document.getElementById(id).disabled = false; });
+  // listen to it: switch the input and make sure detection is on
+  if (mode !== 'outside') { listenSource = 'file'; document.getElementById('listen-select').value = 'file'; setMode('outside'); }
+  else setListenSource('file');
+  try { localStorage.setItem(LISTEN_KEY, 'mic'); } catch (e) { /* a reload has no file: start from the mic */ }
+  updateFilePlayer();
+}
+
+const fmtTime = t => !isFinite(t) ? '0:00' : `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+let fpSeeking = false;
+function updateFilePlayer() {
+  if (!fileEl) return;
+  const d = fileEl.duration, t = fileEl.currentTime;
+  document.getElementById('fp-time').textContent = `${fmtTime(t)} / ${fmtTime(d)}`;
+  if (!fpSeeking) document.getElementById('fp-seek').value = isFinite(d) && d > 0 ? Math.round(t / d * 1000) : 0;
+  const playing = !fileEl.paused && !fileEl.ended;
+  document.getElementById('fp-play-icon').innerHTML = playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M7 5v14l12-7z"/>';
+  const btn = document.getElementById('fp-play');
+  btn.title = playing ? 'Pause' : 'Play'; btn.setAttribute('aria-label', btn.title);
+}
+
+function initFilePlayer() {
+  const input = document.getElementById('fp-input');
+  document.getElementById('fp-load').addEventListener('click', () => input.click());
+  input.addEventListener('change', () => { loadAudioFile(input.files[0]); input.value = ''; });
+  document.getElementById('fp-play').addEventListener('click', () => {
+    if (!fileEl) return;
+    const ac = getCtx(); if (ac.state !== 'running') ac.resume().catch(() => {});
+    fileSourceNode(ac); // still on the current AudioContext (recreated on a new one if needed)
+    if (fileEl.paused || fileEl.ended) fileEl.play().catch(e => console.error('[file] play failed:', e));
+    else fileEl.pause();
+  });
+  const skip = dt => { if (fileEl) fileEl.currentTime = Math.max(0, Math.min((fileEl.duration || 0), fileEl.currentTime + dt)); updateFilePlayer(); };
+  document.getElementById('fp-back').addEventListener('click', () => skip(-15));
+  document.getElementById('fp-fwd').addEventListener('click', () => skip(15));
+  const seek = document.getElementById('fp-seek');
+  seek.addEventListener('input', () => {
+    fpSeeking = true;
+    if (fileEl && isFinite(fileEl.duration)) {
+      fileEl.currentTime = seek.value / 1000 * fileEl.duration;
+      document.getElementById('fp-time').textContent = `${fmtTime(fileEl.currentTime)} / ${fmtTime(fileEl.duration)}`;
+    }
+  });
+  seek.addEventListener('change', () => { fpSeeking = false; updateFilePlayer(); });
+}
 
 function setListenSource(v) {
-  listenSource = ['mic', 'app', 'both'].includes(v) ? v : 'mic';
-  try { localStorage.setItem(LISTEN_KEY, listenSource); } catch (e) { /* storage unavailable */ }
+  listenSource = LISTEN_SOURCES.includes(v) ? v : 'mic';
+  try { localStorage.setItem(LISTEN_KEY, listenSource === 'file' ? 'mic' : listenSource); } catch (e) { /* storage unavailable */ }
   const sel = document.getElementById('listen-select'); if (sel) sel.value = listenSource;
   if (mode === 'outside') { stopMic(); startMic(); } // detection on: reconnect with the new input (also retries after a failed mic)
 }
@@ -1876,7 +1991,9 @@ function setListenSource(v) {
 async function startMic() {
   if (micActive) return;
   setMicUI('connecting','—','');
-  const useMic = listenSource !== 'app', useApp = listenSource !== 'mic';
+  const useMic  = listenSource === 'mic' || listenSource === 'both';
+  const useApp  = listenSource === 'app' || listenSource === 'both';
+  const useFile = listenSource === 'file';
   if (useMic && !navigator.mediaDevices?.getUserMedia) {
     console.error('[mic] navigator.mediaDevices.getUserMedia is unavailable — insecure context (not https/localhost) or unsupported browser?');
     setMicUI('error', '—', '');
@@ -1922,6 +2039,10 @@ async function startMic() {
       appTap = ac.createGain(); appTap.gain.value = 1;
       getSynthBus(ac).connect(appTap); appTap.connect(analyser);
     }
+    if (useFile) { // Listen to: Audio file — the player's output, straight in
+      fileTap = ac.createGain(); fileTap.gain.value = 1;
+      fileSourceNode(ac)?.connect(fileTap); fileTap.connect(analyser);
+    }
     micActive = true; lastNote = pendingNote = -1; pendingTicks = 0;
     setMicUI('MIC ON','—','');
     detInterval = setInterval(runDetection, speedLevel().ms);
@@ -1950,6 +2071,7 @@ function stopMic() {
   if (micSrc)      { micSrc.disconnect();            micSrc      = null; }
   if (micGainNode) { micGainNode.disconnect();       micGainNode = null; }
   if (appTap)      { try { synthBus?.disconnect(appTap); } catch (e) { /* already gone */ } appTap.disconnect(); appTap = null; }
+  if (fileTap)     { try { fileNode?.disconnect(fileTap); } catch (e) { /* already gone */ } fileTap.disconnect(); fileTap = null; }
   if (micStream)   { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
   setAudioSessionType('playback'); // mic off: back to full-quality media playback on iOS
   if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
@@ -2673,7 +2795,7 @@ function setMicUI(state) {
   statEl.classList.toggle('ok', isOk);
   const L = {connecting:'WAIT', listening:'LIVE', error:'N/A', off:'MUTED',
              'MIC ON':'LIVE', 'mic on':'LIVE'};
-  statEl.textContent = (isOk && listenSource === 'app') ? 'APP' : (L[state] || state); // Listen to: App sound
+  statEl.textContent = (isOk && listenSource === 'app') ? 'APP' : (isOk && listenSource === 'file') ? 'FILE' : (L[state] || state); // Listen to
 }
 
 /* ═══════════════════════════════════════
@@ -4620,7 +4742,7 @@ const SETTING_INFO = {
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
- "Listen to": "What the detector hears. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Detection still needs the mic switch (badge) on.",
+ "Listen to": "What the detector hears. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: a wav / mp3 loaded in the player below, played straight in (and to the speakers). Detection still needs the mic switch (badge) on.",
  "Bars show": "What a bar's height means. Live: only the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
  "Bar opacity = confidence": "With the mic on and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
@@ -4745,6 +4867,7 @@ function initSettings() {
   const listenSel = document.getElementById('listen-select');
   listenSel.value = listenSource;
   listenSel.addEventListener('change', e => setListenSource(e.target.value));
+  initFilePlayer();
 
   const barsSel = document.getElementById('bars-select');
   barsSel.addEventListener('change', e => setBarsShow(e.target.value));
