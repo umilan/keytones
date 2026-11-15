@@ -308,6 +308,8 @@
                   background 0.35s ease,
                   box-shadow 0.35s ease;
     }
+    /* Bars show: Live / Chroma follow the sound frame by frame */
+    #bar-area.bars-now .bar { transition: height 0.12s ease-out, background 0.15s ease, box-shadow 0.15s ease; }
 
 
 
@@ -843,7 +845,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.63</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.64</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -949,6 +951,15 @@
         <button type="button" role="radio" data-value="bars">Bars</button>
         <button type="button" role="radio" data-value="launchpad">Launchpad</button>
       </div>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Bars show</span>
+      <select class="sp-select" id="bars-select">
+        <option value="live">Live</option>
+        <option value="time">Time</option>
+        <option value="count">Count</option>
+        <option value="chroma">Chroma</option>
+      </select>
     </div>
     <div class="sp-row">
       <span class="sp-label">Decay</span>
@@ -1268,6 +1279,8 @@ const KB_SEP  = 2;
 ═══════════════════════════════════════ */
 let mode          = 'inner';
 const innerCounts = new Array(12).fill(0);
+const innerPresses = new Array(12).fill(0); // Bars show > Count, mic off: how often each key was pressed
+const outerTime    = new Array(12).fill(0); // Bars show > Time, mic on: ms each note has been heard
 const outerCounts = new Array(12).fill(0);
 
 let audioCtx    = null;
@@ -1707,6 +1720,7 @@ function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
   if (source !== 'pad') addLatestNote(noteIdx);
   const wasIdle = !heldNoteCount[noteIdx];
   heldNoteCount[noteIdx] = (heldNoteCount[noteIdx] || 0) + 1;
+  if (wasIdle) innerPresses[noteIdx]++;
   // while the mic is listening, a Launchpad pad press plays/lights the pad
   // itself but shouldn't also light up the on-screen key — that highlight is
   // reserved for what the mic actually hears, so the two don't get confused
@@ -2008,12 +2022,16 @@ function detectMPM(sr) {
    carefully as the monophonic set — see runPolyDetection(). */
 const POLY_ALGOS = new Set(['hpcp', 'nnls', 'cqtnmf', 'multif0']);
 
+let detFrame = 0;                       // counts detection frames
+let lastMag = null, lastMagFrame = -1;  // the spectrum already read this frame (Bars show > Chroma reuses it)
 function getMagnitudeSpectrum() {
+  if (lastMagFrame === detFrame && lastMag && lastMag.length === analyser.frequencyBinCount) return lastMag;
   const bufLen = analyser.frequencyBinCount;
   const fData  = new Float32Array(bufLen);
   analyser.getFloatFrequencyData(fData); // dB
   const mag = new Float32Array(bufLen);
   for (let i = 0; i < bufLen; i++) mag[i] = Math.pow(10, fData[i] / 20); // dB -> linear amplitude
+  lastMag = mag; lastMagFrame = detFrame;
   return mag;
 }
 
@@ -2424,8 +2442,9 @@ function runPolyDetection(sr) {
 
 function runDetection() {
   if (!analyser || !micActive || pitchAlgo === 'off') return;
+  detFrame++;
   const sr = getCtx().sampleRate;
-  if (POLY_ALGOS.has(pitchAlgo)) { runPolyDetection(sr); return; }
+  if (POLY_ALGOS.has(pitchAlgo)) { runPolyDetection(sr); afterDetectionFrame(sr); return; }
   const result = detectPitch(sr);
   if (result) {
     const freq = result.freq;
@@ -2456,6 +2475,39 @@ function runDetection() {
       lastNote = -1; lastNoteOctave = -1; setMicUI('listening','—','');
     }
   }
+  afterDetectionFrame(sr);
+}
+
+/* after every detection frame: add the frame's time to each heard note
+   (Bars show > Time), measure the chroma (Bars show > Chroma) and redraw */
+let lastFrameAt = 0;
+const chromaLevel = new Array(12).fill(0);
+function afterDetectionFrame(sr) {
+  const now = performance.now();
+  const dt = lastFrameAt ? Math.min(250, now - lastFrameAt) : 0;
+  lastFrameAt = now;
+  for (let i = 0; i < 12; i++) if (i === lastNote || activePolyNotes.has(i)) outerTime[i] += dt;
+  if (barsShow === 'chroma') measureChroma(sr);
+  if (mode === 'outside') render();
+}
+
+/* Bars show > Chroma: the sound's energy per note name (all octaves folded
+   together), straight from the spectrum — what the detectors work from */
+function measureChroma(sr) {
+  chromaLevel.fill(0);
+  if (rms(getTimeFrame()) < gateRms()) return;
+  const mag = getMagnitudeSpectrum(), binHz = sr / analyser.fftSize;
+  const lo = Math.max(1, Math.floor(55 / binHz)), hi = Math.min(mag.length - 1, Math.ceil(5000 / binHz));
+  const e = new Array(12).fill(0);
+  for (let b = lo; b <= hi; b++) {
+    const n = Math.round(12 * Math.log2(b * binHz / C0_HZ));
+    e[((n % 12) + 12) % 12] += mag[b] * mag[b];
+  }
+  // relative to the median note name: distortion and noise spread energy over
+  // all 12, so what matters is how far a note rises above that haze
+  const amp = e.map(Math.sqrt), max = Math.max(...amp);
+  const floor = amp.slice().sort((x, y) => x - y)[6];
+  if (max > floor) for (let i = 0; i < 12; i++) chromaLevel[i] = Math.max(0, (amp[i] - floor) / (max - floor));
 }
 
 /* live level inside the Noise gate slider (only while Settings is open) */
@@ -2524,45 +2576,88 @@ function setMode(newMode) {
 
 /* per note: how certain the last detection of it was, 0..1 (see the detectors' conf) */
 const noteConf = {};
+/* Settings > Visualisation > Bars show — what a bar's height means:
+   live   = notes sounding right now; height = detection confidence, yellow =
+            the clearly strongest (≥ 75 % of the top one), red = the rest
+   time   = how long each note has sounded (shrinks with Decay)
+   count  = how often each note started (shrinks with Decay)
+   chroma = the sound's energy per note name, before detection; yellow =
+            what was detected */
+const BARS_KEY = 'keytones-bars-v1';
+const BARS_MODES = ['live', 'time', 'count', 'chroma'];
+const LIVE_STRONG = 0.75;
+let barsShow = 'time';
+try { const v = localStorage.getItem(BARS_KEY); if (BARS_MODES.includes(v)) barsShow = v; } catch (e) { /* storage unavailable */ }
+
+function setBarsShow(v) {
+  barsShow = BARS_MODES.includes(v) ? v : 'time';
+  try { localStorage.setItem(BARS_KEY, barsShow); } catch (e) { /* storage unavailable */ }
+  const sel = document.getElementById('bars-select'); if (sel) sel.value = barsShow;
+  document.getElementById('bar-area').classList.toggle('bars-now', barsShow === 'live' || barsShow === 'chroma');
+  render();
+}
+
+/* a note sounding right now: heard by the mic, or held (key / MIDI in) */
+function soundingNow(i) {
+  return mode === 'outside' ? (i === lastNote || activePolyNotes.has(i))
+                            : (noteStartTimes[i] !== undefined || heldNoteCount[i] > 0);
+}
+
 const CONF_OPACITY_KEY = 'keytones-conf-opacity-v1';
 let confOpacity = false;
 try { confOpacity = localStorage.getItem(CONF_OPACITY_KEY) === '1'; } catch (e) { /* storage unavailable */ }
 
 function render() {
-  let counts;
-  if (mode === 'inner') {
-    // merge committed times with any currently-held durations
-    const now = Date.now();
-    counts = innerCounts.map((acc, i) =>
-      acc + (noteStartTimes[i] !== undefined ? now - noteStartTimes[i] : 0)
-    );
+  const baH    = document.getElementById('bar-area').clientHeight;
+  const availH = Math.max(baH - 4, 0); // bars can fill almost the full height
+  let vals, scale, yellow, labels;
+
+  if (barsShow === 'live' || barsShow === 'chroma') {
+    if (barsShow === 'live' || mode !== 'outside') {
+      // mic: the detector's confidence for each heard note; keys/MIDI: held = full
+      vals = Array.from({ length: 12 }, (_, i) => soundingNow(i) ? (mode === 'outside' ? Math.max(0.05, Math.min(1, noteConf[i] ?? 1)) : 1) : 0);
+      const top = Math.max(...vals);
+      yellow = new Set(vals.flatMap((v, i) => v > 0 && v >= top * LIVE_STRONG ? [i] : []));
+    } else {
+      vals = chromaLevel.slice();
+      yellow = new Set([...Array(12).keys()].filter(soundingNow));
+    }
+    scale  = 1; // absolute: 100 % = full height
+    labels = vals.map(v => v > 0.005 ? Math.round(v * 100) + '%' : '');
   } else {
-    counts = outerCounts;
+    let counts;
+    if (barsShow === 'count') counts = mode === 'inner' ? innerPresses : outerCounts;
+    else if (mode === 'inner') {
+      // merge committed times with any currently-held durations
+      const now = Date.now();
+      counts = innerCounts.map((acc, i) => acc + (noteStartTimes[i] !== undefined ? now - noteStartTimes[i] : 0));
+    } else counts = outerTime;
+    vals   = counts;
+    scale  = Math.max(0, ...counts);
+    yellow = latestNotes;
+    const total = counts.reduce((a, b) => a + b, 0);
+    labels = counts.map(c => { const pct = total > 0 ? Math.round(c / total * 100) : 0; return pct > 0 ? pct + '%' : ''; });
   }
-  const maxCount = Math.max(0, ...counts);
-  const total    = counts.reduce((a, b) => a + b, 0);
-  const baH      = document.getElementById('bar-area').clientHeight;
-  const availH   = Math.max(baH - 4, 0); // bars can fill almost the full height
 
   for (let i = 0; i < 12; i++) {
     const barEl = barEls[i];
     const pctEl = pctEls[i];
     if (!barEl || !pctEl) continue;
 
-    /* bar height + linear colour */
-    const ratio = maxCount > 0 ? counts[i] / maxCount : 0;
+    /* bar height + colour: yellow (Newest notes colour) or red (Sounding notes colour) */
+    const ratio = scale > 0 ? Math.min(1, vals[i] / scale) : 0;
     barEl.style.height     = Math.round(ratio * availH) + 'px';
-    const isLatest = latestColor !== 'none' && latestNotes.has(i) && ratio > 0;
-    barEl.style.background = isLatest ? 'var(--latest-bg)' : barColor(ratio);
-    barEl.style.boxShadow  = isLatest ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
+    const isYellow = latestColor !== 'none' && yellow.has(i) && ratio > 0;
+    barEl.style.background = isYellow ? 'var(--latest-bg)' : barColor(ratio);
+    barEl.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
     // Settings > Bar opacity = confidence: the bar is as opaque as the last
-    // detection of that note was certain (mic mode only)
-    barEl.style.opacity = confOpacity && mode === 'outside' && noteConf[i] !== undefined ? noteConf[i].toFixed(2) : '';
+    // detection of that note was certain (mic mode, Time / Count — Live
+    // already shows confidence as the height)
+    barEl.style.opacity = confOpacity && mode === 'outside' && (barsShow === 'time' || barsShow === 'count') && noteConf[i] !== undefined ? noteConf[i].toFixed(2) : '';
 
-    /* percentage label */
-    const pct = total > 0 ? Math.round(counts[i] / total * 100) : 0;
-    if (pct > 0) { pctEl.textContent = pct + '%'; pctEl.classList.add('on'); }
-    else         { pctEl.textContent = '';          pctEl.classList.remove('on'); }
+    /* label: share of the total (Time / Count) or the level itself (Live / Chroma) */
+    if (labels[i]) { pctEl.textContent = labels[i]; pctEl.classList.add('on'); }
+    else           { pctEl.textContent = '';        pctEl.classList.remove('on'); }
   }
 }
 
@@ -2571,11 +2666,11 @@ function render() {
 ═══════════════════════════════════════ */
 function reset() {
   if (mode === 'inner') {
-    innerCounts.fill(0);
+    innerCounts.fill(0); innerPresses.fill(0);
     Object.keys(noteStartTimes).forEach(k => delete noteStartTimes[k]);
     if (holdRafId !== null) { cancelAnimationFrame(holdRafId); holdRafId = null; }
   } else {
-    outerCounts.fill(0);
+    outerCounts.fill(0); outerTime.fill(0); chromaLevel.fill(0);
     if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
     lastNote = pendingNote = -1; pendingTicks = 0;
     setMicUI('listening','—','');
@@ -2605,8 +2700,8 @@ function applyDecayTick() {
     // every second even while it was sounding)
     const held  = noteStartTimes[i] !== undefined || heldNoteCount[i] > 0;
     const heard = mode === 'outside' && (i === lastNote || activePolyNotes.has(i));
-    if (!held)  innerCounts[i] *= factor;
-    if (!heard) outerCounts[i] *= factor;
+    if (!held)  { innerCounts[i] *= factor; innerPresses[i] *= factor; }
+    if (!heard) { outerCounts[i] *= factor; outerTime[i] *= factor; }
     // the Launchpad's app-triggered red glow fades at this exact same rate,
     // but only once the note has actually stopped — held at full while playing
     if (lpNoteBrightness[i] && !lpNotePlaying[i]) {
@@ -4162,8 +4257,9 @@ const SETTING_INFO = {
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area: the note bars, or an on-screen Launchpad that shows exactly what a real one would, and can be played.",
- "Decay": "How fast the bars and glows shrink once a note has stopped, per second. 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
- "Bar opacity = confidence": "With the mic on, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
+ "Bars show": "What a bar's height means. Live: only the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
+ "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
+ "Bar opacity = confidence": "With the mic on and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
  "C pads": "Idle colour of every C on the Launchpad / Launchkey, as an anchor to find octaves. none makes them like the other pads.",
@@ -4279,6 +4375,10 @@ function initSettings() {
   initDetectionControls();
   initSettingInfo();
   initAlgoTips();
+
+  const barsSel = document.getElementById('bars-select');
+  barsSel.addEventListener('change', e => setBarsShow(e.target.value));
+  setBarsShow(barsShow);
 
   const confCheck = document.getElementById('conf-opacity-check');
   confCheck.checked = confOpacity;
