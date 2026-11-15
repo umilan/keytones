@@ -812,7 +812,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.55</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.56</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -910,7 +910,27 @@
     </button>
   </div>
   <div class="sp-body">
-    <div class="sp-section-label">BEHAVIOR</div>
+    <div class="sp-section-label">VISUALISATION</div>
+    <div class="sp-row">
+      <span class="sp-label">View</span>
+      <div class="sp-seg" id="view-select" role="radiogroup" aria-label="View">
+        <button type="button" role="radio" data-value="bars">Bars</button>
+        <button type="button" role="radio" data-value="launchpad">Launchpad</button>
+      </div>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Decay</span>
+      <span class="sp-value" id="decay-select-value"></span>
+      <input type="range" class="sp-range" id="decay-select" min="0" max="100" step="1" value="50">
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="conf-opacity-check">Bar opacity = confidence</label>
+      <input type="checkbox" class="sp-check" id="conf-opacity-check">
+    </div>
+
+    <div class="sp-divider"></div>
+
+    <div class="sp-section-label">DETECTION</div>
     <div class="sp-row">
       <span class="sp-label">Detection</span>
       <select class="sp-select" id="detection-select">
@@ -940,30 +960,6 @@
         <option value="off">OFF</option>
       </select>
     </div>
-
-    <div class="sp-divider"></div>
-
-    <div class="sp-section-label">VISUALISATION</div>
-    <div class="sp-row">
-      <span class="sp-label">View</span>
-      <div class="sp-seg" id="view-select" role="radiogroup" aria-label="View">
-        <button type="button" role="radio" data-value="bars">Bars</button>
-        <button type="button" role="radio" data-value="launchpad">Launchpad</button>
-      </div>
-    </div>
-    <div class="sp-row">
-      <span class="sp-label">Decay</span>
-      <span class="sp-value" id="decay-select-value"></span>
-      <input type="range" class="sp-range" id="decay-select" min="0" max="100" step="1" value="50">
-    </div>
-    <div class="sp-row">
-      <label class="sp-label" for="conf-opacity-check">Bar opacity = confidence</label>
-      <input type="checkbox" class="sp-check" id="conf-opacity-check">
-    </div>
-
-    <div class="sp-divider"></div>
-
-    <div class="sp-section-label">DETECTION</div>
     <div class="sp-row">
       <span class="sp-label">Gain</span>
       <!-- same underlying value (micGainDb) as the topbar GAIN drag —
