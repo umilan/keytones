@@ -367,6 +367,10 @@
       text-transform: uppercase;
       color: var(--dim);
       white-space: nowrap;
+      /* fixed width = the longest usual label (MUTED / ERROR), so switching
+         between ON / LIVE / WAIT never resizes the badge or shifts the top bar */
+      min-width: calc(5ch + 5 * var(--let-spac));
+      text-align: center;
     }
 
     .mic-status-text.ok { color: var(--text); }
@@ -748,7 +752,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.42</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.43</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
