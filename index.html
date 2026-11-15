@@ -251,12 +251,12 @@
     #pa-keys { height: 30px; flex-shrink: 0; margin-top: 2px; }
     .pa-key {
       flex: 1; min-width: 0; position: relative; cursor: pointer; touch-action: none;
-      background: linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%);
+      background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%));
       border-radius: 0 0 3px 3px;
-      font: 700 9px/1 monospace; color: rgba(30,25,50,0.55);
+      font: 700 9px/1 monospace; color: var(--wk-name, rgba(30,25,50,0.55));
       display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; overflow: hidden;
     }
-    .pa-key.black { background: linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%); color: rgba(255,255,255,0.45); }
+    .pa-key.black { background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%)); color: rgba(255,255,255,0.45); }
     .pa-key.pressed { background: var(--press-bg, var(--active-bg)); }
     .pa-key.oct-start { box-shadow: -1px 0 0 0 rgba(255,255,255,0.35); }
     #bar-area.lp-mode { background: var(--bg); }          /* no panel colour around the grid */
@@ -529,7 +529,7 @@
     .white-key {
       z-index: 1;
       gap: 2px;
-      background: linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA;
+      background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA);
       border: 0px solid rgba(0,0,0,0.28);
     }
 
@@ -537,7 +537,7 @@
     .black-key {
       z-index: 2;
       gap: 1px;
-      background: linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%) #232333;
+      background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%) #232333);
       border: 0px solid rgba(0,0,0,0.5);
 
     }
@@ -552,6 +552,19 @@
       pointer-events: none;
       border-radius: inherit;
     }
+
+    /* Settings > Visualisation > Keys: Like bars — idle keys take the bar
+       columns' colours (white = column bg, black = column bg + its 25 % shade) */
+    body.keys-flat {
+      --wk-bg: var(--col-bg);
+      --bk-bg: linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) var(--col-bg);
+      --wk-name: rgba(255,255,255,0.44);
+      --wk-kb: rgba(255,255,255,0.24);
+    }
+    body.keys-flat .black-key::before { display: none; } /* no piano gloss */
+    /* a lit white key keeps dark text */
+    body.keys-flat .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(30,25,50,0.60); }
+    body.keys-flat .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-kb { color: rgba(30,25,50,0.30); }
 
     /* a key you play (on screen, computer keyboard, MIDI in) is drawn in the
        Pad press colour — the same as its pad in the Launchpad view; falls
@@ -613,8 +626,8 @@
     }
 
     /* dark text on light white keys */
-    .white-key .key-name { font-size: var(--ui-font-size); color: rgba(30,25,50,0.50); }
-    .white-key .key-kb   { font-size: var(--ui-font-size);  color: rgba(30,25,50,0.28); }
+    .white-key .key-name { font-size: var(--ui-font-size); color: var(--wk-name, rgba(30,25,50,0.50)); }
+    .white-key .key-kb   { font-size: var(--ui-font-size);  color: var(--wk-kb, rgba(30,25,50,0.28)); }
 
     /* light text on dark black keys */
     .black-key .key-name { font-size: var(--ui-font-size); color: rgba(255,255,255,0.44); }
@@ -931,7 +944,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.85</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.86</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1055,6 +1068,13 @@
         <option value="count">Count</option>
         <option value="chroma">Chroma</option>
       </select>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Keys</span>
+      <div class="sp-seg" id="keys-look-select" role="radiogroup" aria-label="Keys">
+        <button type="button" role="radio" data-value="piano">Piano</button>
+        <button type="button" role="radio" data-value="flat">Like bars</button>
+      </div>
     </div>
     <div class="sp-row">
       <span class="sp-label">Decay</span>
@@ -4997,6 +5017,7 @@ const SETTING_INFO = {
  "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
  "Listen to": "What the detector hears. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers). Detection still needs the mic switch (badge) on.",
  "Bars show": "What a bar's height means. Live: the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others; a bar falls back at the Decay rate after its note stops. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
+ "Keys": "How the keyboard's idle keys look. Piano: white and black keys. Like bars: the same colours as the bar columns above them, so keys and bars read as one surface. Lit keys keep their colours either way.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses (e.g. close notes, harmonics). In Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
@@ -5124,6 +5145,21 @@ function initSettings() {
   listenSel.addEventListener('change', e => setListenSource(e.target.value));
   initFilePlayer();
   initOffRowTips();
+
+  /* Settings > Visualisation > Keys: Piano (white / black) or Like bars */
+  const KEYS_LOOK_KEY = 'keytones-keys-look-v1';
+  const setKeysLook = v => {
+    v = v === 'flat' ? 'flat' : 'piano';
+    document.body.classList.toggle('keys-flat', v === 'flat');
+    document.querySelectorAll('#keys-look-select button').forEach(b => {
+      const on = b.dataset.value === v; b.classList.toggle('active', on); b.setAttribute('aria-checked', on);
+    });
+    try { localStorage.setItem(KEYS_LOOK_KEY, v); } catch (e) { /* storage unavailable */ }
+  };
+  let keysLook = 'piano';
+  try { keysLook = localStorage.getItem(KEYS_LOOK_KEY) || 'piano'; } catch (e) { /* storage unavailable */ }
+  document.querySelectorAll('#keys-look-select button').forEach(b => b.addEventListener('click', () => setKeysLook(b.dataset.value)));
+  setKeysLook(keysLook);
 
   const barsSel = document.getElementById('bars-select');
   barsSel.addEventListener('change', e => setBarsShow(e.target.value));
