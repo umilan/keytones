@@ -907,7 +907,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.73</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.74</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1049,8 +1049,8 @@
     <div class="fp-box" id="file-player" hidden>
       <div class="fp-top">
         <button type="button" class="sp-reset" id="fp-load">Load audio…</button>
-        <span class="fp-name" id="fp-name">wav, mp3… — played into the detector</span>
-        <input type="file" id="fp-input" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac" hidden>
+        <span class="fp-name" id="fp-name">audio or video file — played into the detector</span>
+        <input type="file" id="fp-input" accept="audio/*,video/*,.wav,.mp3,.m4a,.aac,.ogg,.oga,.opus,.flac,.aif,.aiff,.caf,.weba,.mp4,.m4v,.mov,.webm,.mkv,.3gp" hidden>
       </div>
       <div class="fp-ctrl">
         <button type="button" class="fp-btn" id="fp-back" title="Back 15 s" aria-label="Back 15 seconds" disabled>
@@ -1921,6 +1921,12 @@ function fileSourceNode(ac) {
   fileEl = new Audio(fileUrl); fileEl.preload = 'auto';
   fileEl.addEventListener('loadedmetadata', () => { fileEl.currentTime = Math.min(t, fileEl.duration || t); updateFilePlayer(); });
   ['play', 'pause', 'ended', 'timeupdate', 'durationchange'].forEach(ev => fileEl.addEventListener(ev, updateFilePlayer));
+  // the browser's own decoder does the work (mp4/mov/webm video files play their sound track);
+  // a format it can't decode is said so instead of a silent player
+  fileEl.addEventListener('error', () => {
+    document.getElementById('fp-name').textContent = `${fileName} — this browser can't play this format`;
+    ['fp-back', 'fp-play', 'fp-fwd', 'fp-seek'].forEach(id => { document.getElementById(id).disabled = true; });
+  });
   fileNode = ac.createMediaElementSource(fileEl);
   fileNode.connect(ac.destination); // you hear it
   if (wasPlaying) fileEl.play().catch(() => {});
@@ -4744,7 +4750,7 @@ const SETTING_INFO = {
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
- "Listen to": "What the detector hears. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: a wav / mp3 loaded in the player below, played straight in (and to the speakers). Detection still needs the mic switch (badge) on.",
+ "Listen to": "What the detector hears. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers). Detection still needs the mic switch (badge) on.",
  "Bars show": "What a bar's height means. Live: only the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
  "Bar opacity = confidence": "With the mic on and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
