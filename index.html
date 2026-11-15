@@ -837,6 +837,10 @@
       width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
       border: 1px solid rgba(255,255,255,0.18);
     }
+    /* colour pickers: the swatch sits inside the dropdown, before the name */
+    .sp-color { position: relative; flex-shrink: 0; width: 140px; display: block; }
+    .sp-row .sp-color .sp-select { width: 100%; padding-left: 32px; }
+    .sp-color .sp-swatch { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; }
     /* Noise gate slider doubles as a live input meter: the track fills to the
        current mic level (after gain) — green when it gets through the gate,
        grey when the gate is blocking it. See animateLevel(). */
@@ -914,7 +918,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.78</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.79</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1133,24 +1137,24 @@
     <div class="sp-section-label">COLORS</div>
     <div class="sp-row">
       <label class="sp-label" for="color-latest">Newest notes</label>
-      <span class="sp-swatch" id="color-latest-swatch"></span>
-      <select class="sp-select" id="color-latest"></select>
+      <span class="sp-color"><span class="sp-swatch" id="color-latest-swatch"></span>
+      <select class="sp-select" id="color-latest"></select></span>
     </div>
     <div class="sp-row">
       <label class="sp-label" for="color-detected">Sounding notes</label>
-      <span class="sp-swatch" id="color-detected-swatch"></span>
-      <select class="sp-select" id="color-detected"></select>
+      <span class="sp-color"><span class="sp-swatch" id="color-detected-swatch"></span>
+      <select class="sp-select" id="color-detected"></select></span>
     </div>
     <div class="sp-subsection">Pads · Launchpad / Launchkey</div>
     <div class="sp-row">
       <label class="sp-label" for="color-cNote">C pads</label>
-      <span class="sp-swatch" id="color-cNote-swatch"></span>
-      <select class="sp-select" id="color-cNote"></select>
+      <span class="sp-color"><span class="sp-swatch" id="color-cNote-swatch"></span>
+      <select class="sp-select" id="color-cNote"></select></span>
     </div>
     <div class="sp-row">
       <label class="sp-label" for="color-pressed">Pad press</label>
-      <span class="sp-swatch" id="color-pressed-swatch"></span>
-      <select class="sp-select" id="color-pressed"></select>
+      <span class="sp-color"><span class="sp-swatch" id="color-pressed-swatch"></span>
+      <select class="sp-select" id="color-pressed"></select></span>
     </div>
     <div class="sp-row">
       <label class="sp-label" for="halftone-range">Idle ♯/♭ pads</label>
