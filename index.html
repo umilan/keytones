@@ -748,7 +748,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.41</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.42</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -874,6 +874,11 @@
       <input type="range" class="sp-range" id="gain-db-select" min="-40" max="100" step="1" value="50">
     </div>
     <div class="sp-row">
+      <label class="sp-label" for="speed-range">Speed</label>
+      <span class="sp-value" id="speed-value"></span>
+      <input type="range" class="sp-range" id="speed-range" min="1" max="5" step="1">
+    </div>
+    <div class="sp-row">
       <label class="sp-label" for="gate-range">Noise gate</label>
       <span class="sp-value" id="gate-value"></span>
       <input type="range" class="sp-range" id="gate-range" min="-80" max="-20" step="1">
@@ -888,7 +893,7 @@
       <span class="sp-value" id="stability-value"></span>
       <input type="range" class="sp-range" id="stability-range" min="1" max="6" step="1">
     </div>
-    <div class="sp-status">Gate: lower hears quieter sound. Confidence: higher accepts only clean notes. Stability: frames a note must hold (×0.1 s).</div>
+    <div class="sp-status">Gate: lower hears quieter sound. Confidence: higher accepts only clean notes. Stability: frames a note must hold. Speed: faster reacts sooner but low notes and chords get less accurate.</div>
     <div class="sp-row"><button class="sp-reset" id="detection-reset">Reset detection</button></div>
 
     <div class="sp-divider"></div>
@@ -1338,7 +1343,27 @@ let pendingTicks = 0;
    gate -40 dB (= the old RMS gate of 0.01), confidence 50 % (= each
    algorithm's old threshold), stability 2 frames (= the old DEBOUNCE). */
 const DETECTION_KEY = 'keytones-detection-v1';
-const DETECTION_DEFAULTS = { gateDb: -40, confidence: 50, stability: 2 };
+const DETECTION_DEFAULTS = { gateDb: -40, confidence: 50, stability: 2, speed: 3 };
+
+/* Settings > Detection > Speed: how often detection runs (ms between frames),
+   how much audio each spectrum looks at (fftSize — shorter reacts faster but
+   can't separate neighbouring low notes as well) and how much the spectrum is
+   smoothed over time. 1 = the original, most accurate setting. */
+const SPEED_LEVELS = {
+  1: { ms: 100, fft: 8192, smooth: 0.80 },
+  2: { ms: 70,  fft: 8192, smooth: 0.60 },
+  3: { ms: 50,  fft: 4096, smooth: 0.50 },
+  4: { ms: 35,  fft: 4096, smooth: 0.30 },
+  5: { ms: 25,  fft: 2048, smooth: 0.20 },
+};
+function speedLevel() { return SPEED_LEVELS[detection.speed] || SPEED_LEVELS[1]; }
+
+/* apply the Speed setting to a running mic (or do nothing until one starts) */
+function applySpeed() {
+  const lv = speedLevel();
+  if (analyser) { analyser.fftSize = lv.fft; analyser.smoothingTimeConstant = lv.smooth; }
+  if (detInterval) { clearInterval(detInterval); detInterval = setInterval(runDetection, lv.ms); }
+}
 let detection = { ...DETECTION_DEFAULTS };
 try { Object.assign(detection, JSON.parse(localStorage.getItem(DETECTION_KEY)) || {}); } catch (e) { /* storage unavailable */ }
 
@@ -1663,12 +1688,12 @@ async function startMic() {
     micGainNode = ac.createGain();
     applyMicGain();
     analyser  = ac.createAnalyser();
-    analyser.fftSize = 8192; analyser.smoothingTimeConstant = 0.80;
+    analyser.fftSize = speedLevel().fft; analyser.smoothingTimeConstant = speedLevel().smooth; // Settings > Speed
     micSrc.connect(micGainNode);
     micGainNode.connect(analyser);
     micActive = true; lastNote = pendingNote = -1; pendingTicks = 0;
     setMicUI('MIC ON','—','');
-    detInterval = setInterval(runDetection, 100);
+    detInterval = setInterval(runDetection, speedLevel().ms);
     animateLevel();
     agcSum = 0; agcSamples = 0;
     agcInterval = setInterval(agcTick, AGC_INTERVAL_MS);
@@ -1711,7 +1736,9 @@ const TD_WINDOW = 2048; // sample window for time-domain algorithms
 function getTimeFrame() {
   const full = new Float32Array(analyser.fftSize);
   analyser.getFloatTimeDomainData(full);
-  return full.subarray(0, Math.min(TD_WINDOW, full.length));
+  // the NEWEST samples (end of the buffer): taking the start, as before, meant
+  // analysing audio that was already up to ~130 ms old
+  return full.subarray(Math.max(0, full.length - TD_WINDOW));
 }
 
 function rms(buf) {
@@ -1937,7 +1964,7 @@ function buildNNLSDict(sr) {
 
 function detectNNLS(sr) {
   const bufLen = analyser.frequencyBinCount;
-  if (!nnlsDict || nnlsDict._sr !== sr) { nnlsDict = buildNNLSDict(sr); nnlsDict._sr = sr; }
+  if (!nnlsDict || nnlsDict._sr !== sr || nnlsDict._fft !== analyser.fftSize) { nnlsDict = buildNNLSDict(sr); nnlsDict._sr = sr; nnlsDict._fft = analyser.fftSize; }
   const spectrum = getMagnitudeSpectrum();
   const activation = new Float32Array(NNLS_NUM_PITCHES).fill(0.1);
   for (let iter = 0; iter < 15; iter++) {
@@ -3590,6 +3617,7 @@ function initDetectionControls() {
     ['gate-range',       'gateDb',     v => v + ' dB'],
     ['confidence-range', 'confidence', v => v + '%'],
     ['stability-range',  'stability',  v => v + (v === 1 ? ' frame' : ' fr')],
+    ['speed-range',      'speed',      v => SPEED_LEVELS[v].ms + ' ms'],
   ];
   const sync = () => controls.forEach(([id, key, fmt]) => {
     document.getElementById(id).value = detection[key];
@@ -3599,11 +3627,12 @@ function initDetectionControls() {
     document.getElementById(id).addEventListener('input', e => {
       detection[key] = Number(e.target.value);
       saveDetection(); sync();
+      if (key === 'speed') applySpeed();
     });
   });
   document.getElementById('detection-reset').addEventListener('click', () => {
     detection = { ...DETECTION_DEFAULTS };
-    saveDetection(); sync();
+    saveDetection(); sync(); applySpeed();
   });
   sync();
 }
