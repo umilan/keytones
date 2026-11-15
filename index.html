@@ -771,6 +771,12 @@
     .at-note { margin-top: 4px; }
     .at-note b { color: var(--text); }
     .at-foot { margin-top: 6px; color: var(--dim); font-size: 10px; }
+    #algo-tip .at-head  { min-height: var(--at-head); }
+    #algo-tip .at-what  { min-height: var(--at-what); }
+    #algo-tip .at-rows  { min-height: var(--at-rows); }
+    #algo-tip .at-best  { min-height: var(--at-best); }
+    #algo-tip .at-watch { min-height: var(--at-watch); }
+    #algo-tip .at-foot  { min-height: var(--at-foot); }
     /* grouped switch (segmented control), e.g. Settings > View */
     .sp-seg {
       display: flex; flex-shrink: 0; overflow: hidden;
@@ -837,7 +843,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.62</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.63</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -4070,16 +4076,38 @@ function algoCardHtml(algo) {
   const a = ALGO_INFO[algo];
   if (!a) return '';
   const stars = n => '★'.repeat(n) + '<i>' + '★'.repeat(5 - n) + '</i>';
+  // every card has the same sections (empty when not applicable), so the
+  // hover card can give each one the same height — see equalizeAlgoCards()
   let h = `<div class="at-head"><span>${a.name}</span>${a.badge ? `<span class="at-badge">${a.badge}</span>` : ''}</div>`;
   h += `<div class="at-what">${a.what}</div>`;
-  if (a.stars) {
-    h += '<div class="at-rows">' + ALGO_CRITERIA.map(([k, label]) =>
-      `<span>${label}</span><span class="at-stars" aria-label="${a.stars[k]} of 5">${stars(a.stars[k])}</span>`).join('') + '</div>';
-  }
-  if (a.best)  h += `<div class="at-note"><b>Best for:</b> ${a.best}</div>`;
-  if (a.watch) h += `<div class="at-note"><b>Watch out:</b> ${a.watch}</div>`;
-  if (a.stars) h += '<div class="at-foot">Ratings from the detection bench (test recordings).</div>';
+  h += '<div class="at-rows">' + (a.stars ? ALGO_CRITERIA.map(([k, label]) =>
+    `<span>${label}</span><span class="at-stars" aria-label="${a.stars[k]} of 5">${stars(a.stars[k])}</span>`).join('') : '') + '</div>';
+  h += `<div class="at-note at-best">${a.best ? `<b>Best for:</b> ${a.best}` : ''}</div>`;
+  h += `<div class="at-note at-watch">${a.watch ? `<b>Watch out:</b> ${a.watch}` : ''}</div>`;
+  h += `<div class="at-foot">${a.stars ? 'Ratings from the detection bench (test recordings).' : ''}</div>`;
   return h;
+}
+
+/* hovering along the buttons shouldn't make the card jump: render every
+   card once at the card's current width, take the tallest version of each
+   section, and give that section that height in all cards (redone when
+   the width changes, e.g. on a phone rotation) */
+const ALGO_CARD_SECTIONS = ['at-head', 'at-what', 'at-rows', 'at-best', 'at-watch', 'at-foot'];
+let algoCardsMeasuredAt = -1;
+function equalizeAlgoCards(tip) {
+  const width = Math.min(300, window.innerWidth - 16);
+  if (algoCardsMeasuredAt === width) return;
+  const wasHidden = tip.hidden, prevHtml = tip.innerHTML;
+  ALGO_CARD_SECTIONS.forEach(c => tip.style.removeProperty('--' + c));
+  tip.style.visibility = 'hidden'; tip.hidden = false;
+  const max = {};
+  for (const algo of Object.keys(ALGO_INFO)) {
+    tip.innerHTML = algoCardHtml(algo);
+    for (const c of ALGO_CARD_SECTIONS) max[c] = Math.max(max[c] || 0, tip.querySelector('.' + c).offsetHeight);
+  }
+  ALGO_CARD_SECTIONS.forEach(c => tip.style.setProperty('--' + c, max[c] + 'px'));
+  tip.innerHTML = prevHtml; tip.hidden = wasHidden; tip.style.visibility = '';
+  algoCardsMeasuredAt = width;
 }
 
 /* place a fixed tip next to an element: above it if there's room, else below */
@@ -4096,6 +4124,7 @@ function initAlgoTips() {
   const tip = document.getElementById('algo-tip');
   let shownFor = null, pressTimer = null, longPressed = false, startX = 0, startY = 0;
   const show = btn => {
+    equalizeAlgoCards(tip);
     tip.innerHTML = algoCardHtml(btn.dataset.algo); tip.hidden = false;
     placeTip(tip, btn); shownFor = btn;
   };
