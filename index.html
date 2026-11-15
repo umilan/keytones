@@ -330,11 +330,11 @@
       height: 0;
 			border-radius: 0;
       transition: height 0.40s cubic-bezier(0.22, 1, 0.36, 1),
-                  background 0.35s ease,
-                  box-shadow 0.35s ease;
+                  background var(--color-fade, 0.4s) ease,
+                  box-shadow var(--color-fade, 0.4s) ease;
     }
     /* Bars show: Live / Chroma follow the sound frame by frame */
-    #bar-area.bars-now .bar { transition: height 0.12s ease-out, background 0.15s ease, box-shadow 0.15s ease; }
+    #bar-area.bars-now .bar { transition: height 0.12s ease-out, background var(--color-fade, 0.4s) ease, box-shadow var(--color-fade, 0.4s) ease; }
 
 
 
@@ -515,7 +515,7 @@
       -webkit-tap-highlight-color: transparent;
       touch-action: none;
       /* colour changes cross-fade (newest ↔ sounding ↔ idle)… */
-      transition: filter 0.06s ease, transform 0.06s ease, background-color 0.4s ease;
+      transition: filter 0.06s ease, transform 0.06s ease, background-color var(--color-fade, 0.4s) ease;
     }
     /* …but pressing a key lights it at once (releasing still fades) */
     .white-key.pressed, .black-key.pressed { transition: filter 0.06s ease, transform 0.06s ease; }
@@ -922,7 +922,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.80</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.81</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1148,6 +1148,11 @@
       <label class="sp-label" for="color-detected">Sounding notes</label>
       <span class="sp-color"><span class="sp-swatch" id="color-detected-swatch"></span>
       <select class="sp-select" id="color-detected"></select></span>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="color-fade-range">Transition</label>
+      <span class="sp-value" id="color-fade-range-value"></span>
+      <input type="range" class="sp-range" id="color-fade-range" min="0" max="1.5" step="0.05" value="0.4">
     </div>
     <div class="sp-row">
       <label class="sp-label" for="newest-fade-range">Newest fades</label>
@@ -4708,6 +4713,22 @@ function initColorControls() {
     sel.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
     sel.addEventListener('change', e => { setColor(role, e.target.value); sync(); });
   });
+  /* Settings > Colors > Transition: how long a key or bar takes to cross-fade
+     when its colour changes (pressing a key stays instant) */
+  const COLOR_FADE_KEY = 'keytones-color-fade-v1', COLOR_FADE_DEFAULT = 0.4;
+  const cf = document.getElementById('color-fade-range');
+  const setColorFade = v => {
+    v = Math.max(0, Math.min(1.5, v));
+    cf.value = v;
+    document.documentElement.style.setProperty('--color-fade', v + 's');
+    setRangeLabel('color-fade-range', v > 0 ? v.toFixed(2).replace(/0$/, '') + ' s' : 'off');
+    try { localStorage.setItem(COLOR_FADE_KEY, String(v)); } catch (e) { /* storage unavailable */ }
+  };
+  let cfStart = COLOR_FADE_DEFAULT;
+  try { const v = localStorage.getItem(COLOR_FADE_KEY); if (v !== null && isFinite(+v)) cfStart = +v; } catch (e) { /* storage unavailable */ }
+  cf.addEventListener('input', () => setColorFade(+cf.value));
+  setColorFade(cfStart);
+
   const fade = document.getElementById('newest-fade-range');
   const setFade = v => {
     newestFadeS = Math.max(0, Math.min(5, v));
@@ -4720,6 +4741,7 @@ function initColorControls() {
   setFade(newestFadeS);
   document.getElementById('colors-reset').addEventListener('click', () => {
     setFade(NEWEST_FADE_DEFAULT);
+    setColorFade(COLOR_FADE_DEFAULT);
     roles.forEach(role => { colors[role] = COLOR_DEFAULTS[role]; });
     setColor('detected', COLOR_DEFAULTS.detected); // saves + repaints everything
     setPadGlow('halftone', HALFTONE_GLOW_DEFAULT);
@@ -4923,6 +4945,7 @@ const SETTING_INFO = {
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses (e.g. close notes, harmonics). In Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
+ "Transition": "How long a key or bar takes to cross-fade when its colour changes (newest ↔ sounding ↔ idle). off = instant. Pressing a key always lights it at once.",
  "Newest fades": "How long a newest note takes to blend from the Newest colour into the Sounding colour, on the bars (Time / Count), keys and pads. off = it stays in the Newest colour until another note takes over.",
  "C pads": "Idle colour of every C on the Launchpad / Launchkey, as an anchor to find octaves. none makes them like the other pads.",
  "Pad press": "Colour of a Launchpad pad while you press it. none = pads don't light up when pressed.",
