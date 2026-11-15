@@ -20,8 +20,11 @@ python3 bench/run.py                    # every clip × every algorithm, ~15 min
 python3 bench/run.py --algos yin,multif0 --clips triads,levels
 python3 bench/run.py --speed 5 --stability 1 --gate -50 --confidence 30 --gain 12
 python3 bench/score.py bench/results/<run>/   # re-score saved logs (after changing score.py)
+python3 bench/score.py RUN_A RUN_B          # one report from several runs (later runs replace earlier pairs)
+python3 bench/compare.py OLD NEW            # before → after per algorithm (OLD/NEW may be RUN_A+RUN_B)
 ```
 
+`bench/baseline-v*.md` are the committed reference results for a version.
 Each run writes `bench/results/<timestamp>/`: `summary.md` (the tables),
 `results.json` (all metrics) and `logs/` (every frame of every run).
 Runs are real time, so keep `--parallel` at or below the number of CPU cores.
@@ -36,7 +39,7 @@ Runs are real time, so keep `--parallel` at or below the number of CPU cores.
 | mono_fast | piano-like scale run, 8 notes/s |
 | dyads / triads / sevenths | piano-like 2-, 3-, 4-note chords incl. inversions |
 | piano_in_noise | piano-like melody with pink noise at 15 dB SNR |
-| noise_only | pink noise then mains hum — nothing should be shown |
+| noise_only | pink noise, then 50 Hz mains hum (scored separately) — nothing should be shown |
 | levels | the same phrase at −42 … −12 dBFS rms, to find the quietest level that still works |
 
 ## Metrics (pitch classes C…B, as the app shows them)

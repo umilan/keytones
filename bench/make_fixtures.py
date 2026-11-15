@@ -218,6 +218,9 @@ def main():
         write_wav(os.path.join(OUT, clip.name + '.wav'), y)
         meta = {'name': clip.name, 'description': clip.desc, 'sample_rate': SR, 'lead': LEAD,
                 'duration': round(len(y) / SR, 4), 'events': clip.events}
+        if clip.name == 'noise_only':   # first half pink noise, second half hum: scored separately
+            mid = round(len(y) / SR / 2, 4)
+            meta['segments'] = [{'name': 'noise', 'start': LEAD, 'end': mid}, {'name': 'hum', 'start': mid, 'end': round(len(y) / SR - LEAD, 4)}]
         with open(os.path.join(OUT, clip.name + '.json'), 'w') as f:
             json.dump(meta, f, indent=1)
         print(f'{clip.name:16s} {len(y) / SR:5.1f} s  {len(clip.events):3d} events  {clip.desc}')

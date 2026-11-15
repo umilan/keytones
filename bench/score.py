@@ -156,6 +156,11 @@ def score(log, truth, gain_db=0.0):
                     c[0] += len(fin & tr); c[1] += len(fin - tr); c[2] += len(tr - fin)
             target[str(lvl)] = round(prf(*c)[2], 3)
 
+    ghost_seg = {}
+    for sg in truth.get('segments', []):
+        fr = [fin for tau, _, fin, _ in rows if sg['start'] + 0.1 <= tau < sg['end'] - 0.1]
+        ghost_seg[sg['name']] = round(100 * sum(bool(f) for f in fr) / len(fr), 1) if fr else None
+
     ticks = np.diff([r[0] for r in log])
     cost_ms = [r[4] for r in log if r[1] > 0]
     out.update(
@@ -171,7 +176,7 @@ def score(log, truth, gain_db=0.0):
         tick_ms=float(np.median(ticks)) if len(ticks) else None,
         detect_ms_mean=float(np.mean(cost_ms)) if cost_ms else None,
         detect_ms_p95=pct(cost_ms, 95),
-        f1_by_level=by_level, f1_by_level_single=by_level_single,
+        f1_by_level=by_level, f1_by_level_single=by_level_single, ghost_segments=ghost_seg,
         onsets_ms=[round(x, 1) for x in onsets], releases_ms=[round(x, 1) for x in releases],
     )
     return out
@@ -223,8 +228,8 @@ def report(meta, results):
                  f" | {_f(np.mean([r['f1'] for r in rs if r]))} | {_f(np.mean([r.get('f1_raw', 0) for r in rs if r]))} |")
 
     L += ['', '## Timing, false notes, cost', '',
-          '| algorithm | notes shown | onset median | onset p90 | release median | ghost (noise clip) | wrong-note share | top wrong interval | detect ms (p95) |',
-          '|---|---:|---:|---:|---:|---:|---:|---|---:|']
+          '| algorithm | notes shown | onset median | onset p90 | release median | ghost: pink noise | ghost: hum | wrong-note share | top wrong interval | detect ms (p95) |',
+          '|---|---:|---:|---:|---:|---:|---:|---:|---|---:|']
     for a in algos:
         rs = [by[(a, c)] for c in clips if (a, c) in by]
         on = sum((r.get('onsets_ms', []) for r in rs), [])
@@ -237,7 +242,7 @@ def report(meta, results):
         top = INTERVAL[int(np.argmax(hist))] + f' ({100 * hist.max() / hist.sum():.0f}%)' if hist.sum() else '-'
         cost = [r['detect_ms_p95'] for r in rs if r.get('detect_ms_p95') is not None]
         L.append(f'| {ALGO_LABEL.get(a, a)} | {_f(np.mean(hits), 0)}% | {fmt_ms(pct(on, 50))} | {fmt_ms(pct(on, 90))} | '
-                 f'{fmt_ms(pct(rel, 50))} | {_f(nz["ghost_pct"] if nz else None, 0)}% | '
+                 f'{fmt_ms(pct(rel, 50))} | {_f(nz["ghost_segments"].get("noise") if nz else None, 0)}% | {_f(nz["ghost_segments"].get("hum") if nz else None, 0)}% | '
                  f'{_f(100 * wrong if wrong is not None else None, 0)}% | {top} | {_f(max(cost) if cost else None, 1)} |')
 
     lv = [(a, by[(a, 'levels')]['f1_by_level' if a in POLY else 'f1_by_level_single']) for a in algos if (a, 'levels') in by]
@@ -263,8 +268,8 @@ def report(meta, results):
     return '\n'.join(L) + '\n'
 
 
-if __name__ == '__main__':
-    d = sys.argv[1]
+def load_run(d):
+    """re-score a saved run from its logs (so old runs use the current scorer)"""
     data = json.load(open(os.path.join(d, 'results.json')))
     fix = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures')
     res = []
@@ -273,4 +278,28 @@ if __name__ == '__main__':
         m = score(lg['log'], json.load(open(os.path.join(fix, r['clip'] + '.json'))), data['meta'].get('gain_db', 0))
         m.update(clip=r['clip'], algo=r['algo'], errors=lg['errors'])
         res.append(m)
-    print(report(data['meta'], res))
+    return data['meta'], res
+
+
+def merge(dirs):
+    """several runs as one report: later runs replace earlier (clip, algo) results"""
+    meta, by = None, {}
+    for d in dirs:
+        m, res = load_run(d)
+        if meta is None:
+            meta = dict(m)
+        else:
+            meta['algos'] = list(dict.fromkeys(meta['algos'] + m['algos']))
+            meta['clips'] = list(dict.fromkeys(meta['clips'] + m['clips']))
+            meta['started'] += ' + ' + m['started']; meta['wall_s'] += m['wall_s']
+        meta['version'] = m['version']
+        for r in res:
+            by[(r['clip'], r['algo'])] = r
+    order = {a: i for i, a in enumerate(ALGO_LABEL)}
+    meta['algos'] = sorted(meta['algos'], key=lambda a: order.get(a, 99))
+    return meta, list(by.values())
+
+
+if __name__ == '__main__':
+    # python3 bench/score.py RUN_DIR [MORE_RUN_DIRS...]  — later runs replace earlier (clip, algo) pairs
+    print(report(*merge(sys.argv[1:])))

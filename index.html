@@ -816,7 +816,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.59</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.60</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1989,26 +1989,107 @@ function getMagnitudeSpectrum() {
   return mag;
 }
 
+/* ── SPECTRAL PEAKS — shared by the polyphonic detectors ─────────────────
+   A note is only trusted where its partials stand out clearly from the
+   local noise floor (measured per octave, as a low percentile so the note
+   peaks themselves don't raise it). That makes the decision depend on how
+   CLEAR a peak is, not how LOUD the input is — quiet playing works as well
+   as loud — and broadband noise, whose "peaks" are only small random
+   ripples, yields almost none. Each peak's frequency is refined between
+   FFT bins (parabolic fit), so a partial can be told from its neighbouring
+   semitone even at low notes where bins are wider than a semitone.
+   Peak mags are relative to the strongest peak (0..1). */
+const PEAK_LO_HZ = 38, PEAK_HI_HZ = 5000;
+const PEAK_RANGE = 0.01; // ignore peaks more than 40 dB below the strongest one
+
+function spectralPeaks(mag, binHz) {
+  const lo = Math.max(2, Math.floor(PEAK_LO_HZ / binHz));
+  const hi = Math.min(mag.length - 2, Math.ceil(PEAK_HI_HZ / binHz));
+  // per-octave floor, then each octave takes the lowest of itself and its
+  // neighbours: a dense chord can fill a whole octave with its own main lobes,
+  // and that octave's percentile would then be the notes' skirts, not noise
+  const bands = [];
+  for (let a = lo; a < hi; ) {
+    let b = Math.min(hi, Math.max(a * 2, a + 12)); // an octave, at least 12 bins
+    if (hi - b < 12) b = hi;
+    const vals = Array.from(mag.subarray(a, b)).sort((x, y) => x - y);
+    bands.push({ a, b, f: Math.max(vals[Math.floor(vals.length * 0.15)], 1e-12) });
+    a = b;
+  }
+  const floor = new Float32Array(mag.length);
+  bands.forEach((bd, i) => floor.fill(Math.min(bd.f, (bands[i - 1] || bd).f, (bands[i + 1] || bd).f), bd.a, bd.b));
+  let maxMag = 0;
+  for (let i = lo; i < hi; i++) if (mag[i] > maxMag) maxMag = mag[i];
+  if (maxMag <= 0) return [];
+  const k = confThreshold(4, 8, 16); // how far above the floor a peak must stand (Settings > Confidence)
+  const peaks = [];
+  for (let i = lo; i < hi; i++) {
+    const m = mag[i];
+    if (m <= mag[i - 1] || m < mag[i + 1] || m < maxMag * PEAK_RANGE || m < floor[i] * k) continue;
+    const l = Math.log(mag[i - 1] + 1e-12), c = Math.log(m), r = Math.log(mag[i + 1] + 1e-12);
+    const den = l - 2 * c + r;
+    const d = den < 0 ? Math.max(-0.5, Math.min(0.5, 0.5 * (l - r) / den)) : 0;
+    peaks.push({ freq: (i + d) * binHz, mag: m / maxMag, used: 0 });
+  }
+  return removeMainsHum(peaks); // sorted by frequency
+}
+
+/* mains hum (50 or 60 Hz and its multiples — fridges, lights, guitar amps)
+   is a steady pitched sound, so it would otherwise read as notes (G, B, D…).
+   Its tell: several peaks sitting exactly on multiples of 50 or 60 Hz, which
+   real notes don't do (their partials are multiples of the note's own
+   pitch). When 3+ peaks line up like that, those peaks are dropped. */
+function removeMainsHum(peaks) {
+  for (const base of [50, 60]) {
+    const onGrid = p => {
+      const k = Math.round(p.freq / base);
+      return k >= 1 && k <= 16 && Math.abs(p.freq - k * base) <= 1.5 + 0.002 * p.freq;
+    };
+    const hits = peaks.filter(p => p.freq < 16.5 * base && onGrid(p));
+    if (hits.length >= 3) peaks = peaks.filter(p => !(p.freq < 16.5 * base && onGrid(p)));
+  }
+  return peaks;
+}
+
+/* the strongest peak within ~40 cents of each harmonic h*f0 (h = 1..nHarm), or null */
+function harmonicMatch(peaks, f0, nHarm) {
+  const out = [];
+  for (let h = 1; h <= nHarm; h++) {
+    const target = f0 * h, tol = 35 + 3 * h; // cents; a little looser up high (piano partials run sharp)
+    const lo = target * Math.pow(2, -tol / 1200), hi = target * Math.pow(2, tol / 1200);
+    let best = null;
+    for (const p of peaks) {
+      if (p.freq < lo) continue;
+      if (p.freq > hi) break;
+      if (!best || p.mag > best.mag) best = p;
+    }
+    out.push(best);
+  }
+  return out;
+}
+
+/* a candidate pitch is backed by the spectrum when its fundamental or 2nd
+   harmonic is an actual peak — rules out neighbouring semitones (their
+   partials miss by 100 cents) and "notes" a fifth or octave+fifth below a
+   real one (which only share its upper partials) */
+function pitchSupported(peaks, f0) {
+  const m = harmonicMatch(peaks, f0, 2);
+  return !!(m[0] || m[1]);
+}
+
 /* HPCP (Harmonic Pitch Class Profile) — every spectral peak votes for its own
    pitch class AND the pitch classes of its likely sub-harmonics (since a
    harmonic at h*f0 is evidence for f0's class), weighted 1/h. This is
    inherently octave-blind by design (that's what makes it useful for chord/
    key detection), so results are reported at a fixed reference octave. */
 function detectHPCP(sr) {
-  const mag   = getMagnitudeSpectrum();
-  const binHz = sr / analyser.fftSize;
-  const minBin = Math.max(1, Math.floor(80 / binHz));
-  const maxBin = Math.min(mag.length - 2, Math.floor(5000 / binHz));
-  const peaks = [];
-  for (let i = minBin + 1; i < maxBin; i++) {
-    if (mag[i] > mag[i - 1] && mag[i] >= mag[i + 1] && mag[i] > 0.01) peaks.push({ bin: i, mag: mag[i] });
-  }
+  // peaks that stand out from the noise floor (level-independent — see spectralPeaks)
+  const peaks = spectralPeaks(getMagnitudeSpectrum(), sr / analyser.fftSize).filter(p => p.freq >= 80);
   if (!peaks.length) return [];
   peaks.sort((a, b) => b.mag - a.mag);
   const hpcp = new Float32Array(12);
   const NHARM = 5;
-  for (const { bin, mag: m } of peaks.slice(0, 40)) {
-    const freq = bin * binHz;
+  for (const { freq, mag: m } of peaks.slice(0, 40)) {
     for (let h = 1; h <= NHARM; h++) {
       const subFreq = freq / h;
       if (subFreq < 60) break;
@@ -2070,9 +2151,12 @@ function detectNNLS(sr) {
   }
   const maxA = Math.max(...activation);
   if (maxA <= 1e-4) return [];
+  const peaks = spectralPeaks(spectrum, sr / analyser.fftSize);
   const results = [];
   for (let p = 0; p < NNLS_NUM_PITCHES; p++) {
-    if (activation[p] / maxA > confThreshold(0.15, 0.3, 0.6)) results.push({ freq: 440 * Math.pow(2, (NNLS_MIN_MIDI + p - 69) / 12), conf: activation[p] / maxA });
+    if (activation[p] / maxA <= confThreshold(0.15, 0.3, 0.6)) continue;
+    const freq = 440 * Math.pow(2, (NNLS_MIN_MIDI + p - 69) / 12);
+    if (pitchSupported(peaks, freq)) results.push({ freq, conf: activation[p] / maxA }); // noise / leakage into a neighbour isn't a note
   }
   return results;
 }
@@ -2123,9 +2207,12 @@ function detectCQTNMF(sr) {
   }
   const maxA = Math.max(...activation);
   if (maxA <= 1e-4) return [];
+  const peaks = spectralPeaks(getMagnitudeSpectrum(), sr / analyser.fftSize);
   const results = [];
   for (let p = 0; p < CQT_NUM_BINS; p++) {
-    if (activation[p] / maxA > confThreshold(0.15, 0.3, 0.6)) results.push({ freq: 440 * Math.pow(2, (CQT_MIN_MIDI + p - 69) / 12), conf: activation[p] / maxA });
+    if (activation[p] / maxA <= confThreshold(0.15, 0.3, 0.6)) continue;
+    const freq = 440 * Math.pow(2, (CQT_MIN_MIDI + p - 69) / 12);
+    if (pitchSupported(peaks, freq)) results.push({ freq, conf: activation[p] / maxA }); // noise / leakage into a neighbour isn't a note
   }
   return results;
 }
@@ -2136,38 +2223,44 @@ function detectCQTNMF(sr) {
    extracts one real, octave-resolved fundamental — the most direct of the
    four polyphonic methods here. */
 const MULTIF0_MAX_POLYPHONY = 4;
-const MULTIF0_MIN_HZ = 80, MULTIF0_MAX_HZ = 1400;
+const MULTIF0_MIN_MIDI = 28, MULTIF0_MAX_MIDI = 89; // E1 (41 Hz, bass guitar) .. F6 (1397 Hz)
+const MULTIF0_HARMONICS = 8;       // judged on its first 8 harmonics (more would let low candidates collect other notes' partials by chance)…
+const MULTIF0_CLAIM_HARMONICS = 16; // …but a chosen note claims all its partials up to PEAK_HI_HZ, so they aren't left over as extra notes
 
+/* Multi-F0: iterative "find the strongest note, take its partials away,
+   repeat". Candidates are the semitones in range; each one's salience is
+   the sum of the spectral peaks sitting on its harmonics (see
+   spectralPeaks: noise-floor-relative, so it works at any input level).
+   A candidate needs its fundamental or 2nd harmonic present, and either
+   2+ harmonics or a strong lone peak (a sine-like tone). After a note is
+   picked its peaks are mostly used up, so the next pass finds a different
+   note rather than this one's harmonics. */
 function detectMultiF0(sr) {
-  const mag    = getMagnitudeSpectrum();
-  const bufLen = mag.length;
-  const binHz  = sr / analyser.fftSize;
-  const working = Float32Array.from(mag);
+  const peaks = spectralPeaks(getMagnitudeSpectrum(), sr / analyser.fftSize);
+  if (!peaks.length) return [];
   const results = [];
-  const candMinBin = Math.max(1, Math.floor(MULTIF0_MIN_HZ / binHz));
-  const candMaxBin = Math.min(bufLen - 1, Math.ceil(MULTIF0_MAX_HZ / binHz));
-  let firstScore = 1;
+  const takenPc = new Set();
+  let firstSal = 0;
   for (let pass = 0; pass < MULTIF0_MAX_POLYPHONY; pass++) {
-    let bestBin = -1, bestScore = 0;
-    for (let b = candMinBin; b <= candMaxBin; b++) {
-      let score = 0;
-      for (let h = 1; h <= 6; h++) {
-        const hb = Math.round(b * h);
-        if (hb >= bufLen) break;
-        score += working[hb] / h;
-      }
-      if (score > bestScore) { bestScore = score; bestBin = b; }
+    let best = -1, bestSal = 0;
+    for (let m = MULTIF0_MIN_MIDI; m <= MULTIF0_MAX_MIDI; m++) {
+      if (takenPc.has(m % 12)) continue; // the app shows pitch classes — another octave of a found note adds nothing
+      const f0 = 440 * Math.pow(2, (m - 69) / 12);
+      const match = harmonicMatch(peaks, f0, MULTIF0_HARMONICS);
+      if (!match[0] && !match[1]) continue;
+      let sal = 0, n = 0;
+      match.forEach((p, i) => { if (p) { n++; sal += p.mag * (1 - p.used) / Math.sqrt(i + 1); } });
+      if (n < 2 && !(match[0] && match[0].mag * (1 - match[0].used) >= 0.3)) continue;
+      if (sal > bestSal) { bestSal = sal; best = m; }
     }
-    if (bestBin < 0 || bestScore < confThreshold(0.02, 0.05, 0.2)) break;
-    if (pass === 0) firstScore = bestScore;
-    // confidence: strength vs the strongest note this frame, scaled by how
-    // clear that strongest one is (0.3 = a clean, full-level note)
-    results.push({ freq: bestBin * binHz, conf: Math.max(0, Math.min(1, (bestScore / firstScore) * Math.min(1, firstScore / 0.3))) });
-    for (let h = 1; h <= 6; h++) { // spectral subtraction so the next pass finds a different pitch
-      const hb = Math.round(bestBin * h);
-      if (hb >= bufLen) break;
-      working[hb] *= 0.05;
-    }
+    if (best < 0) break;
+    if (pass === 0) firstSal = bestSal;
+    else if (bestSal < firstSal * confThreshold(0.05, 0.12, 0.3)) break; // too weak next to the main note: leftovers, not a note
+    takenPc.add(best % 12);
+    const bestF0 = 440 * Math.pow(2, (best - 69) / 12);
+    harmonicMatch(peaks, bestF0, Math.max(MULTIF0_HARMONICS, Math.min(MULTIF0_CLAIM_HARMONICS, Math.floor(PEAK_HI_HZ / bestF0))))
+      .forEach(p => { if (p) p.used = Math.min(1, p.used + 0.7); }); // shared partials keep a little for the other notes
+    results.push({ freq: 440 * Math.pow(2, (best - 69) / 12), conf: Math.min(1, bestSal / firstSal) });
   }
   return results;
 }
