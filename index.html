@@ -718,6 +718,10 @@
       font-family: monospace; font-size: var(--ui-font-size); letter-spacing: var(--let-spac);
       color: var(--dim); margin-top: 6px;
     }
+    .sp-check {
+      width: 20px; height: 20px; margin: 0 4px 0 0; flex-shrink: 0;
+      accent-color: var(--active-bg); cursor: pointer;
+    }
     .sp-swatch {
       width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
       border: 1px solid rgba(255,255,255,0.18);
@@ -771,7 +775,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.46</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.47</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -933,6 +937,10 @@
       <span class="sp-label">Decay</span>
       <span class="sp-value" id="decay-select-value"></span>
       <input type="range" class="sp-range" id="decay-select" min="0" max="100" step="1" value="50">
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="conf-opacity-check">Bar opacity = confidence</label>
+      <input type="checkbox" class="sp-check" id="conf-opacity-check">
     </div>
     <div class="sp-row">
       <label class="sp-label" for="side-pad-range">Side padding</label>
@@ -1787,7 +1795,8 @@ function detectFFTPeak(sr) {
   const g = peakBin < bufLen-1 ? fData[peakBin+1] : fData[peakBin];
   const d = a - 2*b + g;
   const off = d !== 0 ? 0.5*(a-g)/d : 0;
-  return { freq: (peakBin + off) * sr / analyser.fftSize };
+  // confidence: how far the peak stands above the gate, 0 at the gate .. 1 at +36 dB
+  return { freq: (peakBin + off) * sr / analyser.fftSize, conf: Math.max(0, Math.min(1, (peakDb - (detection.gateDb - 6)) / 36)) };
 }
 
 /* plain autocorrelation — lag with the strongest self-similarity */
@@ -1810,7 +1819,7 @@ function detectACF(sr) {
   // the fundamental period is the *first* genuine local peak, not the global max
   for (let lag = minLag + 1; lag < maxLag; lag++) {
     if (corr[lag] > confThreshold(0.1, 0.3, 0.7) && corr[lag] >= corr[lag - 1] && corr[lag] >= corr[lag + 1]) {
-      return { freq: sr / lag };
+      return { freq: sr / lag, conf: Math.max(0, Math.min(1, corr[lag])) };
     }
   }
   return null;
@@ -1833,7 +1842,7 @@ function detectAMDF(sr) {
   if (maxDiff <= 0) return null;
   for (let lag = minLag + 1; lag < maxLag; lag++) {
     if (diffs[lag] < maxDiff * confThreshold(0.75, 0.5, 0.2) && diffs[lag] <= diffs[lag - 1] && diffs[lag] <= diffs[lag + 1]) {
-      return { freq: sr / lag };
+      return { freq: sr / lag, conf: Math.max(0, Math.min(1, 1 - diffs[lag] / maxDiff)) };
     }
   }
   return null;
@@ -1874,7 +1883,7 @@ function detectYIN(sr) {
   const s0 = dPrime[tau - 1] ?? dPrime[tau], s1 = dPrime[tau], s2 = dPrime[tau + 1] ?? dPrime[tau];
   const denom = s0 + s2 - 2 * s1;
   const refined = denom !== 0 ? tau + 0.5 * (s0 - s2) / denom : tau;
-  return { freq: sr / refined };
+  return { freq: sr / refined, conf: Math.max(0, Math.min(1, 1 - dPrime[tau])) };
 }
 
 /* MPM (McLeod Pitch Method) — normalized square difference peak-picking */
@@ -1906,7 +1915,7 @@ function detectMPM(sr) {
   const s0 = nsdf[bestTau - 1], s1 = nsdf[bestTau], s2 = nsdf[bestTau + 1];
   const denom = s0 - 2 * s1 + s2;
   const shift = denom !== 0 ? 0.5 * (s0 - s2) / denom : 0;
-  return { freq: sr / (bestTau + shift) };
+  return { freq: sr / (bestTau + shift), conf: Math.max(0, Math.min(1, nsdf[bestTau])) };
 }
 
 /* ── POLYPHONIC ALGORITHMS — unlike the ones above (one dominant pitch per
@@ -1954,7 +1963,7 @@ function detectHPCP(sr) {
   const maxV = Math.max(...hpcp);
   if (maxV <= 0) return [];
   const results = [];
-  for (let i = 0; i < 12; i++) if (hpcp[i] / maxV > confThreshold(0.45, 0.65, 0.85)) results.push({ freq: FREQS[i] }); // FREQS = octave 4
+  for (let i = 0; i < 12; i++) if (hpcp[i] / maxV > confThreshold(0.45, 0.65, 0.85)) results.push({ freq: FREQS[i], conf: hpcp[i] / maxV }); // FREQS = octave 4
   return results;
 }
 
@@ -2007,7 +2016,7 @@ function detectNNLS(sr) {
   if (maxA <= 1e-4) return [];
   const results = [];
   for (let p = 0; p < NNLS_NUM_PITCHES; p++) {
-    if (activation[p] / maxA > confThreshold(0.15, 0.3, 0.6)) results.push({ freq: 440 * Math.pow(2, (NNLS_MIN_MIDI + p - 69) / 12) });
+    if (activation[p] / maxA > confThreshold(0.15, 0.3, 0.6)) results.push({ freq: 440 * Math.pow(2, (NNLS_MIN_MIDI + p - 69) / 12), conf: activation[p] / maxA });
   }
   return results;
 }
@@ -2060,7 +2069,7 @@ function detectCQTNMF(sr) {
   if (maxA <= 1e-4) return [];
   const results = [];
   for (let p = 0; p < CQT_NUM_BINS; p++) {
-    if (activation[p] / maxA > confThreshold(0.15, 0.3, 0.6)) results.push({ freq: 440 * Math.pow(2, (CQT_MIN_MIDI + p - 69) / 12) });
+    if (activation[p] / maxA > confThreshold(0.15, 0.3, 0.6)) results.push({ freq: 440 * Math.pow(2, (CQT_MIN_MIDI + p - 69) / 12), conf: activation[p] / maxA });
   }
   return results;
 }
@@ -2081,6 +2090,7 @@ function detectMultiF0(sr) {
   const results = [];
   const candMinBin = Math.max(1, Math.floor(MULTIF0_MIN_HZ / binHz));
   const candMaxBin = Math.min(bufLen - 1, Math.ceil(MULTIF0_MAX_HZ / binHz));
+  let firstScore = 1;
   for (let pass = 0; pass < MULTIF0_MAX_POLYPHONY; pass++) {
     let bestBin = -1, bestScore = 0;
     for (let b = candMinBin; b <= candMaxBin; b++) {
@@ -2093,7 +2103,10 @@ function detectMultiF0(sr) {
       if (score > bestScore) { bestScore = score; bestBin = b; }
     }
     if (bestBin < 0 || bestScore < confThreshold(0.02, 0.05, 0.2)) break;
-    results.push({ freq: bestBin * binHz });
+    if (pass === 0) firstScore = bestScore;
+    // confidence: strength vs the strongest note this frame, scaled by how
+    // clear that strongest one is (0.3 = a clean, full-level note)
+    results.push({ freq: bestBin * binHz, conf: Math.max(0, Math.min(1, (bestScore / firstScore) * Math.min(1, firstScore / 0.3))) });
     for (let h = 1; h <= 6; h++) { // spectral subtraction so the next pass finds a different pitch
       const hb = Math.round(bestBin * h);
       if (hb >= bufLen) break;
@@ -2119,7 +2132,7 @@ function detectPitchPoly(sr) {
 const CHROMA_TEST_STEP_MS = 600; // how long each note holds before advancing
 function detectChromaTest() {
   const idx = Math.floor(Date.now() / CHROMA_TEST_STEP_MS) % 12;
-  return { freq: FREQS[idx] };
+  return { freq: FREQS[idx], conf: 1 };
 }
 
 function detectPitch(sr) {
@@ -2186,13 +2199,16 @@ function runPolyDetection(sr) {
   const results = rms(getTimeFrame()) < gateRms() ? [] : detectPitchPoly(sr);
   const heard = new Map(); // nIdx -> octave
   const labelParts = [];
-  for (const { freq } of results) {
+  const frameConf = {};
+  for (const { freq, conf } of results) {
     const nNum = Math.round(12 * Math.log2(freq / C0_HZ));
     const nIdx = ((nNum % 12) + 12) % 12;
     const oct  = Math.floor(nNum / 12);
     if (!heard.has(nIdx)) heard.set(nIdx, oct);
+    if (conf !== undefined) frameConf[nIdx] = Math.max(frameConf[nIdx] || 0, conf); // strongest octave of this note
     labelParts.push(NOTES[nIdx] + oct);
   }
+  Object.assign(noteConf, frameConf);
   // Settings > Stability: a new note must be heard this many frames in a row
   // (frame 1 = immediately); one already sounding stays until it's gone
   const newActive = new Map();
@@ -2239,6 +2255,7 @@ function runDetection() {
     const nNum = Math.round(12 * Math.log2(freq / C0_HZ));
     const nIdx = ((nNum % 12) + 12) % 12;
     const oct  = Math.floor(nNum / 12);
+    if (result.conf !== undefined) noteConf[nIdx] = result.conf;
     setMicUI('mic on', NOTES[nIdx] + oct, freq.toFixed(1) + ' Hz');
     if (nIdx === pendingNote) {
       pendingTicks++;
@@ -2328,6 +2345,12 @@ function setMode(newMode) {
    RENDER
 ═══════════════════════════════════════ */
 
+/* per note: how certain the last detection of it was, 0..1 (see the detectors' conf) */
+const noteConf = {};
+const CONF_OPACITY_KEY = 'keytones-conf-opacity-v1';
+let confOpacity = false;
+try { confOpacity = localStorage.getItem(CONF_OPACITY_KEY) === '1'; } catch (e) { /* storage unavailable */ }
+
 function render() {
   let counts;
   if (mode === 'inner') {
@@ -2355,6 +2378,9 @@ function render() {
     const isLatest = latestColor !== 'none' && latestNotes.has(i) && ratio > 0;
     barEl.style.background = isLatest ? 'var(--latest-bg)' : barColor(ratio);
     barEl.style.boxShadow  = isLatest ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
+    // Settings > Bar opacity = confidence: the bar is as opaque as the last
+    // detection of that note was certain (mic mode only)
+    barEl.style.opacity = confOpacity && mode === 'outside' && noteConf[i] !== undefined ? noteConf[i].toFixed(2) : '';
 
     /* percentage label */
     const pct = total > 0 ? Math.round(counts[i] / total * 100) : 0;
@@ -2378,6 +2404,7 @@ function reset() {
     setMicUI('listening','—','');
   }
   setLatestNote(-1);
+  for (const k in noteConf) delete noteConf[k];
   // clear the glow everywhere, not just the bars: keys, Launchpad (real and
   // on-screen) and Launchkey. Notes still being held/heard stay lit.
   for (let i = 0; i < 12; i++) {
@@ -3867,6 +3894,14 @@ function initSettings() {
   document.getElementById('wave-select').addEventListener('change', e => { setWaveType(e.target.value); });
 
   initDetectionControls();
+
+  const confCheck = document.getElementById('conf-opacity-check');
+  confCheck.checked = confOpacity;
+  confCheck.addEventListener('change', e => {
+    confOpacity = e.target.checked;
+    try { localStorage.setItem(CONF_OPACITY_KEY, confOpacity ? '1' : '0'); } catch (err) { /* storage unavailable */ }
+    render();
+  });
 
   let sidePad = 0;
   try { sidePad = Number(localStorage.getItem(SIDE_PAD_KEY)) || 0; } catch (e) { /* storage unavailable */ }
