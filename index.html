@@ -520,8 +520,11 @@
       border-radius: inherit;
     }
 
-    .white-key.pressed { background: var(--active-bg); }
-    .black-key.pressed { background: var(--active-bg2); }
+    /* a key you play (on screen, computer keyboard, MIDI in) is drawn in the
+       Pad press colour — the same as its pad in the Launchpad view; falls
+       back to the Sounding notes colour when Pad press is none */
+    .white-key.pressed, .white-key.pressed.latest { background: var(--press-bg, var(--active-bg)); }
+    .black-key.pressed, .black-key.pressed.latest { background: var(--press-bg2, var(--active-bg2)); }
 
     /* decaying afterglow — JS drives --press-t from 1 (just released) down to 0
        (idle) at the same per-second rate as the bars/Launchpad, so the key's
@@ -534,8 +537,13 @@
       z-index: 0;
       opacity: var(--press-t, 0);
     }
-    .white-key::after { background: var(--active-bg); }
-    .black-key::after { background: var(--active-bg2); }
+    .white-key::after { background: var(--press-bg, var(--active-bg)); }   /* afterglow of a played key */
+    .black-key::after { background: var(--press-bg2, var(--active-bg2)); }
+    .white-key.exact::after { background: var(--active-bg); }              /* mic-detected exact octave */
+    .black-key.exact::after { background: var(--active-bg2); }
+    /* while a key is held, its own Pad press colour shows — no glow layer on top
+       (the newest-note / exact-octave glow takes over again once it's released) */
+    .white-key.pressed::after, .black-key.pressed::after { opacity: 0 !important; }
     /* full range detection: a detected note's key glows in the Exact octave
        colour, fading like its exact-octave Launchpad pad */
     .white-key.exact.exact-latest::after { background: var(--latest-bg); }
@@ -853,7 +861,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.66</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.67</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1397,6 +1405,9 @@ function applyColors() {
   const root = document.documentElement.style;
   root.setProperty('--active-bg',  `rgb(${webRgb(colors.detected)})`, 'important');
   root.setProperty('--active-bg2', `rgb(${webDark(colors.detected)})`, 'important');
+  const press = colors.pressed !== 'none' ? colors.pressed : colors.detected;
+  root.setProperty('--press-bg',  `rgb(${webRgb(press)})`);
+  root.setProperty('--press-bg2', `rgb(${webDark(press)})`);
   if (colors.latest !== 'none') {
     root.setProperty('--latest-bg',  `rgb(${webRgb(colors.latest)})`);
     root.setProperty('--latest-bg2', `rgb(${webDark(colors.latest)})`);
@@ -1726,8 +1737,17 @@ function paintKeyFade(noteIdx) {
 /* note-on: sustain sound, start timing (inner), send MIDI out.
    source: 'app' (default — mouse/touch, keyboard, generic MIDI) vs 'pad'
    (physically pressing the Launchpad's own pad) — see sendMidiNote(). */
-function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
+/* notes held from the keys, the computer keyboard or MIDI in: noteIdx ->
+   Map(octave -> count). Their pads light in the Pad press colour, as if the
+   pad itself were pressed (see paintLaunchpadNoteFade) */
+const keyHeldOctaves = Array.from({ length: 12 }, () => new Map());
+
+function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app', padOctave = octave) {
   noteOn(noteIdx, octave);
+  if (source !== 'pad') {
+    const m = keyHeldOctaves[noteIdx]; m.set(padOctave, (m.get(padOctave) || 0) + 1);
+    if (lpOn()) paintLaunchpadNoteFade(noteIdx);
+  }
   // a note you play (on-screen key, computer keyboard, MIDI in) is the latest
   // note too, not only what the mic hears. Launchpad pad presses have their
   // own Pressed pad colour, so they don't move it.
@@ -1753,8 +1773,13 @@ function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
 }
 
 /* note-off: fade sound, commit accumulated time (inner), send MIDI out */
-function onNoteOff(noteIdx, el, fromMidi = false, octave = 4, source = 'app') {
+function onNoteOff(noteIdx, el, fromMidi = false, octave = 4, source = 'app', padOctave = octave) {
   noteOff(noteIdx, octave);
+  if (source !== 'pad') {
+    const m = keyHeldOctaves[noteIdx], c = (m.get(padOctave) || 0) - 1;
+    if (c > 0) m.set(padOctave, c); else m.delete(padOctave);
+    if (lpOn()) paintLaunchpadNoteFade(noteIdx);
+  }
   heldNoteCount[noteIdx] = Math.max(0, (heldNoteCount[noteIdx] || 1) - 1);
   if (heldNoteCount[noteIdx] > 0) return; // still held at another octave — leave shared state alone
   if (!(source === 'pad' && micActive)) el.classList.remove('pressed');
@@ -3330,6 +3355,16 @@ function paintLaunchpadNoteFade(noteIdx) {
     const [pr, pg, pb] = lpBlendColor(idle, exactColor, latest ? tLatest : t);
     lpPadsForNoteOctave(noteIdx, lpNoteOctave[noteIdx]).forEach(pad => setLaunchpadRGB(midiOut, pad, pr, pg, pb));
   }
+  // a note held from the keys / computer keyboard / MIDI in shows as a pressed
+  // pad (Pad press colour) at its exact octave — or on every pad of the note
+  // when that octave isn't on the grid
+  if (LP_RGB_ACTIVE && keyHeldOctaves[noteIdx].size) {
+    const [hr, hg, hb] = LP_RGB_ACTIVE;
+    for (const oct of keyHeldOctaves[noteIdx].keys()) {
+      const pads = lpPadsForNoteOctave(noteIdx, oct);
+      (pads.length ? pads : allPadsForIndex(noteIdx)).forEach(pad => setLaunchpadRGB(midiOut, pad, hr, hg, hb));
+    }
+  }
 }
 
 /* move a color toward white by `amount` (0-1) — used so a pad with its own
@@ -3762,8 +3797,9 @@ function onMidiMessage(e) {
   const noteIdx = data1 % 12;
   const el      = keyEls[noteIdx];
   if (!el) return;
-  if (cmd === 0x90 && data2 > 0) onNoteOn(noteIdx, el, true);
-  else if (cmd === 0x80 || (cmd === 0x90 && data2 === 0)) onNoteOff(noteIdx, el, true);
+  const padOctave = Math.floor(data1 / 12) - 1; // MIDI 60 = C4: lights that octave's pad (the sound stays as before)
+  if (cmd === 0x90 && data2 > 0) onNoteOn(noteIdx, el, true, 4, 'app', padOctave);
+  else if (cmd === 0x80 || (cmd === 0x90 && data2 === 0)) onNoteOff(noteIdx, el, true, 4, 'app', padOctave);
 }
 
 /* ── LAUNCHKEY (MK3 & MK4) — DAW-mode pad lighting, output only ──────────
