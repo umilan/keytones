@@ -771,7 +771,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.45</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.46</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2284,9 +2284,8 @@ function animateLevel() {
   let rms = 0; for (const v of tData) rms += v*v;
   rms = Math.sqrt(rms / tData.length);
   const levelPct = Math.min(rms*380, 100);
-  const gatePct  = Math.min(gateRms()*380, 100); // Settings > Noise gate, on the same scale
+  // (the noise gate is shown in its own Settings slider now, not as a tick here)
   document.getElementById('mic-badge').style.background =
-    `linear-gradient(90deg, transparent calc(${gatePct}% - 1px), rgba(255,214,10,0.8) calc(${gatePct}% - 1px), rgba(255,214,10,0.8) calc(${gatePct}% + 1px), transparent calc(${gatePct}% + 1px)), ` +
     `linear-gradient(90deg, ${micHearing ? 'rgba(255,140,0,0.32)' : 'rgba(0,209,124,0.28)'} ${levelPct}%, transparent ${levelPct}%), var(--surface)`;
   agcSum += levelPct; agcSamples++; // fed to agcTick() every ~10s
   paintGateMeter(rms);
