@@ -853,7 +853,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.65</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.66</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1044,14 +1044,14 @@
 
     <div class="sp-section-label">COLORS</div>
     <div class="sp-row">
-      <label class="sp-label" for="color-detected">Sounding notes</label>
-      <span class="sp-swatch" id="color-detected-swatch"></span>
-      <select class="sp-select" id="color-detected"></select>
-    </div>
-    <div class="sp-row">
       <label class="sp-label" for="color-latest">Newest notes</label>
       <span class="sp-swatch" id="color-latest-swatch"></span>
       <select class="sp-select" id="color-latest"></select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="color-detected">Sounding notes</label>
+      <span class="sp-swatch" id="color-detected-swatch"></span>
+      <select class="sp-select" id="color-detected"></select>
     </div>
     <div class="sp-subsection">Pads · Launchpad / Launchkey</div>
     <div class="sp-row">
@@ -1067,12 +1067,12 @@
     <div class="sp-row">
       <label class="sp-label" for="halftone-range">Idle ♯/♭ pads</label>
       <span class="sp-value" id="halftone-range-value"></span>
-      <input type="range" class="sp-range" id="halftone-range" min="0" max="100" step="1" value="22">
+      <input type="range" class="sp-range" id="halftone-range" min="0" max="100" step="1" value="15">
     </div>
     <div class="sp-row">
       <label class="sp-label" for="natural-range">Idle natural pads</label>
       <span class="sp-value" id="natural-range-value"></span>
-      <input type="range" class="sp-range" id="natural-range" min="0" max="100" step="1" value="3">
+      <input type="range" class="sp-range" id="natural-range" min="0" max="100" step="1" value="50">
     </div>
     <div class="sp-row"><button class="sp-reset" id="colors-reset">Reset colors</button></div>
 
@@ -1353,7 +1353,7 @@ const PALETTE = {
   magenta: { web: [255, 0, 255],  lp: [127, 0, 127],   lk: 53 },
   white:   { web: [240, 240, 248], lp: [127, 127, 127], lk: 3  },
 };
-const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', cNote: 'blue', pressed: 'none' };
+const COLOR_DEFAULTS = { detected: 'red', latest: 'yellow', cNote: 'white', pressed: 'magenta' };
 const COLORS_KEY = 'keytones-colors-v1';
 let colors = { ...COLOR_DEFAULTS };
 try {
@@ -3229,14 +3229,15 @@ const LP_BANDS       = 4;    // stacked octave bands (2 grid rows each = 8 rows 
 /* Settings > Colors > Natural glow (LP): idle brightness of the natural-note
    pads, % of full white. Default 3 % = the old fixed [4,4,4]. */
 const NATURAL_KEY = 'keytones-natural-glow-v1';
-let lpNaturalGlow = 3;
+const NATURAL_GLOW_DEFAULT = 50, HALFTONE_GLOW_DEFAULT = 15; // Settings > Colors > Idle natural / ♯/♭ pads
+let lpNaturalGlow = NATURAL_GLOW_DEFAULT;
 try { const v = localStorage.getItem(NATURAL_KEY); if (v !== null) lpNaturalGlow = Number(v); } catch (e) { /* storage unavailable */ }
 let LP_RGB_DIM = glowRgb(lpNaturalGlow); // idle backlight, regular notes
 function glowRgb(pct) { const v = Math.round(127 * pct / 100); return [v, v, v]; }
 /* Settings > Colors > Halftone glow (LP): idle brightness of the sharp/flat
    pads, in % of full white, in both layouts. Default 22 % = the old fixed [28,28,28]. */
 const HALFTONE_KEY = 'keytones-halftone-glow-v1';
-let lpHalftoneGlow = 22;
+let lpHalftoneGlow = HALFTONE_GLOW_DEFAULT;
 try { const v = localStorage.getItem(HALFTONE_KEY); if (v !== null) lpHalftoneGlow = Number(v); } catch (e) { /* storage unavailable */ }
 function lpHalftoneColor() {
   return glowRgb(lpHalftoneGlow);
@@ -4091,6 +4092,8 @@ function initColorControls() {
   document.getElementById('colors-reset').addEventListener('click', () => {
     roles.forEach(role => { colors[role] = COLOR_DEFAULTS[role]; });
     setColor('detected', COLOR_DEFAULTS.detected); // saves + repaints everything
+    setPadGlow('halftone', HALFTONE_GLOW_DEFAULT);
+    setPadGlow('natural', NATURAL_GLOW_DEFAULT);
     sync();
   });
   sync();
