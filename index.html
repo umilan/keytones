@@ -89,11 +89,10 @@
       flex: 1 1 auto;
       min-width: 0;
       /* Landscape iPhone: keep everything clear of the notch / rounded
-         corners on both sides, plus Settings > Side padding on top. The
-         padding is page background, so the app itself is cropped inward.
-         While Settings is open the panel owns the right edge (and its inset). */
-      padding-left:  calc(env(safe-area-inset-left, 0px)  + var(--side-pad, 0px));
-      padding-right: calc(env(safe-area-inset-right, 0px) + var(--side-pad, 0px));
+         corners on both sides. While Settings is open the panel owns the
+         right edge (and its inset). */
+      padding-left:  env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
       overflow: hidden; /* clip rows (topbar, mic-strip) that don't fit once
                             the settings panel narrows #app, instead of
                             spilling into the panel — it used to be masked
@@ -102,7 +101,7 @@
       flex-direction: column;
     }
 
-    body.sp-open #app { padding-right: var(--side-pad, 0px); }
+    body.sp-open #app { padding-right: 0; }
 
     /* ── SAFE-AREA SPACERS — keep the UI clear of the iPhone Dynamic
        Island / notch (top) and the home-indicator strip (bottom). Plain
@@ -775,7 +774,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.47</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.48</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -941,11 +940,6 @@
     <div class="sp-row">
       <label class="sp-label" for="conf-opacity-check">Bar opacity = confidence</label>
       <input type="checkbox" class="sp-check" id="conf-opacity-check">
-    </div>
-    <div class="sp-row">
-      <label class="sp-label" for="side-pad-range">Side padding</label>
-      <span class="sp-value" id="side-pad-range-value"></span>
-      <input type="range" class="sp-range" id="side-pad-range" min="0" max="80" step="2" value="0">
     </div>
 
     <div class="sp-divider"></div>
@@ -3704,18 +3698,6 @@ function initDetectionControls() {
   sync();
 }
 
-/* Settings > Side padding: extra page margin left and right, on top of the
-   notch / safe-area insets the app always keeps clear of. Remembered per browser. */
-const SIDE_PAD_KEY = 'keytones-side-pad-v1';
-
-function setSidePad(px) {
-  document.documentElement.style.setProperty('--side-pad', px + 'px');
-  setRangeLabel('side-pad-range', px + ' px');
-  const el = document.getElementById('side-pad-range');
-  if (el) el.value = px;
-  try { localStorage.setItem(SIDE_PAD_KEY, String(px)); } catch (e) { /* storage unavailable */ }
-}
-
 /* swipe the open Settings panel to the right to close it: it follows the
    finger, and closes past ~1/4 of its width or on a quick flick; otherwise
    it springs back. Drags starting on a slider, dropdown or button are left
@@ -3903,10 +3885,6 @@ function initSettings() {
     render();
   });
 
-  let sidePad = 0;
-  try { sidePad = Number(localStorage.getItem(SIDE_PAD_KEY)) || 0; } catch (e) { /* storage unavailable */ }
-  setSidePad(sidePad);
-  document.getElementById('side-pad-range').addEventListener('input', e => setSidePad(Number(e.target.value)));
 
   initColorControls();
   let view = 'bars';
