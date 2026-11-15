@@ -861,7 +861,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.67</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.68</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2886,6 +2886,30 @@ function makeBarCol(noteIdx, type) {
   return col;
 }
 
+/* mouse / touchpad glide: keep the button down and move onto another key
+   (or bar column) — it plays that note and releases the previous one, like
+   sliding a finger along a keyboard. Leaving the keys keeps the last note;
+   letting go releases it (the document-level mouseup that releases held keys) */
+let glideNote = -1;
+const GLIDE_TARGETS = '#keyboard [data-note], #bar-area .bar-col';
+function initMouseGlide() {
+  document.addEventListener('mousedown', e => {
+    const t = e.button === 0 && e.target.closest(GLIDE_TARGETS);
+    glideNote = t ? Number(t.dataset.note) : -1;
+  }, true);
+  document.addEventListener('mousemove', e => {
+    if (glideNote < 0 || !(e.buttons & 1)) return;
+    const t = document.elementFromPoint(e.clientX, e.clientY)?.closest(GLIDE_TARGETS);
+    if (!t) return;
+    const n = Number(t.dataset.note);
+    if (n === glideNote) return;
+    onNoteOff(glideNote, keyEls[glideNote], false, previewOctave);
+    onNoteOn(n, keyEls[n], false, previewOctave);
+    glideNote = n;
+  });
+  document.addEventListener('mouseup', () => { glideNote = -1; });
+}
+
 function makeKey(def, type) {
   const el = document.createElement('div');
   el.className    = type + '-key';
@@ -3721,9 +3745,22 @@ function lpLedCss([r, g, b]) {
   return `rgb(${f(r)},${f(g)},${f(b)})`;
 }
 
+/* mouse glide over the on-screen pads, like over the keys: the pad held
+   follows the mouse while the button stays down (side / top buttons excluded) */
+let lpGlideLed = null;
 function buildLpView() {
   const grid = document.getElementById('lp-grid');
   lpViewCells = [];
+  grid.addEventListener('pointermove', e => {
+    if (lpGlideLed === null || e.pointerType !== 'mouse' || !(e.buttons & 1)) return;
+    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.lp-cell');
+    if (!cell || !cell.dataset.led || cell.classList.contains('btn') || cell.classList.contains('logo')) return;
+    const led = Number(cell.dataset.led);
+    if (led === lpGlideLed) return;
+    handleLaunchpadInput(0x80, lpGlideLed, 0);
+    handleLaunchpadInput(0x90, led, 127);
+    lpGlideLed = led;
+  });
   const add = (led, kind, label) => {
     const el = document.createElement('div');
     el.className = 'lp-cell' + (kind ? ' ' + kind : '');
@@ -3735,9 +3772,15 @@ function buildLpView() {
     let held = false;
     el.addEventListener('pointerdown', e => {
       e.preventDefault(); el.setPointerCapture?.(e.pointerId); held = true;
+      if (!isCC && e.pointerType === 'mouse') lpGlideLed = led;
       handleLaunchpadInput(isCC ? 0xB0 : 0x90, led, 127);
     });
-    const up = () => { if (!held) return; held = false; handleLaunchpadInput(isCC ? 0xB0 : 0x80, led, 0); };
+    const up = () => {
+      if (!held) return; held = false;
+      const pad = !isCC && lpGlideLed !== null ? lpGlideLed : led; // after a glide, the pad under the mouse is the one held
+      lpGlideLed = null;
+      handleLaunchpadInput(isCC ? 0xB0 : 0x80, pad, 0);
+    };
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', up);
   };
@@ -4440,6 +4483,7 @@ function initSettings() {
 
   initDetectionControls();
   initSettingInfo();
+  initMouseGlide();
   initAlgoTips();
 
   const barsSel = document.getElementById('bars-select');
