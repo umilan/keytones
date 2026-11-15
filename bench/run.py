@@ -115,6 +115,7 @@ async def main():
     ap.add_argument('--gain', type=float, default=6, help='mic gain dB (default +6: puts the clips mid-way in the level range the app\'s auto-gain aims for)')
     ap.add_argument('--parallel', type=int, default=2, help='browsers at once (keep <= CPU cores: timing is real-time)')
     ap.add_argument('--out', default=os.path.join(HERE, 'results'))
+    ap.add_argument('--app', default=ROOT, help='folder with the index.html to test (e.g. a git worktree of an older version)')
     a = ap.parse_args()
 
     algos = a.algos.split(',')
@@ -124,11 +125,11 @@ async def main():
     out_dir = os.path.join(a.out, stamp)
     os.makedirs(os.path.join(out_dir, 'logs'), exist_ok=True)
 
-    with open(os.path.join(ROOT, 'index.html')) as f:
+    with open(os.path.join(a.app, 'index.html')) as f:
         html = f.read()
     version = html.split('id="app-version">', 1)[1].split('<', 1)[0]
 
-    httpd, port = serve(ROOT)
+    httpd, port = serve(a.app)
     url = f'http://127.0.0.1:{port}/index.html'
     sem = asyncio.Semaphore(a.parallel)
     results = []

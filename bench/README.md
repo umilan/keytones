@@ -22,6 +22,7 @@ python3 bench/run.py --speed 5 --stability 1 --gate -50 --confidence 30 --gain 1
 python3 bench/score.py bench/results/<run>/   # re-score saved logs (after changing score.py)
 python3 bench/score.py RUN_A RUN_B          # one report from several runs (later runs replace earlier pairs)
 python3 bench/compare.py OLD NEW            # before → after per algorithm (OLD/NEW may be RUN_A+RUN_B)
+python3 bench/run.py --app /tmp/old-worktree # test another version of index.html (e.g. git worktree add /tmp/old-worktree <commit>)
 ```
 
 `bench/baseline-v*.md` are the committed reference results for a version.
@@ -30,6 +31,8 @@ Each run writes `bench/results/<timestamp>/`: `summary.md` (the tables),
 Runs are real time, so keep `--parallel` at or below the number of CPU cores.
 
 ## Clips (synthetic, seeded — identical on every machine)
+
+The band clips (`band.py`) use additive plucked strings strummed with real guitar voicings, a tanh amp and a cabinet filter, with bass and a kick/snare/hi-hat groove; the truth is the chord's pitch classes (drums and distortion products are not notes).
 
 | clip | what |
 |---|---|
@@ -41,6 +44,9 @@ Runs are real time, so keep `--parallel` at or below the number of CPU cores.
 | piano_in_noise | piano-like melody with pink noise at 15 dB SNR |
 | noise_only | pink noise, then 50 Hz mains hum (scored separately) — nothing should be shown |
 | levels | the same phrase at −42 … −12 dBFS rms, to find the quietest level that still works |
+| band_power | distorted band (high gain): power chords + bass + drums, 1 bar each |
+| band_open | crunchy band: open chords (G D Em C A E F#m Am F) + bass + drums |
+| band_palm | high-gain palm-muted 8th-note chugs, chord change every 2 beats |
 
 ## Metrics (pitch classes C…B, as the app shows them)
 

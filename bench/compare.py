@@ -15,13 +15,13 @@ def summary(meta, results):
     by = {(r['algo'], r['clip']): r for r in results}
     out = {}
     for a in meta['algos']:
-        mono, chord, on, wrong = [], [], [], []
+        mono, chord, bnd, on, wrong = [], [], [], [], []
         for c in meta['clips']:
             r = by.get((a, c))
             if not r or c in ('noise_only', 'levels'):
                 continue
             v = r['f1_settled'] if r.get('f1_settled') is not None else r['f1']
-            (chord if c in score.CHORD_CLIPS else mono).append(v)
+            (chord if c in score.CHORD_CLIPS else bnd if c in score.BAND_CLIPS else mono).append(v)
             on += r.get('onsets_ms', [])
             wrong.append(1 - r['precision'])
         nz = by.get((a, 'noise_only'), {}).get('ghost_segments', {})
@@ -30,7 +30,7 @@ def summary(meta, results):
         if lv:
             d = lv['f1_by_level' if a in score.POLY else 'f1_by_level_single']
             works = next((float(k) + meta['gain_db'] for k in d if d[k] >= 0.7), None)
-        out[a] = {'mono F1': np.mean(mono) if mono else None, 'chord F1': np.mean(chord) if chord else None,
+        out[a] = {'mono F1': np.mean(mono) if mono else None, 'chord F1': np.mean(chord) if chord else None, 'band F1': np.mean(bnd) if bnd else None,
                   'onset ms': score.pct(on, 50), 'wrong notes %': 100 * np.mean(wrong) if wrong else None,
                   'ghost noise %': nz.get('noise'), 'ghost hum %': nz.get('hum'), 'works from dBFS': works}
     return out
@@ -45,7 +45,7 @@ def fmt(k, v):
 def main():
     old = summary(*score.merge(sys.argv[1].split('+')))
     new = summary(*score.merge(sys.argv[2].split('+')))
-    keys = ['mono F1', 'chord F1', 'onset ms', 'wrong notes %', 'ghost noise %', 'ghost hum %', 'works from dBFS']
+    keys = ['mono F1', 'chord F1', 'band F1', 'onset ms', 'wrong notes %', 'ghost noise %', 'ghost hum %', 'works from dBFS']
     print('| algorithm | ' + ' | '.join(keys) + ' |')
     print('|---|' + '---|' * len(keys))
     for a in new:

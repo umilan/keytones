@@ -14,6 +14,8 @@ import wave
 
 import numpy as np
 
+import band
+
 SR = 48000
 LEAD = 1.0          # silence before the first and after the last event
 PEAK_DBFS = -3.0
@@ -173,6 +175,19 @@ def build():
         c.add(i * 0.6, 0.5, [int(m)], tone_piano)
     clips.append((c, {'noise': pink_noise, 'snr_db': 15}))
 
+    P = band.power
+    c = Clip('band_power', 'distorted band (high gain): power chords E5 G5 A5 C5 D5 B5 G5 A5, 1 bar each, + bass + drums')
+    clips.append((c, {'band': ([('E5', P(40)), ('G5', P(43)), ('A5', P(45)), ('C5', P(48)), ('D5', P(50)),
+                                 ('B5', P(47)), ('G5', P(43)), ('A5', P(45))], 30, False, 4)}))
+
+    O = band.OPEN
+    c = Clip('band_open', 'crunchy band: open chords G D Em C | A E F#m D | Am F, 1 bar each, + bass + drums')
+    clips.append((c, {'band': ([(n, O[n]) for n in ['G', 'D', 'Em', 'C', 'A', 'E', 'F#m', 'D', 'Am', 'F']], 6, False, 4)}))
+
+    c = Clip('band_palm', 'high-gain palm-muted 8th-note chugs, power chords changing every 2 beats, + bass + drums')
+    clips.append((c, {'band': ([(n, P(r)) for n, r in [('E5', 40), ('E5', 40), ('G5', 43), ('A5', 45), ('E5', 40), ('C5', 48),
+                                                        ('D5', 50), ('B5', 47), ('E5', 40), ('F5', 41), ('G5', 43), ('A5', 45)]], 30, True, 2)}))
+
     c = Clip('levels', 'same phrase (3 notes + 2 triads, piano-like) at -42, -36, -30, -24, -18, -12 dBFS rms')
     clips.append((c, {'levels': True}))
 
@@ -212,7 +227,14 @@ def write_wav(path, y):
 def main():
     os.makedirs(OUT, exist_ok=True)
     for clip, opts in build():
-        y = render_levels(clip) if opts.get('levels') else clip.render(**opts)
+        if opts.get('levels'):
+            y = render_levels(clip)
+        elif opts.get('band'):
+            prog, gain, mute, beats = opts['band']
+            y, clip.events = band.song(prog, np.random.default_rng(len(clip.name)), LEAD, gain, mute, beats)
+            y *= 10 ** (PEAK_DBFS / 20) / np.max(np.abs(y))
+        else:
+            y = clip.render(**opts)
         if opts.get('noise') is not None and opts.get('snr_db') is None:
             y *= 10 ** (-30 / 20) / np.sqrt(np.mean(y[int(LEAD * SR):-int(LEAD * SR)] ** 2))   # noise_only: -30 dBFS rms
         write_wav(os.path.join(OUT, clip.name + '.wav'), y)

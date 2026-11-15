@@ -187,6 +187,7 @@ ALGO_LABEL = {'fft': 'M1 FFT', 'acf': 'M2 ACF', 'amdf': 'M3 AMDF', 'yin': 'M4 YI
               'hpcp': 'P1 HPCP', 'nnls': 'P2 NNLS', 'cqtnmf': 'P3 CQT+NMF', 'multif0': 'P4 Multi-F0'}
 MONO_CLIPS = ['mono_sine', 'mono_harmonic', 'mono_piano', 'mono_fast', 'piano_in_noise']
 CHORD_CLIPS = ['dyads', 'triads', 'sevenths']
+BAND_CLIPS = ['band_power', 'band_open', 'band_palm']
 POLY = {'hpcp', 'nnls', 'cqtnmf', 'multif0'}
 INTERVAL = ['unison', 'm2', 'M2', 'm3', 'M3', 'P4', 'tritone', 'P5', 'm6', 'M6', 'm7', 'M7']
 
@@ -204,19 +205,19 @@ def report(meta, results):
          f"Settings: speed {s['speed']}, gate {s['gateDb']} dB, confidence {s['confidence']}, "
          f"stability {s['stability']}, mic gain {meta['gain_db']} dB. Run {meta['started']}, {meta['wall_s']} s.", '',
          '## Accuracy (F1 on pitch classes, settled = ≥250 ms away from note changes)', '',
-         '| algorithm | ' + ' | '.join(clips) + ' | mono avg | chord avg |',
-         '|---|' + '---:|' * (len(clips) + 2)]
+         '| algorithm | ' + ' | '.join(clips) + ' | mono avg | chord avg | band avg |',
+         '|---|' + '---:|' * (len(clips) + 3)]
     for a in algos:
-        cells, mono, chord = [], [], []
+        cells, mono, chord, bnd = [], [], [], []
         for c in clips:
             r = by.get((a, c))
             settled = r is not None and r.get('f1_settled') is not None
             v = None if r is None else (r['f1_settled'] if settled else r['f1'])
             cells.append(_f(v) + ('' if settled or r is None else '*'))
             if v is not None:
-                (mono if c in MONO_CLIPS else chord).append(v)
+                (mono if c in MONO_CLIPS else bnd if c in BAND_CLIPS else chord).append(v)
         L.append(f'| {ALGO_LABEL.get(a, a)} | ' + ' | '.join(cells) +
-                 f' | **{_f(np.mean(mono) if mono else None)}** | **{_f(np.mean(chord) if chord else None)}** |')
+                 f' | **{_f(np.mean(mono) if mono else None)}** | **{_f(np.mean(chord) if chord else None)}** | **{_f(np.mean(bnd) if bnd else None)}** |')
 
     L += ['', '\\* no frames are 250 ms away from a note change (fast notes), so this is the overall F1.']
     L += ['', '## Overall F1 (every frame, including note changes) and before/after Stability', '',
