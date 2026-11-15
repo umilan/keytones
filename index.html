@@ -721,6 +721,24 @@
       width: 20px; height: 20px; margin: 0 4px 0 0; flex-shrink: 0;
       accent-color: var(--active-bg); cursor: pointer;
     }
+    /* ⓘ after each Settings label: hover (mouse) or tap shows an explanation */
+    .sp-info {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 15px; height: 15px; margin-left: 5px; vertical-align: 1px;
+      border-radius: 50%; border: 1px solid var(--dim); color: var(--dim);
+      font: 700 10px/1 Georgia, serif; font-style: italic; letter-spacing: 0;
+      cursor: help; -webkit-tap-highlight-color: transparent;
+    }
+    .sp-info.on { border-color: var(--text); color: var(--text); }
+    #sp-tip {
+      position: fixed; z-index: 100; max-width: 260px;
+      padding: 8px 10px; border-radius: var(--radius);
+      background: #22222e; border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      font-family: monospace; font-size: 11px; line-height: 1.45; color: var(--text);
+      pointer-events: none;
+    }
+    #sp-tip[hidden] { display: none; }
     .sp-swatch {
       width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
       border: 1px solid rgba(255,255,255,0.18);
@@ -774,7 +792,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.49</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.50</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -848,6 +866,7 @@
 </div>
 
 <!-- settings panel -->
+<div id="sp-tip" hidden></div>
 <div id="settings-panel">
   <div class="sp-header">
     <span class="sp-title">Settings</span>
@@ -919,7 +938,6 @@
       <span class="sp-value" id="stability-value"></span>
       <input type="range" class="sp-range" id="stability-range" min="1" max="6" step="1">
     </div>
-    <div class="sp-status">Gate: lower hears quieter sound. Confidence: higher accepts only clean notes. Stability: frames a note must hold. Speed: faster reacts sooner but low notes and chords get less accurate.</div>
     <div class="sp-row"><button class="sp-reset" id="detection-reset">Reset detection</button></div>
 
     <div class="sp-divider"></div>
@@ -976,7 +994,6 @@
       <span class="sp-value" id="natural-range-value"></span>
       <input type="range" class="sp-range" id="natural-range" min="0" max="100" step="1" value="3">
     </div>
-    <div class="sp-status">Sounding and newest notes colour the app and the controllers. Pad press and idle pads: Launchpad only.</div>
     <div class="sp-row"><button class="sp-reset" id="colors-reset">Reset colors</button></div>
 
     <div class="sp-divider"></div>
@@ -3827,6 +3844,73 @@ function initEdgeSwipeOpen(panel, open) {
   document.addEventListener('touchcancel', end, { capture: true, passive: true });
 }
 
+const SETTING_INFO = {
+ "Detection": "1 oct: the Launchpad lights every octave of a detected note. Full range: it also marks the exact octave you played (the newest note's exact pad, and its key, glow in the Newest notes colour).",
+ "Algorithm": "How pitch is detected. M1–M5 find one note at a time (singing, single notes). P1–P4 can find several notes at once (chords) but make more mistakes. T1 is a test that walks through all 12 notes. OFF stops detection.",
+ "Gain": "Boosts or cuts the mic signal before detection. Raise it if quiet playing isn't picked up; the level fill in the mic badge and in Noise gate shows the result.",
+ "Speed": "How quickly detection reacts. Faster checks more often and listens to shorter pieces of sound, so notes appear sooner, but low notes and chords get less accurate. Shown: time between checks.",
+ "Noise gate": "Sound quieter than this is ignored. The bar shows your live input level: green gets through, grey is blocked. Set it just below your normal playing level.",
+ "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
+ "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
+ "View": "What fills the main area: the note bars, or an on-screen Launchpad that shows exactly what a real one would, and can be played.",
+ "Decay": "How fast the bars and glows shrink once a note has stopped, per second. 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
+ "Bar opacity = confidence": "With the mic on, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
+ "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
+ "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
+ "C pads": "Idle colour of every C on the Launchpad / Launchkey, as an anchor to find octaves. none makes them like the other pads.",
+ "Pad press": "Colour of a Launchpad pad while you press it. none = pads don't light up when pressed.",
+ "Idle ♯/♭ pads": "Brightness of the sharp/flat pads on the Launchpad while nothing is playing.",
+ "Idle natural pads": "Brightness of the natural-note pads on the Launchpad while nothing is playing.",
+ "Mic": "Listen to the microphone and detect notes. Off = only notes you play are shown.",
+ "Phone call mode": "On: the phone's call processing (echo cancellation, noise suppression, auto volume) — the mic picks up less of the app's own sound, but quality is lower. Off: clean, full-quality input (best for detection).",
+ "Sound": "Waveform of the sound the app plays when you press keys or pads.",
+ "Sound octave": "Octave of the sound the app plays when you press the on-screen keys (Z/X on a keyboard change it too).",
+ "Audio in": "Which microphone to use. If not chosen, the device's built-in mic is picked.",
+ "Audio out": "Which speakers/headphones to play through (not available on iPhone, which decides itself).",
+ "MIDI in": "MIDI device whose notes are shown and played (e.g. a keyboard or Launchpad). Picked automatically for a Launchpad / Launchkey.",
+ "MIDI in channel": "Only accept notes from this MIDI channel; omni accepts all.",
+ "MIDI out": "MIDI device the app sends to. A Launchpad / Launchkey gets its pads lit; other devices get the notes.",
+ "MIDI out channel": "MIDI channel for notes sent to a regular MIDI device.",
+ "MIDI out transpose": "Shifts the octave of notes sent to a regular MIDI device.",
+ "MIDI monitor in console": "Log every incoming and outgoing MIDI message to the browser console, for troubleshooting."
+};
+
+/* add an ⓘ after every Settings label that has an explanation; hover (mouse)
+   or tap shows it in a floating tip, tap again / elsewhere / scroll hides it */
+function initSettingInfo() {
+  const tip = document.getElementById('sp-tip');
+  let current = null;
+  const hide = () => { tip.hidden = true; current?.classList.remove('on'); current = null; };
+  const show = icon => {
+    if (current && current !== icon) current.classList.remove('on');
+    current = icon; icon.classList.add('on');
+    tip.textContent = icon.dataset.info; tip.hidden = false;
+    const r = icon.getBoundingClientRect(), w = Math.min(260, window.innerWidth - 16);
+    tip.style.maxWidth = w + 'px';
+    const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left - 12));
+    tip.style.left = left + 'px';
+    const below = r.bottom + 6, h = tip.offsetHeight;
+    tip.style.top = (below + h > window.innerHeight - 8 ? r.top - h - 6 : below) + 'px';
+  };
+  document.querySelectorAll('#settings-panel .sp-label').forEach(label => {
+    const text = SETTING_INFO[label.textContent.trim()];
+    if (!text) return;
+    const icon = document.createElement('span');
+    icon.className = 'sp-info'; icon.textContent = 'i'; icon.dataset.info = text;
+    icon.setAttribute('role', 'button'); icon.setAttribute('aria-label', 'About ' + label.textContent.trim());
+    label.appendChild(icon);
+    icon.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') show(icon); });
+    icon.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+    icon.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation(); // don't toggle the label's control
+      if (current === icon && e.pointerType !== 'mouse') hide(); else show(icon);
+    });
+  });
+  document.addEventListener('pointerdown', e => { if (current && !e.target.closest('.sp-info')) hide(); }, true);
+  document.querySelector('#settings-panel .sp-body')?.addEventListener('scroll', hide, { passive: true });
+  document.getElementById('settings-panel').addEventListener('scroll', hide, { passive: true });
+}
+
 function initSettings() {
   const btn      = document.getElementById('settings-btn');
   const panel    = document.getElementById('settings-panel');
@@ -3874,6 +3958,7 @@ function initSettings() {
   document.getElementById('wave-select').addEventListener('change', e => { setWaveType(e.target.value); });
 
   initDetectionControls();
+  initSettingInfo();
 
   const confCheck = document.getElementById('conf-opacity-check');
   confCheck.checked = confOpacity;
