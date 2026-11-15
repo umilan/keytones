@@ -251,6 +251,7 @@
       font-family: monospace; font-size: clamp(6px, 1.6vmin, 10px); line-height: 1.05;
       color: var(--lp-led, rgba(255,255,255,0.35)); pointer-events: none;
     }
+    .lp-cell.btn[data-led="19"]::after { font-size: clamp(11px, 3.4vmin, 20px); } /* reset ✕ */
     .lp-cell.logo { background: #2a2a34; border-radius: 3px; cursor: default; }
 
     .bar-col {
@@ -747,7 +748,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.40</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.41</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2971,7 +2972,7 @@ function paintLaunchpadWaveButtons(output) {
     const [r, g, b] = isSelected ? LP_RGB_APP_ACTIVE : LP_RGB_WAVE_DIM;
     setLaunchpadRGB(output, cc, r, g, b);
   });
-  LP_CC_STOP_SOLO_MUTE.forEach(cc => setLaunchpadRGB(output, cc, ...PALETTE.purple.lp)); // reset button — purple
+  LP_CC_STOP_SOLO_MUTE.forEach(cc => setLaunchpadRGB(output, cc, ...PALETTE.white.lp)); // reset button — white
 }
 
 function setWaveType(type) {
@@ -3317,7 +3318,7 @@ function buildLpView() {
   add(0, 'logo');
   for (let row = 8; row >= 1; row--) {
     for (let col = 1; col <= 8; col++) add(row * 10 + col);
-    add(row * 10 + 9, 'btn', row === 1 ? 'Stop Solo Mute' : '›');
+    add(row * 10 + 9, 'btn', row === 1 ? '✕' : '›'); // Stop Solo Mute = reset
   }
 }
 
