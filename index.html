@@ -165,6 +165,7 @@
     #topbar.tight .mic-badge  { padding-left: 8px; padding-right: 8px; gap: 6px; }
     #topbar.tiny .app-version { display: none; } /* last resort, very narrow phones only */
     #topbar.tiny { gap: 5px; padding: 0 6px; } /* room for the view toggle on 320px phones */
+    #topbar.micro .mic-badge { display: none; } /* narrowest phones: the title's status dot + mute button carry it */
     .app-title-accent { color: var(--active-bg); } /* same red as the bars */
     /* bumped before every push to main — see CLAUDE.md */
     .app-version {
@@ -374,6 +375,10 @@
       border-color: var(--border-active);
     }
 
+    /* status light, left of the app title: grey = detection off, green =
+       listening, orange = hearing a note, red = no input */
+    .app-title .mic-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
+    #topbar.compact .app-title .mic-dot { margin-right: 6px; }
     .mic-dot {
       width: 7px; height: 7px;
       border-radius: 50%;
@@ -616,7 +621,7 @@
     .black-key .key-kb   { font-size: var(--ui-font-size); color: rgba(255,255,255,0.24); }
 
     /* ── SETTINGS BUTTON ─────────────────── */
-    #settings-btn, #view-btn {
+    #settings-btn, #view-btn, #mute-btn {
       width: var(--ctrl-size); height: var(--ctrl-size);
       background: var(--surface);
       border: 1px solid var(--surface-strong);
@@ -631,12 +636,16 @@
       -webkit-tap-highlight-color: transparent;
       position: relative;
     }
-    #view-btn:active,
+    #view-btn:active, #mute-btn:active,
     #settings-btn:active, #settings-btn.active {
       background: var(--surface-hover);
       border-color: var(--border-active);
       color: var(--text);
     }
+    /* mute: mic icon while listening, crossed-out mic (in the error red) when muted */
+    #mute-btn .mb-off, #mute-btn.muted .mb-on { display: none; }
+    #mute-btn.muted .mb-off { display: block; }
+    #mute-btn.muted { color: var(--err); }
     /* shows the icon of the view a tap switches TO */
     #view-btn .vb-keys, #view-btn.lp .vb-grid { display: none; }
     #view-btn.lp .vb-keys { display: block; }
@@ -922,20 +931,28 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.83</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.84</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
     </div>
 
     <div class="mic-badge" id="mic-badge" title="Click to toggle mic listening">
-      <div class="mic-dot" id="mic-dot"></div>
       <div class="mic-status-text" id="mic-status">MUTED</div>
     </div>
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
       <span class="decay-val" id="gain-val">0dB</span>
     </div>
+
+    <button id="mute-btn" type="button" title="Mute — stop listening" aria-label="Mute" aria-pressed="false">
+      <svg class="mb-on" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>
+      </svg>
+      <svg class="mb-off" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 9v2a3 3 0 0 0 5.1 2.1M15 9.3V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 11.5 5.4M19 11a7 7 0 0 1-.6 2.8M12 18v3M3 3l18 18"/>
+      </svg>
+    </button>
 
     <button id="view-btn" type="button" title="Switch to Launchpad view" aria-label="Switch to Launchpad view">
       <svg class="vb-grid" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -2953,6 +2970,13 @@ function setMode(newMode) {
   else                    stopMic();
   const sel = document.getElementById('mic-onoff-select');
   if (sel) sel.value = mode === 'outside' ? 'on' : 'off';
+  const mb = document.getElementById('mute-btn');
+  if (mb) {
+    const muted = mode !== 'outside';
+    mb.classList.toggle('muted', muted); mb.setAttribute('aria-pressed', String(muted));
+    mb.title = muted ? 'Unmute — start listening' : 'Mute — stop listening';
+    mb.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
+  }
   updateOffRows();
   paintLatestKey();
   for (let i = 0; i < 12; i++) paintExactKey(i);
@@ -4721,7 +4745,7 @@ function initPanelSwipe(panel, close) {
 
 /* compact top bar only when the full one would overflow — measured, so it
    follows the real widths (fonts, version length, settings panel open) */
-const TOPBAR_LEVELS = ['compact', 'tight', 'tiny']; // each one adds to the previous
+const TOPBAR_LEVELS = ['compact', 'tight', 'tiny', 'micro']; // each one adds to the previous
 
 function fitTopbar() {
   const bar = document.getElementById('topbar');
@@ -5201,6 +5225,9 @@ function build() {
   applyLayout();
 
   document.getElementById('mic-badge').addEventListener('click', () =>
+    setMode(mode === 'outside' ? 'inner' : 'outside')
+  );
+  document.getElementById('mute-btn').addEventListener('click', () =>
     setMode(mode === 'outside' ? 'inner' : 'outside')
   );
   document.getElementById('app-title').addEventListener('click', reset);
