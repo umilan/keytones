@@ -514,14 +514,17 @@
       padding-bottom: 8px;
       -webkit-tap-highlight-color: transparent;
       touch-action: none;
-      transition: filter 0.06s ease, transform 0.06s ease;
+      /* colour changes cross-fade (newest ↔ sounding ↔ idle)… */
+      transition: filter 0.06s ease, transform 0.06s ease, background-color 0.4s ease;
     }
+    /* …but pressing a key lights it at once (releasing still fades) */
+    .white-key.pressed, .black-key.pressed { transition: filter 0.06s ease, transform 0.06s ease; }
 
     /* white key — piano cream */
     .white-key {
       z-index: 1;
       gap: 2px;
-      background: linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%);
+      background: linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA;
       border: 0px solid rgba(0,0,0,0.28);
     }
 
@@ -529,7 +532,7 @@
     .black-key {
       z-index: 2;
       gap: 1px;
-      background: linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%);
+      background: linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%) #232333;
       border: 0px solid rgba(0,0,0,0.5);
 
     }
@@ -571,8 +574,8 @@
     .white-key.pressed::after, .black-key.pressed::after { opacity: 0 !important; }
     /* full range detection: a detected note's key glows in the Exact octave
        colour, fading like its exact-octave Launchpad pad */
-    .white-key.exact.exact-latest::after { background: var(--latest-bg); }
-    .black-key.exact.exact-latest::after { background: var(--latest-bg2); }
+    .white-key.exact.exact-latest::after { background: var(--key-new, var(--latest-bg)); }
+    .black-key.exact.exact-latest::after { background: var(--key-new2, var(--latest-bg2)); }
 
     /* Bars show: Live / Chroma with the mic on — the keys mirror the bars
        exactly: yellow = the bars' yellow notes, red = the other sounding ones */
@@ -583,8 +586,9 @@
     .white-key.live-strong .key-name, .black-key.live-strong .key-name { color: rgba(30,25,50,0.70); }
 
     /* Settings > Latest note — the most recent mic-detected note */
-    .white-key.latest { background: var(--latest-bg); }
-    .black-key.latest { background: var(--latest-bg2); }
+    /* --key-new: Newest colour blending into Sounding as the note ages (Newest fades) */
+    .white-key.latest { background: var(--key-new, var(--latest-bg)); }
+    .black-key.latest { background: var(--key-new2, var(--latest-bg2)); }
     .white-key.latest::after, .black-key.latest::after { opacity: 0; }
     .white-key.latest .key-name, .black-key.latest .key-name { color: rgba(30,25,50,0.70); }
 
@@ -918,7 +922,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.79</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.80</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1144,6 +1148,11 @@
       <label class="sp-label" for="color-detected">Sounding notes</label>
       <span class="sp-color"><span class="sp-swatch" id="color-detected-swatch"></span>
       <select class="sp-select" id="color-detected"></select></span>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="newest-fade-range">Newest fades</label>
+      <span class="sp-value" id="newest-fade-range-value"></span>
+      <input type="range" class="sp-range" id="newest-fade-range" min="0" max="5" step="0.1" value="2">
     </div>
     <div class="sp-subsection">Pads · Launchpad / Launchkey</div>
     <div class="sp-row">
@@ -1479,6 +1488,44 @@ let latestNotes = new Set();
 let latestOnsetAt = -Infinity;
 const LATEST_CHORD_MS = 250;
 
+/* Settings > Colors > Newest fades: a newest note starts in the Newest
+   colour and blends into the Sounding colour over this many seconds
+   (0 = stays Newest until another note takes over) — on the bars (Time /
+   Count), the keys and the Launchpad pads */
+const NEWEST_FADE_KEY = 'keytones-newest-fade-v1';
+const NEWEST_FADE_DEFAULT = 2;
+let newestFadeS = NEWEST_FADE_DEFAULT;
+try { const v = localStorage.getItem(NEWEST_FADE_KEY); if (v !== null && isFinite(+v)) newestFadeS = +v; } catch (e) { /* storage unavailable */ }
+const latestSince = new Map(); // note name -> when it became newest
+
+/* 1 = just became newest … 0 = fully faded into the Sounding colour */
+function newness(i) {
+  if (!latestNotes.has(i)) return 0;
+  if (newestFadeS <= 0 || colors.detected === 'none') return 1;
+  return Math.max(0, 1 - (performance.now() - (latestSince.get(i) ?? 0)) / 1000 / newestFadeS);
+}
+/* 'r,g,b' of note i's newest colour right now (dark = black-key shade) */
+function newestRgb(i, dark = false) {
+  const t = newness(i), a = webOf(colors.latest), b = webOf(colors.detected === 'none' ? colors.latest : colors.detected);
+  return a.map((c, k) => Math.round((b[k] + (c - b[k]) * t) * (dark ? 0.88 : 1))).join(',');
+}
+
+let agingRaf = null, agingHwAt = 0;
+function kickAging() {
+  if (!agingRaf && newestFadeS > 0 && latestColor !== 'none') agingRaf = requestAnimationFrame(agingFrame);
+}
+function agingFrame(t) {
+  agingRaf = null;
+  const active = [...latestNotes].some(i => newness(i) > 0);
+  paintLatestKey();
+  render();
+  if (lpOn() && (t - agingHwAt >= 50 || !active)) { // pads at most every 50 ms (MIDI), and once more at the end
+    agingHwAt = t;
+    for (const i of latestNotes) paintLaunchpadNoteFade(i);
+  }
+  if (active) agingRaf = requestAnimationFrame(agingFrame);
+}
+
 /* Launchpad / Launchkey colours that follow Settings > COLORS (see applyColors) */
 let LP_RGB_NOTE       = lpOf(colors.detected);   // note highlighted by the app (mic, on-screen key, chroma test); null = none
 let LP_RGB_APP_ACTIVE = LP_RGB_NOTE || LP_RGB_UI_NEUTRAL; // the same colour for the side/top buttons, never null
@@ -1527,11 +1574,16 @@ function setColor(role, name) {
   try { localStorage.setItem(COLORS_KEY, JSON.stringify(colors)); } catch (e) { /* storage unavailable */ }
   applyColors();
   repaintColors();
+  if (typeof updateOffRows === 'function' && document.getElementById('gain-ctrl')) updateOffRows();
 }
 
 function setLatestNotes(notes) {
   const prev = latestNotes;
   latestNotes = new Set(notes);
+  const now = performance.now();
+  for (const n of latestNotes) if (!prev.has(n)) latestSince.set(n, now);
+  for (const n of [...latestSince.keys()]) if (!latestNotes.has(n)) latestSince.delete(n);
+  kickAging();
   paintLatestKey();
   // the latest notes are shown on the controllers too (like their keys and
   // bars), so every note that joined or left the set is repainted
@@ -1571,7 +1623,13 @@ function keysMirrorBars() {
 function paintLatestKey() {
   // full range: the latest note fades like the others (see paintExactKey), so no solid key
   const show = latestColor !== 'none' && !lpFullRangeDetection && !keysMirrorBars();
-  for (let i = 0; i < 12; i++) keyEls[i]?.classList.toggle('latest', show && latestNotes.has(i));
+  for (let i = 0; i < 12; i++) {
+    keyEls[i]?.classList.toggle('latest', show && latestNotes.has(i));
+    if (keyEls[i] && latestNotes.has(i) && latestColor !== 'none') { // Newest fades: yellow → red
+      keyEls[i].style.setProperty('--key-new', `rgb(${newestRgb(i)})`);
+      keyEls[i].style.setProperty('--key-new2', `rgb(${newestRgb(i, true)})`);
+    }
+  }
 }
 
 let pendingNote  = -1;
@@ -2019,6 +2077,8 @@ const OFF_ROWS = {
                         ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'Audio file'}. Phone call mode only changes how the microphone is opened.` : '',
   'audio-in-select': () => listenSource === 'app' || listenSource === 'file'
                         ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'Audio file'}. Audio in picks the microphone.` : '',
+  'newest-fade-range': () => colors.latest === 'none' ? 'Not used: Newest notes is set to none.'
+                           : colors.detected === 'none' ? 'Not used: Sounding notes is set to none, so there is no colour to fade into.' : '',
   'bars-select': () => currentView === 'launchpad' ? 'Not used in the LP view, which shows pads instead of bars. Switch View to Piano or Pi-auto.' : '',
   'conf-opacity-check': () =>
       currentView === 'launchpad' ? 'Not used in the LP view, which shows pads instead of bars.'
@@ -3033,8 +3093,9 @@ function renderPaView(availH) {
     const ratio = scale > 0 ? Math.min(1, vals[i] / scale) : 0;
     c.bar.style.height = Math.round(ratio * availH) + 'px';
     const isYellow = latestColor !== 'none' && yellow.has(c.midi) && ratio > 0;
-    c.bar.style.background = isYellow ? 'var(--latest-bg)' : barColor(ratio);
-    c.bar.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
+    const yRgb = isYellow ? (barsShow === 'time' || barsShow === 'count' ? newestRgb(c.pc) : webRgb(latestColor)) : null;
+    c.bar.style.background = isYellow ? `rgb(${yRgb})` : barColor(ratio);
+    c.bar.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), yRgb) : barGlow(ratio);
     // Bar opacity = confidence: Time / Count with detection on (mic, app sound or file) — per real note
     c.bar.style.opacity = confOpacity && mode === 'outside' && (barsShow === 'time' || barsShow === 'count') && absConf[c.midi] >= 0 ? absConf[c.midi].toFixed(2) : '';
     const lab = showLabels ? labels[i] : '';
@@ -3129,8 +3190,11 @@ function render() {
     const ratio = scale > 0 ? Math.min(1, vals[i] / scale) : 0;
     barEl.style.height     = Math.round(ratio * availH) + 'px';
     const isYellow = latestColor !== 'none' && yellow.has(i) && ratio > 0;
-    barEl.style.background = isYellow ? 'var(--latest-bg)' : barColor(ratio);
-    barEl.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
+    // Time / Count: yellow = newest, which fades into the Sounding colour (Newest fades);
+    // Live / Chroma: yellow means strongest / detected, so it stays yellow
+    const yRgb = isYellow ? (barsShow === 'time' || barsShow === 'count' ? newestRgb(i) : webRgb(latestColor)) : null;
+    barEl.style.background = isYellow ? `rgb(${yRgb})` : barColor(ratio);
+    barEl.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), yRgb) : barGlow(ratio);
     // Settings > Bar opacity = confidence: the bar is as opaque as the last
     // detection of that note was certain (mic mode, Time / Count — Live
     // already shows confidence as the height)
@@ -3825,7 +3889,8 @@ function paintLaunchpadNoteFade(noteIdx) {
   const baseIdx = ((noteIdx - lpTranspose) % 12 + 12) % 12;
   const t = lpNoteBrightness[noteIdx] || 0;
   const idle   = lpBacklightColorForNote(baseIdx);
-  const latest = isLatestShown(noteIdx) ? lpOf(latestColor) : null;
+  let latest = isLatestShown(noteIdx) ? lpOf(latestColor) : null;
+  if (latest && LP_RGB_NOTE) latest = lpBlendColor(LP_RGB_NOTE, latest, newness(noteIdx)); // Newest fades
   // full range detection: the exact-octave pad carries the Latest note colour
   // (or Exact octave for a note that isn't the latest); the note's other
   // octaves keep the plain Notes colour. Otherwise every octave of the latest
@@ -4643,7 +4708,18 @@ function initColorControls() {
     sel.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join('');
     sel.addEventListener('change', e => { setColor(role, e.target.value); sync(); });
   });
+  const fade = document.getElementById('newest-fade-range');
+  const setFade = v => {
+    newestFadeS = Math.max(0, Math.min(5, v));
+    fade.value = newestFadeS;
+    setRangeLabel('newest-fade-range', newestFadeS > 0 ? newestFadeS.toFixed(1) + ' s' : 'off');
+    try { localStorage.setItem(NEWEST_FADE_KEY, String(newestFadeS)); } catch (e) { /* storage unavailable */ }
+    kickAging(); paintLatestKey(); render();
+  };
+  fade.addEventListener('input', () => setFade(+fade.value));
+  setFade(newestFadeS);
   document.getElementById('colors-reset').addEventListener('click', () => {
+    setFade(NEWEST_FADE_DEFAULT);
     roles.forEach(role => { colors[role] = COLOR_DEFAULTS[role]; });
     setColor('detected', COLOR_DEFAULTS.detected); // saves + repaints everything
     setPadGlow('halftone', HALFTONE_GLOW_DEFAULT);
@@ -4847,6 +4923,7 @@ const SETTING_INFO = {
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses (e.g. close notes, harmonics). In Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
+ "Newest fades": "How long a newest note takes to blend from the Newest colour into the Sounding colour, on the bars (Time / Count), keys and pads. off = it stays in the Newest colour until another note takes over.",
  "C pads": "Idle colour of every C on the Launchpad / Launchkey, as an anchor to find octaves. none makes them like the other pads.",
  "Pad press": "Colour of a Launchpad pad while you press it. none = pads don't light up when pressed.",
  "Idle ♯/♭ pads": "Brightness of the sharp/flat pads on the Launchpad while nothing is playing.",
