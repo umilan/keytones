@@ -861,6 +861,13 @@
       padding: 6px 10px; cursor: pointer; margin-left: auto;
     }
 
+    /* a setting that has no effect right now (e.g. Gain while listening to a
+       file): greyed out, its controls inert; hovering / tapping the row shows why */
+    .sp-row.sp-off { cursor: not-allowed; }
+    .sp-row.sp-off > :not(.sp-label) { opacity: 0.35; pointer-events: none; }
+    .sp-row.sp-off > .sp-label { opacity: 0.5; }
+    .decay-ctrl.off { opacity: 0.35; cursor: not-allowed; }
+
     /* Settings > Detection: audio file player (Listen to: Audio file) */
     .fp-box { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; margin: 2px 0 4px;
               border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); background: rgba(255,255,255,0.02); }
@@ -907,7 +914,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.77</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.78</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1944,7 +1951,7 @@ function loadAudioFile(file) {
   document.getElementById('fp-name').textContent = fileName;
   ['fp-back', 'fp-play', 'fp-fwd', 'fp-seek'].forEach(id => { document.getElementById(id).disabled = false; });
   // listen to it: switch the input and make sure detection is on
-  if (mode !== 'outside') { listenSource = 'file'; document.getElementById('listen-select').value = 'file'; document.getElementById('file-player').hidden = false; setMode('outside'); }
+  if (mode !== 'outside') { listenSource = 'file'; document.getElementById('listen-select').value = 'file'; document.getElementById('file-player').hidden = false; setMode('outside'); updateOffRows(); }
   else setListenSource('file');
   try { localStorage.setItem(LISTEN_KEY, 'mic'); } catch (e) { /* a reload has no file: start from the mic */ }
   updateFilePlayer();
@@ -1993,7 +2000,63 @@ function setListenSource(v) {
   try { localStorage.setItem(LISTEN_KEY, listenSource === 'file' ? 'mic' : listenSource); } catch (e) { /* storage unavailable */ }
   const sel = document.getElementById('listen-select'); if (sel) sel.value = listenSource;
   document.getElementById('file-player').hidden = listenSource !== 'file'; // the player only with Listen to: Audio file
+  updateOffRows();
   if (mode === 'outside') { stopMic(); startMic(); } // detection on: reconnect with the new input (also retries after a failed mic)
+}
+
+/* ── SETTINGS THAT DON'T APPLY RIGHT NOW ──────────────────────────────
+   Rows whose setting is bypassed in the current state are disabled, and
+   hovering / tapping them says why. Re-evaluated whenever the state that
+   decides it changes (Listen to, View, Bars show, detection on/off). */
+const OFF_ROWS = {
+  'gain-db-select': () => listenSource === 'app'  ? 'Not used: Listen to is App sound, which goes into the detector at a fixed level. Gain only affects the microphone.'
+                        : listenSource === 'file' ? 'Not used: Listen to is Audio file, which goes into the detector at a fixed level. Gain only affects the microphone.' : '',
+  'call-mode-select': () => listenSource === 'app' || listenSource === 'file'
+                        ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'Audio file'}. Phone call mode only changes how the microphone is opened.` : '',
+  'audio-in-select': () => listenSource === 'app' || listenSource === 'file'
+                        ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'Audio file'}. Audio in picks the microphone.` : '',
+  'bars-select': () => currentView === 'launchpad' ? 'Not used in the LP view, which shows pads instead of bars. Switch View to Piano or Pi-auto.' : '',
+  'conf-opacity-check': () =>
+      currentView === 'launchpad' ? 'Not used in the LP view, which shows pads instead of bars.'
+    : barsShow === 'live'   ? 'Not used with Bars show: Live, where the bar height already is the confidence.'
+    : barsShow === 'chroma' ? 'Not used with Bars show: Chroma, which shows the sound before detection.'
+    : mode !== 'outside'    ? 'Not used while detection is off (badge): the bars come from the notes you play, which have no detection confidence.' : '',
+};
+function updateOffRows() {
+  for (const [id, why] of Object.entries(OFF_ROWS)) {
+    const ctrl = document.getElementById(id), row = ctrl?.closest('.sp-row');
+    if (!row) continue;
+    const reason = why();
+    row.classList.toggle('sp-off', !!reason);
+    row.dataset.offReason = reason;
+    ctrl.disabled = !!reason;
+  }
+  const g = document.getElementById('gain-ctrl'), gr = OFF_ROWS['gain-db-select']();
+  g.classList.toggle('off', !!gr);
+  g.title = gr || 'Drag to adjust mic gain';
+}
+
+/* hover (mouse) or tap a disabled row: the reason, in the same tip as the ⓘ */
+function initOffRowTips() {
+  const panel = document.getElementById('settings-panel'), tip = document.getElementById('sp-tip');
+  let cur = null;
+  const hide = () => { if (cur) { tip.hidden = true; cur = null; } };
+  const show = row => {
+    cur = row; tip.textContent = row.dataset.offReason; tip.hidden = false;
+    const w = Math.min(260, window.innerWidth - 16); tip.style.maxWidth = w + 'px';
+    const r = row.getBoundingClientRect(), h = tip.offsetHeight;
+    tip.style.left = Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, r.right - tip.offsetWidth)) + 'px';
+    tip.style.top = (r.bottom + 4 + h > window.innerHeight - 8 ? r.top - h - 4 : r.bottom + 4) + 'px';
+  };
+  panel.addEventListener('pointerover', e => {
+    const row = e.target.closest('.sp-row.sp-off');
+    if (row && !e.target.closest('.sp-info')) { if (row !== cur) show(row); }
+    else hide();
+  });
+  panel.addEventListener('pointerleave', hide);
+  panel.addEventListener('scroll', hide, { passive: true });
+  document.addEventListener('pointerdown', e => { if (cur && !e.target.closest('.sp-row.sp-off')) hide(); }, true);
+  // the topbar GAIN control: its own title carries the reason (native tooltip)
 }
 
 async function startMic() {
@@ -2816,6 +2879,7 @@ function setMode(newMode) {
   else                    stopMic();
   const sel = document.getElementById('mic-onoff-select');
   if (sel) sel.value = mode === 'outside' ? 'on' : 'off';
+  updateOffRows();
   paintLatestKey();
   for (let i = 0; i < 12; i++) paintExactKey(i);
   render();
@@ -2997,6 +3061,7 @@ function setBarsShow(v) {
   try { localStorage.setItem(BARS_KEY, barsShow); } catch (e) { /* storage unavailable */ }
   const sel = document.getElementById('bars-select'); if (sel) sel.value = barsShow;
   document.getElementById('bar-area').classList.toggle('bars-now', barsShow === 'live' || barsShow === 'chroma');
+  if (typeof updateOffRows === 'function' && document.getElementById('gain-ctrl')) updateOffRows();
   paintLatestKey();
   for (let i = 0; i < 12; i++) paintExactKey(i);
   render();
@@ -3191,6 +3256,7 @@ function initScrubDrag(elId, getVal, setVal, sens = 0.4) {
   let startX = 0, startY = 0, startVal = 0;
 
   el.addEventListener('pointerdown', e => {
+    if (el.classList.contains('off')) return; // e.g. GAIN while listening to a file
     dragging = true;
     startX   = e.clientX;
     startY   = e.clientY;
@@ -4224,6 +4290,7 @@ function setView(view) {
   document.getElementById('lp-view').hidden = !lpSim;
   document.getElementById('bar-area').classList.toggle('lp-mode', lpSim);
   document.getElementById('pa-view').hidden = view !== 'piauto';
+  updateOffRows();
   document.getElementById('bar-area').classList.toggle('pa-mode', view === 'piauto');
   render();
   if (lpSim) {
@@ -4896,6 +4963,7 @@ function initSettings() {
   listenSel.value = listenSource;
   listenSel.addEventListener('change', e => setListenSource(e.target.value));
   initFilePlayer();
+  initOffRowTips();
 
   const barsSel = document.getElementById('bars-select');
   barsSel.addEventListener('change', e => setBarsShow(e.target.value));
