@@ -722,6 +722,23 @@
       width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
       border: 1px solid rgba(255,255,255,0.18);
     }
+    /* Noise gate slider doubles as a live input meter: the track fills to the
+       current mic level (after gain) — green when it gets through the gate,
+       grey when the gate is blocking it. See animateLevel(). */
+    #gate-range {
+      -webkit-appearance: none; appearance: none;
+      height: 6px; border-radius: 3px; outline: none;
+      background: #3a3a44;
+    }
+    #gate-range::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--active-bg); border: none; cursor: pointer;
+    }
+    #gate-range::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--active-bg); border: none; cursor: pointer;
+    }
     .sp-reset {
       background: var(--surface); color: var(--text);
       border: 1px solid rgba(255,255,255,0.10); border-radius: var(--radius);
@@ -754,7 +771,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.44</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.45</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2247,6 +2264,19 @@ function runDetection() {
   }
 }
 
+/* live level inside the Noise gate slider (only while Settings is open) */
+let gateMeterDb = -Infinity;
+function paintGateMeter(rmsLevel) {
+  const el = document.getElementById('gate-range');
+  if (!el || !document.getElementById('settings-panel').classList.contains('open')) return;
+  const db = rmsLevel > 0 ? 20 * Math.log10(rmsLevel) : -Infinity;
+  gateMeterDb = Math.max(db, gateMeterDb - 1.5);           // rises instantly, falls smoothly
+  const min = +el.min, max = +el.max;
+  const pct = Math.max(0, Math.min(100, (gateMeterDb - min) / (max - min) * 100));
+  const fill = gateMeterDb >= detection.gateDb ? 'rgba(0,209,124,0.85)' : 'rgba(150,148,170,0.55)';
+  el.style.background = `linear-gradient(90deg, ${fill} ${pct}%, #3a3a44 ${pct}%)`;
+}
+
 function animateLevel() {
   if (!micActive || !analyser) return;
   const tData = new Float32Array(analyser.fftSize);
@@ -2259,6 +2289,7 @@ function animateLevel() {
     `linear-gradient(90deg, transparent calc(${gatePct}% - 1px), rgba(255,214,10,0.8) calc(${gatePct}% - 1px), rgba(255,214,10,0.8) calc(${gatePct}% + 1px), transparent calc(${gatePct}% + 1px)), ` +
     `linear-gradient(90deg, ${micHearing ? 'rgba(255,140,0,0.32)' : 'rgba(0,209,124,0.28)'} ${levelPct}%, transparent ${levelPct}%), var(--surface)`;
   agcSum += levelPct; agcSamples++; // fed to agcTick() every ~10s
+  paintGateMeter(rms);
   levelRaf = requestAnimationFrame(animateLevel);
 }
 
