@@ -846,7 +846,7 @@
     .sp-row .sp-color .sp-select { width: 100%; padding-left: 32px; }
     .sp-color .sp-swatch { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; }
     /* Noise gate slider doubles as a live input meter: the track fills to the
-       current mic level (after gain) — green when it gets through the gate,
+       current mic level (after gain) — white when it gets through the gate,
        grey when the gate is blocking it. See animateLevel(). */
     #gate-range {
       -webkit-appearance: none; appearance: none;
@@ -922,7 +922,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.82</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.83</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1115,14 +1115,14 @@
       <input type="range" class="sp-range" id="gain-db-select" min="-40" max="100" step="1" value="50">
     </div>
     <div class="sp-row">
-      <label class="sp-label" for="speed-range">Speed</label>
-      <span class="sp-value" id="speed-value"></span>
-      <input type="range" class="sp-range" id="speed-range" min="1" max="5" step="1">
-    </div>
-    <div class="sp-row">
       <label class="sp-label" for="gate-range">Gate</label>
       <span class="sp-value" id="gate-value"></span>
       <input type="range" class="sp-range" id="gate-range" min="-80" max="-20" step="1">
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="speed-range">Speed</label>
+      <span class="sp-value" id="speed-value"></span>
+      <input type="range" class="sp-range" id="speed-range" min="1" max="5" step="1">
     </div>
     <div class="sp-row">
       <label class="sp-label" for="confidence-range">Confidence</label>
@@ -2907,7 +2907,7 @@ function paintGateMeter(rmsLevel) {
   gateMeterDb = Math.max(db, gateMeterDb - 1.5);           // rises instantly, falls smoothly
   const min = +el.min, max = +el.max;
   const pct = Math.max(0, Math.min(100, (gateMeterDb - min) / (max - min) * 100));
-  const fill = gateMeterDb >= detection.gateDb ? 'rgba(0,209,124,0.85)' : 'rgba(150,148,170,0.55)';
+  const fill = gateMeterDb >= detection.gateDb ? 'rgba(240,240,248,0.85)' : 'rgba(150,148,170,0.45)'; // white = gets through, grey = blocked
   el.style.background = `linear-gradient(90deg, ${fill} ${pct}%, #3a3a44 ${pct}%)`;
 }
 
@@ -4967,7 +4967,7 @@ const SETTING_INFO = {
  "Algorithm": "How pitch is detected. M1–M5 find one note at a time (singing, solo instruments). P1–P4 find several notes at once (chords, a band). Hover an algorithm button (long-press on touch) to compare them. Selected now:",
  "Gain": "Boosts or cuts the mic signal before detection. Raise it if quiet playing isn't picked up; the level fill in the mic badge and in Gate shows the result.",
  "Speed": "How quickly detection reacts. Faster checks more often and listens to shorter pieces of sound, so notes appear sooner, but low notes and chords get less accurate. Shown: time between checks.",
- "Gate": "Sound quieter than this is ignored. The bar shows your live input level: green gets through, grey is blocked. Set it just below your normal playing level.",
+ "Gate": "Sound quieter than this is ignored. The bar shows your live input level: white gets through, grey is blocked. Set it just below your normal playing level.",
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
