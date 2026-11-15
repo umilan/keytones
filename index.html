@@ -812,7 +812,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.56</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.57</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -973,7 +973,7 @@
       <input type="range" class="sp-range" id="speed-range" min="1" max="5" step="1">
     </div>
     <div class="sp-row">
-      <label class="sp-label" for="gate-range">Noise gate</label>
+      <label class="sp-label" for="gate-range">Gate</label>
       <span class="sp-value" id="gate-value"></span>
       <input type="range" class="sp-range" id="gate-range" min="-80" max="-20" step="1">
     </div>
@@ -3894,9 +3894,9 @@ function initEdgeSwipeOpen(panel, open) {
 const SETTING_INFO = {
  "Detection": "1 oct: the Launchpad lights every octave of a detected note. Full range: it also marks the exact octave you played (the newest note's exact pad, and its key, glow in the Newest notes colour).",
  "Algorithm": "How pitch is detected. M1–M5 find one note at a time (singing, single notes). P1–P4 can find several notes at once (chords) but make more mistakes. T1 is a test that walks through all 12 notes. OFF stops detection.",
- "Gain": "Boosts or cuts the mic signal before detection. Raise it if quiet playing isn't picked up; the level fill in the mic badge and in Noise gate shows the result.",
+ "Gain": "Boosts or cuts the mic signal before detection. Raise it if quiet playing isn't picked up; the level fill in the mic badge and in Gate shows the result.",
  "Speed": "How quickly detection reacts. Faster checks more often and listens to shorter pieces of sound, so notes appear sooner, but low notes and chords get less accurate. Shown: time between checks.",
- "Noise gate": "Sound quieter than this is ignored. The bar shows your live input level: green gets through, grey is blocked. Set it just below your normal playing level.",
+ "Gate": "Sound quieter than this is ignored. The bar shows your live input level: green gets through, grey is blocked. Set it just below your normal playing level.",
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area: the note bars, or an on-screen Launchpad that shows exactly what a real one would, and can be played.",
