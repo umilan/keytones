@@ -864,6 +864,7 @@
     /* Settings > Detection: audio file player (Listen to: Audio file) */
     .fp-box { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; margin: 2px 0 4px;
               border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); background: rgba(255,255,255,0.02); }
+    .fp-box[hidden] { display: none; }
     .fp-top { display: flex; align-items: center; gap: 8px; }
     .fp-name { flex: 1; min-width: 0; font-family: monospace; font-size: 11px; color: var(--dim);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -906,7 +907,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.72</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.73</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1045,7 +1046,7 @@
         <option value="file">Audio file</option>
       </select>
     </div>
-    <div class="fp-box" id="file-player">
+    <div class="fp-box" id="file-player" hidden>
       <div class="fp-top">
         <button type="button" class="sp-reset" id="fp-load">Load audio…</button>
         <span class="fp-name" id="fp-name">wav, mp3… — played into the detector</span>
@@ -1937,7 +1938,7 @@ function loadAudioFile(file) {
   document.getElementById('fp-name').textContent = fileName;
   ['fp-back', 'fp-play', 'fp-fwd', 'fp-seek'].forEach(id => { document.getElementById(id).disabled = false; });
   // listen to it: switch the input and make sure detection is on
-  if (mode !== 'outside') { listenSource = 'file'; document.getElementById('listen-select').value = 'file'; setMode('outside'); }
+  if (mode !== 'outside') { listenSource = 'file'; document.getElementById('listen-select').value = 'file'; document.getElementById('file-player').hidden = false; setMode('outside'); }
   else setListenSource('file');
   try { localStorage.setItem(LISTEN_KEY, 'mic'); } catch (e) { /* a reload has no file: start from the mic */ }
   updateFilePlayer();
@@ -1985,6 +1986,7 @@ function setListenSource(v) {
   listenSource = LISTEN_SOURCES.includes(v) ? v : 'mic';
   try { localStorage.setItem(LISTEN_KEY, listenSource === 'file' ? 'mic' : listenSource); } catch (e) { /* storage unavailable */ }
   const sel = document.getElementById('listen-select'); if (sel) sel.value = listenSource;
+  document.getElementById('file-player').hidden = listenSource !== 'file'; // the player only with Listen to: Audio file
   if (mode === 'outside') { stopMic(); startMic(); } // detection on: reconnect with the new input (also retries after a failed mic)
 }
 
