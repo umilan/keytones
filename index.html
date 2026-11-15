@@ -78,10 +78,12 @@
                          settings pushes/shrinks #app instead of overlaying it */
     }
 
-    /* while Settings is open, a tap anywhere on the app closes it (and
-       doesn't also play a key or press a button underneath) */
+    /* while Settings is open on a phone, a tap anywhere on the app closes it
+       (and doesn't also play a key or press a button underneath) */
     #app-dismiss { display: none; position: absolute; inset: 0; z-index: 50; cursor: pointer; }
-    body.sp-open #app-dismiss { display: block; }
+    /* only on phone-sized screens, where the panel covers most of the app;
+       on wider screens the app stays usable next to the open panel */
+    @media (max-width: 760px) { body.sp-open #app-dismiss { display: block; } }
 
     #app {
       position: relative;
@@ -805,7 +807,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.52</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.53</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
