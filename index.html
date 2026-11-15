@@ -807,7 +807,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.53</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.54</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1202,6 +1202,18 @@ const KEY_MAP = {};
 WHITE_KEYS.forEach(k => KEY_MAP[k.kb.toLowerCase()] = k.noteIdx);
 BLACK_KEYS.forEach(k => KEY_MAP[k.kb.toLowerCase()] = k.noteIdx);
 
+/* computer keyboard → [noteIdx, octave offset], by PHYSICAL key position
+   (e.code), so it works the same on QWERTY, QWERTZ, AZERTY…: the home row
+   A S D F G H J K L ; ' plays C D E F G A B C D E F, the row above
+   W E · T Y U · O P plays the sharps — K…' continue into the next octave */
+const KEY_CODES = {
+  KeyA: [0, 0], KeyW: [1, 0], KeyS: [2, 0], KeyE: [3, 0], KeyD: [4, 0],
+  KeyF: [5, 0], KeyT: [6, 0], KeyG: [7, 0], KeyY: [8, 0], KeyH: [9, 0],
+  KeyU: [10, 0], KeyJ: [11, 0],
+  KeyK: [0, 1], KeyO: [1, 1], KeyL: [2, 1], KeyP: [3, 1], Semicolon: [4, 1],
+  Quote: [5, 1], BracketRight: [6, 1], Backslash: [7, 1],
+};
+
 const KB_PAD  = 3;
 const KB_SEP  = 2;
 
@@ -1439,7 +1451,7 @@ function gateRms() { return Math.pow(10, detection.gateDb / 20); }
 let decayPct        = 50;   // % of value shed per second
 let decayInterval   = null;
 
-const heldKeys      = new Set();
+const heldKeys      = new Map(); // e.code -> octave the note started at
 const activeNotes   = {}; // noteIdx → { osc, gain }
 const noteStartTimes = {}; // noteIdx → Date.now() at press
 let   holdRafId     = null;
@@ -4091,31 +4103,32 @@ function build() {
   document.addEventListener('keydown', e => {
     if (e.repeat) return;
     const key = e.key.toLowerCase();
-    if (key === 'z') { shiftPreviewOctave(-1); return; }
-    if (key === 'x') { shiftPreviewOctave(1);  return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return; // leave shortcuts (Cmd+R…) alone
+    if (e.code === 'KeyZ') { shiftPreviewOctave(-1); return; }
+    if (e.code === 'KeyX') { shiftPreviewOctave(1);  return; }
     if (key === 'arrowup' || key === 'arrowdown') {
       // don't hijack native arrow-key behavior on an actually-focused control
       const el = document.activeElement;
       const isFormControl = el && (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.isContentEditable);
       if (!isFormControl) { cyclePitchAlgo(key === 'arrowdown' ? 1 : -1); return; }
     }
-    const idx = KEY_MAP[key];
-    if (idx === undefined) return;
+    const map = KEY_CODES[e.code];
+    if (!map) return;
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.isContentEditable) && el.type !== 'range' && el.type !== 'checkbox') return;
     e.preventDefault();
-    if (heldKeys.has(key)) return;
-    heldKeys.add(key);
-    const el = keyEls[idx];
-    if (el) onNoteOn(idx, el, false, previewOctave);
+    if (heldKeys.has(e.code)) return;
+    const [idx, up] = map;
+    heldKeys.set(e.code, previewOctave + up); // remember the octave it started at
+    if (keyEls[idx]) onNoteOn(idx, keyEls[idx], false, previewOctave + up);
   });
 
   document.addEventListener('keyup', e => {
-    const key = e.key.toLowerCase();
-    const idx = KEY_MAP[key];
-    heldKeys.delete(key);
-    if (idx !== undefined) {
-      const el = keyEls[idx];
-      if (el) onNoteOff(idx, el, false, previewOctave);
-    }
+    const map = KEY_CODES[e.code];
+    if (!map || !heldKeys.has(e.code)) return;
+    const oct = heldKeys.get(e.code);
+    heldKeys.delete(e.code);
+    if (keyEls[map[0]]) onNoteOff(map[0], keyEls[map[0]], false, oct);
   });
 
   /* release any mouse-held note when button is lifted anywhere on page */
