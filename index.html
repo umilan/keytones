@@ -750,6 +750,27 @@
       pointer-events: none;
     }
     #sp-tip[hidden] { display: none; }
+    /* algorithm card: hover an algorithm button (or long-press on touch), or
+       Settings > Algorithm ⓘ — what it does, star ratings, when to use it */
+    #algo-tip {
+      position: fixed; z-index: 100; width: min(300px, calc(100vw - 16px));
+      padding: 10px 12px; border-radius: var(--radius);
+      background: #22222e; border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      font-family: monospace; font-size: 11px; line-height: 1.45; color: var(--text);
+      pointer-events: none;
+    }
+    #algo-tip[hidden] { display: none; }
+    .at-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 10px; font-weight: 700; font-size: 12px; }
+    .at-head > span:first-child { white-space: nowrap; }
+    .at-badge { color: var(--active-bg); font-weight: 700; font-size: 11px; white-space: nowrap; }
+    .at-what { color: rgba(255,255,255,0.72); margin-top: 3px; }
+    .at-rows { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: center; gap: 0 14px; margin: 8px 0; }
+    .at-stars { color: #f5b301; font-size: 14px; line-height: 1.25; letter-spacing: 1px; white-space: nowrap; }
+    .at-stars i { font-style: normal; color: rgba(255,255,255,0.16); }
+    .at-note { margin-top: 4px; }
+    .at-note b { color: var(--text); }
+    .at-foot { margin-top: 6px; color: var(--dim); font-size: 10px; }
     /* grouped switch (segmented control), e.g. Settings > View */
     .sp-seg {
       display: flex; flex-shrink: 0; overflow: hidden;
@@ -816,7 +837,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.61</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.62</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -882,17 +903,17 @@
     <!-- wide-screen alternative to the compact picker above — one button per
          algorithm, current one highlighted; see initResponsiveAlgoPicker() -->
     <div class="algo-btn-group" id="algo-btn-group">
-      <button type="button" class="algo-btn" data-algo="fft" title="FFT Peak">M1</button>
-      <button type="button" class="algo-btn" data-algo="acf" title="Autocorrelation (ACF)">M2</button>
-      <button type="button" class="algo-btn" data-algo="amdf" title="AMDF">M3</button>
-      <button type="button" class="algo-btn" data-algo="yin" title="YIN">M4</button>
-      <button type="button" class="algo-btn" data-algo="mpm" title="MPM">M5</button>
-      <button type="button" class="algo-btn" data-algo="hpcp" title="HPCP">P1</button>
-      <button type="button" class="algo-btn" data-algo="nnls" title="NNLS">P2</button>
-      <button type="button" class="algo-btn" data-algo="cqtnmf" title="CQT+NMF">P3</button>
-      <button type="button" class="algo-btn active" data-algo="multif0" title="Multi-F0">P4</button>
-      <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test" title="Chromatic Sequence (Test)">T1</button>
-      <button type="button" class="algo-btn" data-algo="off" title="Detection off">OFF</button>
+      <button type="button" class="algo-btn" data-algo="fft" aria-label="FFT Peak">M1</button>
+      <button type="button" class="algo-btn" data-algo="acf" aria-label="Autocorrelation (ACF)">M2</button>
+      <button type="button" class="algo-btn" data-algo="amdf" aria-label="AMDF">M3</button>
+      <button type="button" class="algo-btn" data-algo="yin" aria-label="YIN">M4</button>
+      <button type="button" class="algo-btn" data-algo="mpm" aria-label="MPM">M5</button>
+      <button type="button" class="algo-btn" data-algo="hpcp" aria-label="HPCP">P1</button>
+      <button type="button" class="algo-btn" data-algo="nnls" aria-label="NNLS">P2</button>
+      <button type="button" class="algo-btn" data-algo="cqtnmf" aria-label="CQT+NMF">P3</button>
+      <button type="button" class="algo-btn active" data-algo="multif0" aria-label="Multi-F0">P4</button>
+      <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test" aria-label="Chromatic Sequence (Test)">T1</button>
+      <button type="button" class="algo-btn" data-algo="off" aria-label="Detection off">OFF</button>
     </div>
   </div>
 
@@ -904,6 +925,7 @@
 
 <!-- settings panel -->
 <div id="sp-tip" hidden></div>
+<div id="algo-tip" hidden></div>
 <div id="settings-panel">
   <div class="sp-header">
     <span class="sp-title">Settings</span>
@@ -3988,9 +4010,123 @@ function initEdgeSwipeOpen(panel, open) {
   document.addEventListener('touchcancel', end, { capture: true, passive: true });
 }
 
+/* ── ALGORITHM CARDS ─────────────────────────────────────────────────────
+   Star ratings come from the detection bench (bench/, synthetic test clips,
+   default settings, v1.60 — see bench/baseline-v1.60.md, band-v1.60.md):
+   single notes = F1 on clean & noisy single-note clips; chords = F1 on
+   2–4-note chords; band = F1 on distorted guitar + bass + drums; speed =
+   time until a note shows + fast runs; noise = no false notes from pink
+   noise / mains hum; quiet = lowest input level that still works;
+   CPU = time per detection frame (matters on phones). */
+const ALGO_CRITERIA = [
+  ['notes', 'Single notes'], ['chords', 'Chords'], ['band', 'Full band'],
+  ['speed', 'Speed'], ['noise', 'Noise & hum'], ['quiet', 'Quiet input'], ['cpu', 'Light on CPU'],
+];
+const ALGO_INFO = {
+  fft:  { name: 'M1 FFT Peak', what: 'Takes the loudest frequency in the spectrum.',
+          stars: { notes: 3, chords: 2, band: 2, speed: 2, noise: 2, quiet: 4, cpu: 5 },
+          best: 'a quick check with a clean, whistle-like tone.',
+          watch: 'often grabs a harmonic instead of the note, is slow to settle, and reads mains hum as a note.' },
+  acf:  { name: 'M2 Autocorrelation', what: 'Finds how often the waveform repeats (one note at a time).',
+          stars: { notes: 5, chords: 1, band: 1, speed: 4, noise: 2, quiet: 5, cpu: 4 },
+          best: 'singing or a solo instrument in a quiet room.',
+          watch: 'shows notes in broadband noise (fans, wind, traffic); no chords.' },
+  amdf: { name: 'M3 AMDF', what: 'Like autocorrelation, using differences between waveform copies.',
+          stars: { notes: 5, chords: 1, band: 1, speed: 4, noise: 5, quiet: 5, cpu: 4 },
+          best: 'single notes in a noisy room.',
+          watch: 'one note at a time — shows nothing for chords or a band.' },
+  yin:  { name: 'M4 YIN', what: 'Refined autocorrelation that avoids octave mistakes — the classic tuner method.',
+          stars: { notes: 5, chords: 1, band: 1, speed: 4, noise: 5, quiet: 5, cpu: 4 },
+          badge: 'best for single notes',
+          best: 'singing, solo instruments, tuning — the most dependable single-note choice.',
+          watch: 'one note at a time — shows nothing for chords or a band (by design).' },
+  mpm:  { name: 'M5 MPM', what: 'McLeod pitch method: normalised autocorrelation, quick to react.',
+          stars: { notes: 5, chords: 1, band: 1, speed: 4, noise: 3, quiet: 5, cpu: 4 },
+          best: 'fast single-note lines.',
+          watch: 'a few false notes in noise; no chords.' },
+  hpcp: { name: 'P1 HPCP', what: 'Adds each spectral peak to its note name and the notes it could be a harmonic of.',
+          stars: { notes: 4, chords: 4, band: 3, speed: 2, noise: 5, quiet: 4, cpu: 5 },
+          best: 'the overall colour of chords and keys.',
+          watch: "doesn't know the octave, reacts slower, misses some notes in a full band." },
+  nnls: { name: 'P2 NNLS', what: 'Explains the spectrum as a mix of note templates.',
+          stars: { notes: 4, chords: 5, band: 4, speed: 3, noise: 5, quiet: 4, cpu: 5 },
+          best: 'chords and full-band audio.',
+          watch: 'now and then an extra note a fifth away; blurs fast runs.' },
+  cqtnmf: { name: 'P3 CQT+NMF', what: 'A semitone-spaced spectrum split into notes.',
+          stars: { notes: 4, chords: 5, band: 4, speed: 4, noise: 5, quiet: 4, cpu: 3 },
+          best: 'chords, including quicker chord changes.',
+          watch: 'the heaviest on CPU — may lag on older phones.' },
+  multif0: { name: 'P4 Multi-F0', what: 'Finds the strongest note, removes its harmonics, repeats — up to 4 notes.',
+          stars: { notes: 4, chords: 5, band: 5, speed: 3, noise: 5, quiet: 4, cpu: 5 },
+          badge: 'best all-rounder · default',
+          best: 'anything with chords — guitar, piano, a full band.',
+          watch: 'fast runs (8+ notes/s) blur; in a dense distorted band it sometimes shows the 9th instead of the 5th.' },
+  'chroma-test': { name: 'T1 Chromatic Sequence', what: 'Not a detector: steps through all 12 notes, 0.6 s each.',
+          best: 'checking that bars, colours and MIDI / Launchpad output light up for every note.' },
+  off:  { name: 'OFF', what: 'Pitch detection is off; nothing is detected from the mic.' },
+};
+
+function algoCardHtml(algo) {
+  const a = ALGO_INFO[algo];
+  if (!a) return '';
+  const stars = n => '★'.repeat(n) + '<i>' + '★'.repeat(5 - n) + '</i>';
+  let h = `<div class="at-head"><span>${a.name}</span>${a.badge ? `<span class="at-badge">${a.badge}</span>` : ''}</div>`;
+  h += `<div class="at-what">${a.what}</div>`;
+  if (a.stars) {
+    h += '<div class="at-rows">' + ALGO_CRITERIA.map(([k, label]) =>
+      `<span>${label}</span><span class="at-stars" aria-label="${a.stars[k]} of 5">${stars(a.stars[k])}</span>`).join('') + '</div>';
+  }
+  if (a.best)  h += `<div class="at-note"><b>Best for:</b> ${a.best}</div>`;
+  if (a.watch) h += `<div class="at-note"><b>Watch out:</b> ${a.watch}</div>`;
+  if (a.stars) h += '<div class="at-foot">Ratings from the detection bench (test recordings).</div>';
+  return h;
+}
+
+/* place a fixed tip next to an element: above it if there's room, else below */
+function placeTip(tip, el) {
+  const r = el.getBoundingClientRect();
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + 'px';
+  tip.style.top = (r.top - h - 8 >= 8 ? r.top - h - 8 : Math.min(window.innerHeight - h - 8, r.bottom + 8)) + 'px';
+}
+
+/* algorithm buttons: hover (mouse) shows the card; on touch, a long press
+   shows it without switching algorithm, and the next tap anywhere hides it */
+function initAlgoTips() {
+  const tip = document.getElementById('algo-tip');
+  let shownFor = null, pressTimer = null, longPressed = false, startX = 0, startY = 0;
+  const show = btn => {
+    tip.innerHTML = algoCardHtml(btn.dataset.algo); tip.hidden = false;
+    placeTip(tip, btn); shownFor = btn;
+  };
+  const hide = () => { tip.hidden = true; shownFor = null; };
+  document.querySelectorAll('.algo-btn').forEach(btn => {
+    btn.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') show(btn); });
+    btn.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hide(); });
+    btn.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse') { hide(); return; } // clicking picks it; the card would cover the bars
+      longPressed = false; startX = e.clientX; startY = e.clientY;
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => { longPressed = true; show(btn); }, 450);
+    });
+    btn.addEventListener('pointermove', e => {
+      if (Math.abs(e.clientX - startX) > 8 || Math.abs(e.clientY - startY) > 8) clearTimeout(pressTimer); // a drag (e.g. resizing the keyboard), not a press
+    });
+    ['pointerup', 'pointercancel'].forEach(t => btn.addEventListener(t, () => clearTimeout(pressTimer)));
+    btn.addEventListener('click', e => {
+      if (longPressed) { longPressed = false; e.stopImmediatePropagation(); e.preventDefault(); } // the long press was for the card
+    }, true);
+    btn.addEventListener('contextmenu', e => { if (e.pointerType !== 'mouse') e.preventDefault(); }); // no callout on long press
+  });
+  document.addEventListener('pointerdown', e => {
+    if (shownFor && e.pointerType !== 'mouse' && !e.target.closest('.algo-btn')) hide();
+  }, true);
+  window.addEventListener('resize', hide);
+}
+
 const SETTING_INFO = {
  "Detection": "1 oct: the Launchpad lights every octave of a detected note. Full range: it also marks the exact octave you played (the newest note's exact pad, and its key, glow in the Newest notes colour).",
- "Algorithm": "How pitch is detected. M1–M5 find one note at a time (singing, single notes). P1–P4 can find several notes at once (chords) but make more mistakes. T1 is a test that walks through all 12 notes. OFF stops detection.",
+ "Algorithm": "How pitch is detected. M1–M5 find one note at a time (singing, solo instruments). P1–P4 find several notes at once (chords, a band). Hover an algorithm button (long-press on touch) to compare them. Selected now:",
  "Gain": "Boosts or cuts the mic signal before detection. Raise it if quiet playing isn't picked up; the level fill in the mic badge and in Gate shows the result.",
  "Speed": "How quickly detection reacts. Faster checks more often and listens to shorter pieces of sound, so notes appear sooner, but low notes and chords get less accurate. Shown: time between checks.",
  "Gate": "Sound quieter than this is ignored. The bar shows your live input level: green gets through, grey is blocked. Set it just below your normal playing level.",
@@ -4028,8 +4164,17 @@ function initSettingInfo() {
   const show = icon => {
     if (current && current !== icon) current.classList.remove('on');
     current = icon; icon.classList.add('on');
-    tip.textContent = icon.dataset.info; tip.hidden = false;
-    const r = icon.getBoundingClientRect(), w = Math.min(260, window.innerWidth - 16);
+    if (icon.dataset.algoCard) {
+      // Settings > Algorithm: the general explanation, then the card of the selected algorithm
+      tip.innerHTML = '';
+      const p = document.createElement('div'); p.textContent = icon.dataset.info; p.style.marginBottom = '8px';
+      const card = document.createElement('div'); card.innerHTML = algoCardHtml(pitchAlgo);
+      tip.append(p, card);
+    } else {
+      tip.textContent = icon.dataset.info;
+    }
+    tip.hidden = false;
+    const r = icon.getBoundingClientRect(), w = Math.min(icon.dataset.algoCard ? 300 : 260, window.innerWidth - 16);
     tip.style.maxWidth = w + 'px';
     const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left - 12));
     tip.style.left = left + 'px';
@@ -4041,6 +4186,7 @@ function initSettingInfo() {
     if (!text) return;
     const icon = document.createElement('span');
     icon.className = 'sp-info'; icon.textContent = 'i'; icon.dataset.info = text;
+    if (label.textContent.trim() === 'Algorithm') icon.dataset.algoCard = '1';
     icon.setAttribute('role', 'button'); icon.setAttribute('aria-label', 'About ' + label.textContent.trim());
     label.appendChild(icon);
     icon.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') show(icon); });
@@ -4103,6 +4249,7 @@ function initSettings() {
 
   initDetectionControls();
   initSettingInfo();
+  initAlgoTips();
 
   const confCheck = document.getElementById('conf-opacity-check');
   confCheck.checked = confOpacity;
