@@ -747,7 +747,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.39</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.40</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2963,7 +2963,7 @@ const LP_CC_STOP_SOLO_MUTE = [19]; // side-column row 1 (bottom) — resets the 
    rest. Row order (bottom to top) matches LP_WAVE_ORDER's own order. */
 const LP_WAVE_ORDER = ['sine', 'square', 'sawtooth', 'revsaw', 'pulse25', 'pulse12', 'organ'];
 const LP_CC_WAVE = [29, 39, 49, 59, 69, 79, 89];
-const LP_RGB_WAVE_DIM = [4, 4, 40]; // dark blue — idle waveform button
+const LP_RGB_WAVE_DIM = [25, 25, 25]; // dim grey — idle waveform button, same as the idle arrows (LP_ARROW_DIM)
 
 function paintLaunchpadWaveButtons(output) {
   LP_CC_WAVE.forEach((cc, i) => {
