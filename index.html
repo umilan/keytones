@@ -886,7 +886,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.70</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.71</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1016,6 +1016,14 @@
     <div class="sp-divider"></div>
 
     <div class="sp-section-label">DETECTION</div>
+    <div class="sp-row">
+      <span class="sp-label">Listen to</span>
+      <select class="sp-select" id="listen-select">
+        <option value="mic">Mic</option>
+        <option value="app">App sound</option>
+        <option value="both">Mic + app sound</option>
+      </select>
+    </div>
     <div class="sp-row">
       <span class="sp-label">Detection</span>
       <select class="sp-select" id="detection-select">
@@ -1846,10 +1854,30 @@ function setPhoneCallMode(on) {
   if (micActive) { stopMic(); startMic(); } // reopen the mic with the new processing
 }
 
+/* Settings > Detection > Listen to — what the detector hears:
+   mic  = the microphone (default)
+   app  = the app's own synth output, routed internally (no mic, no room):
+          play keys / MIDI / pads and see exactly what each algorithm makes of
+          a known sound
+   both = the two summed
+   The app sound goes in at a fixed level, not through the mic Gain. */
+const LISTEN_KEY = 'keytones-listen-v1';
+let listenSource = 'mic';
+try { const v = localStorage.getItem(LISTEN_KEY); if (['mic', 'app', 'both'].includes(v)) listenSource = v; } catch (e) { /* storage unavailable */ }
+let appTap = null; // synth bus -> analyser, while listening to the app sound
+
+function setListenSource(v) {
+  listenSource = ['mic', 'app', 'both'].includes(v) ? v : 'mic';
+  try { localStorage.setItem(LISTEN_KEY, listenSource); } catch (e) { /* storage unavailable */ }
+  const sel = document.getElementById('listen-select'); if (sel) sel.value = listenSource;
+  if (mode === 'outside') { stopMic(); startMic(); } // detection on: reconnect with the new input (also retries after a failed mic)
+}
+
 async function startMic() {
   if (micActive) return;
   setMicUI('connecting','—','');
-  if (!navigator.mediaDevices?.getUserMedia) {
+  const useMic = listenSource !== 'app', useApp = listenSource !== 'mic';
+  if (useMic && !navigator.mediaDevices?.getUserMedia) {
     console.error('[mic] navigator.mediaDevices.getUserMedia is unavailable — insecure context (not https/localhost) or unsupported browser?');
     setMicUI('error', '—', '');
     document.getElementById('mic-status').textContent = 'N/A';
@@ -1860,8 +1888,10 @@ async function startMic() {
     // mic switches the audio session (rate, route), and a context created
     // earlier keeps the old settings and crackles. Creating it afterwards,
     // at the mic's own sample rate, keeps mic and speaker in step.
+    let stream = null;
+    if (useMic) {
     setAudioSessionType('play-and-record');
-    const stream = await navigator.mediaDevices.getUserMedia({
+    stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         // Settings > Phone call mode: the phone's call-style voice processing
         // (echo cancellation, noise suppression, auto gain) — off = clean, full-quality input
@@ -1870,7 +1900,8 @@ async function startMic() {
       },
       video: false,
     });
-    const micRate = stream.getAudioTracks()[0]?.getSettings?.().sampleRate;
+    }
+    const micRate = stream?.getAudioTracks()[0]?.getSettings?.().sampleRate;
     if (audioCtx && micRate && audioCtx.sampleRate !== micRate && !Object.keys(activeNotes).length) {
       // a context from before the mic (e.g. a key was played first) at another
       // rate: start a fresh one at the mic's rate — nothing is sounding right now
@@ -1881,20 +1912,23 @@ async function startMic() {
     // yet, and resume() would stay pending until one — resumeAudioOnGesture() finishes it
     const ac = getCtx(micRate); ac.resume().catch(() => {});
     micStream = stream;
-    micSrc    = ac.createMediaStreamSource(stream);
     micGainNode = ac.createGain();
     applyMicGain();
     analyser  = ac.createAnalyser();
     analyser.fftSize = speedLevel().fft; analyser.smoothingTimeConstant = speedLevel().smooth; // Settings > Speed
-    micSrc.connect(micGainNode);
+    if (stream) { micSrc = ac.createMediaStreamSource(stream); micSrc.connect(micGainNode); }
     micGainNode.connect(analyser);
+    if (useApp) { // Listen to: App sound — the synth's own output, straight in
+      appTap = ac.createGain(); appTap.gain.value = 1;
+      getSynthBus(ac).connect(appTap); appTap.connect(analyser);
+    }
     micActive = true; lastNote = pendingNote = -1; pendingTicks = 0;
     setMicUI('MIC ON','—','');
     detInterval = setInterval(runDetection, speedLevel().ms);
     animateLevel();
     agcSum = 0; agcSamples = 0;
     agcInterval = setInterval(agcTick, AGC_INTERVAL_MS);
-    if (!navigator.mediaDevices.ondevicechange) watchAudioDevices(); // labels are available now — may switch to the built-in mic
+    if (useMic && !navigator.mediaDevices.ondevicechange) watchAudioDevices(); // labels are available now — may switch to the built-in mic
   } catch(e) {
     console.error('[mic] getUserMedia failed:', e);
     setMicUI('error', '—', '');
@@ -1915,6 +1949,7 @@ function stopMic() {
   agcSum = 0; agcSamples = 0;
   if (micSrc)      { micSrc.disconnect();            micSrc      = null; }
   if (micGainNode) { micGainNode.disconnect();       micGainNode = null; }
+  if (appTap)      { try { synthBus?.disconnect(appTap); } catch (e) { /* already gone */ } appTap.disconnect(); appTap = null; }
   if (micStream)   { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
   setAudioSessionType('playback'); // mic off: back to full-quality media playback on iOS
   if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
@@ -2638,7 +2673,7 @@ function setMicUI(state) {
   statEl.classList.toggle('ok', isOk);
   const L = {connecting:'WAIT', listening:'LIVE', error:'N/A', off:'MUTED',
              'MIC ON':'LIVE', 'mic on':'LIVE'};
-  statEl.textContent = L[state] || state;
+  statEl.textContent = (isOk && listenSource === 'app') ? 'APP' : (L[state] || state); // Listen to: App sound
 }
 
 /* ═══════════════════════════════════════
@@ -4585,6 +4620,7 @@ const SETTING_INFO = {
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
+ "Listen to": "What the detector hears. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Detection still needs the mic switch (badge) on.",
  "Bars show": "What a bar's height means. Live: only the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
  "Bar opacity = confidence": "With the mic on and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
@@ -4705,6 +4741,10 @@ function initSettings() {
   initMouseGlide();
   initPaInput();
   initAlgoTips();
+
+  const listenSel = document.getElementById('listen-select');
+  listenSel.value = listenSource;
+  listenSel.addEventListener('change', e => setListenSource(e.target.value));
 
   const barsSel = document.getElementById('bars-select');
   barsSel.addEventListener('change', e => setBarsShow(e.target.value));
