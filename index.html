@@ -541,6 +541,14 @@
     .white-key.exact.exact-latest::after { background: var(--latest-bg); }
     .black-key.exact.exact-latest::after { background: var(--latest-bg2); }
 
+    /* Bars show: Live / Chroma with the mic on — the keys mirror the bars
+       exactly: yellow = the bars' yellow notes, red = the other sounding ones */
+    .white-key.live-strong { background: var(--latest-bg); }
+    .black-key.live-strong { background: var(--latest-bg2); }
+    .white-key.live-on     { background: var(--active-bg); }
+    .black-key.live-on     { background: var(--active-bg2); }
+    .white-key.live-strong .key-name, .black-key.live-strong .key-name { color: rgba(30,25,50,0.70); }
+
     /* Settings > Latest note — the most recent mic-detected note */
     .white-key.latest { background: var(--latest-bg); }
     .black-key.latest { background: var(--latest-bg2); }
@@ -845,7 +853,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.64</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.65</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1459,9 +1467,15 @@ function isLatestShown(noteIdx) {
   return latestColor !== 'none' && latestNotes.has(noteIdx); // mic-detected or played
 }
 
+/* Bars show > Live / Chroma with the mic on: the keys show the same notes as
+   the bars (see paintLiveKeys), not the newest-note marking */
+function keysMirrorBars() {
+  return mode === 'outside' && (barsShow === 'live' || barsShow === 'chroma');
+}
+
 function paintLatestKey() {
   // full range: the latest note fades like the others (see paintExactKey), so no solid key
-  const show = latestColor !== 'none' && !lpFullRangeDetection;
+  const show = latestColor !== 'none' && !lpFullRangeDetection && !keysMirrorBars();
   for (let i = 0; i < 12; i++) keyEls[i]?.classList.toggle('latest', show && latestNotes.has(i));
 }
 
@@ -2594,6 +2608,8 @@ function setBarsShow(v) {
   try { localStorage.setItem(BARS_KEY, barsShow); } catch (e) { /* storage unavailable */ }
   const sel = document.getElementById('bars-select'); if (sel) sel.value = barsShow;
   document.getElementById('bar-area').classList.toggle('bars-now', barsShow === 'live' || barsShow === 'chroma');
+  paintLatestKey();
+  for (let i = 0; i < 12; i++) paintExactKey(i);
   render();
 }
 
@@ -2610,7 +2626,7 @@ try { confOpacity = localStorage.getItem(CONF_OPACITY_KEY) === '1'; } catch (e) 
 function render() {
   const baH    = document.getElementById('bar-area').clientHeight;
   const availH = Math.max(baH - 4, 0); // bars can fill almost the full height
-  let vals, scale, yellow, labels;
+  let vals, scale, yellow, labels, red = new Set();
 
   if (barsShow === 'live' || barsShow === 'chroma') {
     if (barsShow === 'live' || mode !== 'outside') {
@@ -2618,9 +2634,10 @@ function render() {
       vals = Array.from({ length: 12 }, (_, i) => soundingNow(i) ? (mode === 'outside' ? Math.max(0.05, Math.min(1, noteConf[i] ?? 1)) : 1) : 0);
       const top = Math.max(...vals);
       yellow = new Set(vals.flatMap((v, i) => v > 0 && v >= top * LIVE_STRONG ? [i] : []));
+      red = new Set(vals.flatMap((v, i) => v > 0 && !yellow.has(i) ? [i] : []));
     } else {
-      vals = chromaLevel.slice();
       yellow = new Set([...Array(12).keys()].filter(soundingNow));
+      vals = chromaLevel.map((v, i) => yellow.has(i) ? Math.max(v, 0.04) : v); // a detected note always shows (its key is yellow too)
     }
     scale  = 1; // absolute: 100 % = full height
     labels = vals.map(v => v > 0.005 ? Math.round(v * 100) + '%' : '');
@@ -2658,6 +2675,16 @@ function render() {
     /* label: share of the total (Time / Count) or the level itself (Live / Chroma) */
     if (labels[i]) { pctEl.textContent = labels[i]; pctEl.classList.add('on'); }
     else           { pctEl.textContent = '';        pctEl.classList.remove('on'); }
+  }
+  paintLiveKeys(latestColor !== 'none' ? yellow : new Set(), latestColor !== 'none' ? red : new Set([...red, ...yellow]));
+}
+
+/* keys = bars in Live / Chroma (mic on); cleared in the other modes */
+function paintLiveKeys(yellow, red) {
+  const on = keysMirrorBars();
+  for (let i = 0; i < 12; i++) {
+    keyEls[i]?.classList.toggle('live-strong', on && yellow.has(i));
+    keyEls[i]?.classList.toggle('live-on', on && red.has(i) && !yellow.has(i));
   }
 }
 
@@ -3263,7 +3290,7 @@ function paintExactKey(noteIdx) {
   const el = keyEls[noteIdx];
   if (!el) return;
   const isLatest = isLatestShown(noteIdx);
-  const show = lpFullRangeDetection
+  const show = lpFullRangeDetection && !keysMirrorBars()
             && isLatest                       // full range: only the latest note is marked
             && lpNoteOctave[noteIdx] !== undefined && lpNoteBrightness[noteIdx] > 0;
   el.classList.toggle('exact', show);
