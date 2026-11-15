@@ -233,6 +233,31 @@
       container-type: size;
     }
     #lp-view[hidden] { display: none; }
+    /* Settings > View: Pi-auto — one bar per real note (C3, C4…), the range
+       grows by whole octaves to cover every note heard or played */
+    #pa-view {
+      position: absolute; inset: 0; z-index: 5;
+      display: flex; flex-direction: column; background: var(--bar-bg);
+    }
+    #pa-view[hidden] { display: none; }
+    #bar-area.pa-mode .bar-col { visibility: hidden; }  /* the 12 bars stay counted, just not drawn */
+    #pa-bars, #pa-keys { display: flex; gap: 1px; }
+    #pa-bars { flex: 1; min-height: 0; }
+    .pa-col { flex: 1; min-width: 0; position: relative; background: var(--col-bg); cursor: pointer; touch-action: none; }
+    .pa-col.black::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.25); z-index: 2; pointer-events: none; }
+    .pa-col .bar { z-index: 1; }
+    .pa-col .pct-label { font-size: 10px; top: 6px; }
+    #pa-keys { height: 30px; flex-shrink: 0; margin-top: 2px; }
+    .pa-key {
+      flex: 1; min-width: 0; position: relative; cursor: pointer; touch-action: none;
+      background: linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%);
+      border-radius: 0 0 3px 3px;
+      font: 700 9px/1 monospace; color: rgba(30,25,50,0.55);
+      display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; overflow: hidden;
+    }
+    .pa-key.black { background: linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%); color: rgba(255,255,255,0.45); }
+    .pa-key.pressed { background: var(--press-bg, var(--active-bg)); }
+    .pa-key.oct-start { box-shadow: -1px 0 0 0 rgba(255,255,255,0.35); }
     #bar-area.lp-mode { background: var(--bg); }          /* no panel colour around the grid */
     #bar-area.lp-mode .bar-col { visibility: hidden; }   /* bars stay counted, just not drawn */
     #lp-grid {
@@ -861,7 +886,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.68</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.69</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -898,7 +923,7 @@
     </button>
   </div>
 
-  <div id="bar-area"><div id="lp-view" hidden><div id="lp-grid"></div></div></div>
+  <div id="bar-area"><div id="lp-view" hidden><div id="lp-grid"></div></div><div id="pa-view" hidden><div id="pa-bars"></div><div id="pa-keys"></div></div></div>
 
   <div id="mic-strip">
     <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
@@ -964,8 +989,9 @@
     <div class="sp-row">
       <span class="sp-label">View</span>
       <div class="sp-seg" id="view-select" role="radiogroup" aria-label="View">
-        <button type="button" role="radio" data-value="bars">Bars</button>
-        <button type="button" role="radio" data-value="launchpad">Launchpad</button>
+        <button type="button" role="radio" data-value="bars">Piano</button>
+        <button type="button" role="radio" data-value="piauto">Pi-auto</button>
+        <button type="button" role="radio" data-value="launchpad">LP</button>
       </div>
     </div>
     <div class="sp-row">
@@ -1744,6 +1770,8 @@ const keyHeldOctaves = Array.from({ length: 12 }, () => new Map());
 
 function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app', padOctave = octave) {
   noteOn(noteIdx, octave);
+  absCountKeys[midiOf(noteIdx, padOctave)]++; paSee(noteIdx, padOctave);
+  if (!absHoldStart.has(midiOf(noteIdx, padOctave))) absHoldStart.set(midiOf(noteIdx, padOctave), Date.now());
   if (source !== 'pad') {
     const m = keyHeldOctaves[noteIdx]; m.set(padOctave, (m.get(padOctave) || 0) + 1);
     if (lpOn()) paintLaunchpadNoteFade(noteIdx);
@@ -1775,6 +1803,8 @@ function onNoteOn(noteIdx, el, fromMidi = false, octave = 4, source = 'app', pad
 /* note-off: fade sound, commit accumulated time (inner), send MIDI out */
 function onNoteOff(noteIdx, el, fromMidi = false, octave = 4, source = 'app', padOctave = octave) {
   noteOff(noteIdx, octave);
+  const am = midiOf(noteIdx, padOctave);
+  if (absHoldStart.has(am)) { absTimeKeys[am] += Date.now() - absHoldStart.get(am); absHoldStart.delete(am); }
   if (source !== 'pad') {
     const m = keyHeldOctaves[noteIdx], c = (m.get(padOctave) || 0) - 1;
     if (c > 0) m.set(padOctave, c); else m.delete(padOctave);
@@ -2460,6 +2490,7 @@ function runPolyDetection(sr) {
   for (const [nIdx, oct] of newActive) {
     if (!activePolyNotes.has(nIdx)) {
       outerCounts[nIdx]++;
+      absCountMic[midiOf(nIdx, oct)]++; paSee(nIdx, oct);
       if (now - (polyLastHeard[nIdx] ?? -Infinity) > LATEST_REARM_MS) newLatest.push(nIdx);
       sendMidiNote(nIdx, true, 'app', oct);
     }
@@ -2497,6 +2528,7 @@ function runDetection() {
       if (pendingTicks === detection.stability && nIdx !== lastNote) {
         if (lastNote !== -1) sendMidiNote(lastNote, false); // release the previously tracked pitch
         lastNote = nIdx; lastNoteOctave = oct; outerCounts[nIdx]++;
+        absCountMic[midiOf(nIdx, oct)]++; paSee(nIdx, oct);
         setLatestNote(nIdx);
         sendMidiNote(nIdx, true, 'app', oct); // echo the tracked pitch out to MIDI (e.g. lights the matching Launchpad pad)
         if (mode === 'outside') render();
@@ -2526,15 +2558,30 @@ function afterDetectionFrame(sr) {
   const dt = lastFrameAt ? Math.min(250, now - lastFrameAt) : 0;
   lastFrameAt = now;
   for (let i = 0; i < 12; i++) if (i === lastNote || activePolyNotes.has(i)) outerTime[i] += dt;
+  for (const m of paSoundingNow().keys()) { absTimeMic[m] += dt; paSee(m % 12, Math.floor(m / 12) - 1); }
   if (barsShow === 'chroma') measureChroma(sr);
   if (mode === 'outside') render();
+}
+
+/* Pi-auto + Chroma: the same, per real note (no folding into one octave) */
+function measureAbsChroma(mag, binHz, lo, hi) {
+  absChroma.fill(0);
+  const e = new Float64Array(128);
+  for (let b = lo; b <= hi; b++) {
+    const m = Math.round(12 * Math.log2(b * binHz / 440) + 69);
+    if (m >= 0 && m < 128) e[m] += mag[b] * mag[b];
+  }
+  const inRange = [];
+  for (let m = midiOf(0, paLo); m <= midiOf(11, paHi); m++) inRange.push(Math.sqrt(e[m]));
+  const max = Math.max(...inRange), floor = inRange.slice().sort((x, y) => x - y)[inRange.length >> 1];
+  if (max > floor) inRange.forEach((a, i) => { absChroma[midiOf(0, paLo) + i] = Math.max(0, (a - floor) / (max - floor)); });
 }
 
 /* Bars show > Chroma: the sound's energy per note name (all octaves folded
    together), straight from the spectrum — what the detectors work from */
 function measureChroma(sr) {
   chromaLevel.fill(0);
-  if (rms(getTimeFrame()) < gateRms()) return;
+  if (rms(getTimeFrame()) < gateRms()) { absChroma.fill(0); return; }
   const mag = getMagnitudeSpectrum(), binHz = sr / analyser.fftSize;
   const lo = Math.max(1, Math.floor(55 / binHz)), hi = Math.min(mag.length - 1, Math.ceil(5000 / binHz));
   const e = new Array(12).fill(0);
@@ -2544,6 +2591,7 @@ function measureChroma(sr) {
   }
   // relative to the median note name: distortion and noise spread energy over
   // all 12, so what matters is how far a note rises above that haze
+  if (currentView === 'piauto') measureAbsChroma(mag, binHz, lo, hi);
   const amp = e.map(Math.sqrt), max = Math.max(...amp);
   const floor = amp.slice().sort((x, y) => x - y)[6];
   if (max > floor) for (let i = 0; i < 12; i++) chromaLevel[i] = Math.max(0, (amp[i] - floor) / (max - floor));
@@ -2615,6 +2663,146 @@ function setMode(newMode) {
 
 /* per note: how certain the last detection of it was, 0..1 (see the detectors' conf) */
 const noteConf = {};
+/* ── PI-AUTO VIEW (Settings > View) ───────────────────────────────────
+   One bar per real note instead of per note name. The range starts as one
+   octave (12 bars); the first note heard or played decides which octave,
+   and every note outside the range adds whole octaves on that side. It
+   only grows — clicking the app title (reset) starts again from 12 bars.
+   Its data is kept per MIDI note (C4 = 60), mic and keys separately, the
+   same way the 12 bars keep theirs. */
+const PA_MIN_OCT = 1, PA_MAX_OCT = 7;
+const absTimeMic  = new Float64Array(128), absCountMic  = new Float64Array(128);
+const absTimeKeys = new Float64Array(128), absCountKeys = new Float64Array(128);
+const absChroma   = new Float64Array(128);
+const absHoldStart = new Map();            // MIDI note -> when its key went down (keys' Time)
+const lastOctOf = new Array(12).fill(null); // the octave each note name was last heard / played in
+let paLo = 4, paHi = 4, paAnchored = false, paBuilt = '', paCols = [], paKeys = [];
+
+function midiOf(pc, oct) { return 12 * (oct + 1) + pc; }
+
+/* a note was heard or played at this octave: remember it, grow the range */
+function paSee(pc, oct) {
+  if (oct === null || oct === undefined || !isFinite(oct)) return;
+  oct = Math.max(PA_MIN_OCT, Math.min(PA_MAX_OCT, oct));
+  lastOctOf[pc] = oct;
+  if (!paAnchored) { paLo = paHi = oct; paAnchored = true; }
+  else { paLo = Math.min(paLo, oct); paHi = Math.max(paHi, oct); }
+}
+
+function paReset() {
+  paAnchored = false;
+  paLo = paHi = Math.max(PA_MIN_OCT, Math.min(PA_MAX_OCT, previewOctave));
+  [absTimeMic, absCountMic, absTimeKeys, absCountKeys, absChroma].forEach(a => a.fill(0));
+  absHoldStart.forEach((_, k) => absHoldStart.set(k, Date.now()));
+}
+
+/* notes sounding right now, with their exact octave: MIDI note -> confidence */
+function paSoundingNow() {
+  const s = new Map();
+  if (mode === 'outside') {
+    if (lastNote !== -1 && lastNoteOctave !== -1) s.set(midiOf(lastNote, lastNoteOctave), Math.max(0.05, Math.min(1, noteConf[lastNote] ?? 1)));
+    for (const [pc, oct] of activePolyNotes) s.set(midiOf(pc, oct), Math.max(0.05, Math.min(1, noteConf[pc] ?? 1)));
+  } else {
+    keyHeldOctaves.forEach((m, pc) => m.forEach((_, oct) => s.set(midiOf(pc, oct), 1)));
+  }
+  return s;
+}
+
+function buildPaView() {
+  const key = paLo + '-' + paHi;
+  if (paBuilt === key) return;
+  paBuilt = key;
+  const bars = document.getElementById('pa-bars'), keys = document.getElementById('pa-keys');
+  bars.innerHTML = ''; keys.innerHTML = ''; paCols = []; paKeys = [];
+  for (let oct = paLo; oct <= paHi; oct++) {
+    for (let pc = 0; pc < 12; pc++) {
+      const midi = midiOf(pc, oct), black = NOTES[pc].includes('#');
+      const col = document.createElement('div');
+      col.className = 'pa-col' + (black ? ' black' : '');
+      col.dataset.midi = midi;
+      const pct = document.createElement('div'); pct.className = 'pct-label';
+      const bar = document.createElement('div'); bar.className = 'bar';
+      col.append(pct, bar); bars.appendChild(col);
+      const k = document.createElement('div');
+      k.className = 'pa-key' + (black ? ' black' : '') + (pc === 0 ? ' oct-start' : '');
+      k.dataset.midi = midi;
+      if (pc === 0) k.textContent = 'C' + oct;
+      keys.appendChild(k);
+      paCols.push({ midi, pc, oct, bar, pct, col }); paKeys.push(k);
+      [col, k].forEach(el => el.addEventListener('pointerdown', e => paPress(e, midi)));
+    }
+  }
+}
+
+/* the strip (and the bars above it) play the exact note; mouse glide works too */
+let paHeld = null;
+function paPress(e, midi) {
+  e.preventDefault();
+  if (paHeld !== null) paRelease();
+  paHeld = midi;
+  onNoteOn(midi % 12, keyEls[midi % 12], false, Math.floor(midi / 12) - 1);
+  render();
+}
+function paRelease() {
+  if (paHeld === null) return;
+  const midi = paHeld; paHeld = null;
+  onNoteOff(midi % 12, keyEls[midi % 12], false, Math.floor(midi / 12) - 1);
+  render();
+}
+function initPaInput() {
+  document.addEventListener('pointerup', paRelease);
+  document.addEventListener('pointercancel', paRelease);
+  document.getElementById('pa-view').addEventListener('pointermove', e => {
+    if (paHeld === null || e.pointerType !== 'mouse' || !(e.buttons & 1)) return;
+    const t = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-midi]');
+    if (!t || Number(t.dataset.midi) === paHeld) return;
+    const midi = Number(t.dataset.midi);
+    paRelease(); paHeld = midi;
+    onNoteOn(midi % 12, keyEls[midi % 12], false, Math.floor(midi / 12) - 1);
+    render();
+  });
+}
+
+function renderPaView(availH) {
+  buildPaView();
+  const now = paSoundingNow();
+  let vals, scale, yellow, red = new Set(), labels;
+  const mids = paCols.map(c => c.midi);
+  if (barsShow === 'live' || (barsShow === 'chroma' && mode !== 'outside')) {
+    vals = mids.map(m => now.get(m) || 0);
+    const top = Math.max(0, ...vals);
+    yellow = new Set(mids.filter((m, i) => vals[i] > 0 && vals[i] >= top * LIVE_STRONG));
+    mids.forEach((m, i) => { if (vals[i] > 0 && !yellow.has(m)) red.add(m); });
+    scale = 1;
+    labels = vals.map(v => v > 0.005 ? Math.round(v * 100) + '%' : '');
+  } else if (barsShow === 'chroma') {
+    yellow = new Set(now.keys());
+    vals = mids.map(m => yellow.has(m) ? Math.max(absChroma[m], 0.04) : absChroma[m]);
+    scale = 1;
+    labels = vals.map(v => v > 0.005 ? Math.round(v * 100) + '%' : '');
+  } else {
+    const t = Date.now();
+    const src = barsShow === 'count' ? (mode === 'outside' ? absCountMic : absCountKeys)
+                                     : (mode === 'outside' ? absTimeMic : absTimeKeys);
+    vals = mids.map(m => src[m] + (barsShow === 'time' && mode !== 'outside' && absHoldStart.has(m) ? t - absHoldStart.get(m) : 0));
+    scale = Math.max(0, ...vals);
+    yellow = new Set([...latestNotes].filter(pc => lastOctOf[pc] !== null).map(pc => midiOf(pc, lastOctOf[pc])));
+    const total = vals.reduce((a, b) => a + b, 0);
+    labels = vals.map(v => { const p = total > 0 ? Math.round(v / total * 100) : 0; return p > 0 ? p + '%' : ''; });
+  }
+  const showLabels = paCols.length && paCols[0].col.clientWidth >= 24;
+  paCols.forEach((c, i) => {
+    const ratio = scale > 0 ? Math.min(1, vals[i] / scale) : 0;
+    c.bar.style.height = Math.round(ratio * availH) + 'px';
+    const isYellow = latestColor !== 'none' && yellow.has(c.midi) && ratio > 0;
+    c.bar.style.background = isYellow ? 'var(--latest-bg)' : barColor(ratio);
+    c.bar.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
+    const lab = showLabels ? labels[i] : '';
+    c.pct.textContent = lab; c.pct.classList.toggle('on', !!lab);
+    paKeys[i].classList.toggle('pressed', mode !== 'outside' ? now.has(c.midi) : paHeld === c.midi);
+  });
+}
+
 /* Settings > Visualisation > Bars show — what a bar's height means:
    live   = notes sounding right now; height = detection confidence, yellow =
             the clearly strongest (≥ 75 % of the top one), red = the rest
@@ -2651,6 +2839,7 @@ try { confOpacity = localStorage.getItem(CONF_OPACITY_KEY) === '1'; } catch (e) 
 function render() {
   const baH    = document.getElementById('bar-area').clientHeight;
   const availH = Math.max(baH - 4, 0); // bars can fill almost the full height
+  if (currentView === 'piauto') renderPaView(Math.max(0, document.getElementById('pa-bars').clientHeight - 4));
   let vals, scale, yellow, labels, red = new Set();
 
   if (barsShow === 'live' || barsShow === 'chroma') {
@@ -2728,6 +2917,7 @@ function reset() {
     setMicUI('listening','—','');
   }
   setLatestNote(-1);
+  paReset(); // Pi-auto starts again from 12 bars
   for (const k in noteConf) delete noteConf[k];
   // clear the glow everywhere, not just the bars: keys, Launchpad (real and
   // on-screen) and Launchkey. Notes still being held/heard stay lit.
@@ -2754,6 +2944,11 @@ function applyDecayTick() {
     const heard = mode === 'outside' && (i === lastNote || activePolyNotes.has(i));
     if (!held)  { innerCounts[i] *= factor; innerPresses[i] *= factor; }
     if (!heard) { outerCounts[i] *= factor; outerTime[i] *= factor; }
+    for (let oct = PA_MIN_OCT; oct <= PA_MAX_OCT; oct++) { // Pi-auto's per-note values shrink the same way
+      const m = midiOf(i, oct);
+      if (!absHoldStart.has(m)) { absTimeKeys[m] *= factor; absCountKeys[m] *= factor; }
+      if (!(heard && lastOctOf[i] === oct)) { absTimeMic[m] *= factor; absCountMic[m] *= factor; }
+    }
     // the Launchpad's app-triggered red glow fades at this exact same rate,
     // but only once the note has actually stopped — held at full while playing
     if (lpNoteBrightness[i] && !lpNotePlaying[i]) {
@@ -3809,7 +4004,12 @@ function scheduleLpView() {
   });
 }
 
+let currentView = 'bars';      // 'bars' (Piano), 'piauto' or 'launchpad' (LP)
+let lastPianoView = 'bars';    // the topbar toggle returns from LP to this one
 function setView(view) {
+  if (!['bars', 'piauto', 'launchpad'].includes(view)) view = 'bars';
+  currentView = view;
+  if (view !== 'launchpad') lastPianoView = view;
   lpSim = view === 'launchpad';
   try { localStorage.setItem(VIEW_KEY, view); } catch (e) { /* storage unavailable */ }
   document.querySelectorAll('#view-select button').forEach(b => {
@@ -3818,10 +4018,13 @@ function setView(view) {
   });
   const vb = document.getElementById('view-btn');
   vb.classList.toggle('lp', lpSim);
-  vb.title = lpSim ? 'Switch to Bars view' : 'Switch to Launchpad view';
+  vb.title = lpSim ? `Switch to ${lastPianoView === 'piauto' ? 'Pi-auto' : 'Piano'} view` : 'Switch to LP view';
   vb.setAttribute('aria-label', vb.title);
   document.getElementById('lp-view').hidden = !lpSim;
   document.getElementById('bar-area').classList.toggle('lp-mode', lpSim);
+  document.getElementById('pa-view').hidden = view !== 'piauto';
+  document.getElementById('bar-area').classList.toggle('pa-mode', view === 'piauto');
+  render();
   if (lpSim) {
     if (!lpViewCells) buildLpView();
     repaintColors(); // paints the whole Launchpad (on screen, and the real one if connected)
@@ -4365,7 +4568,7 @@ const SETTING_INFO = {
  "Gate": "Sound quieter than this is ignored. The bar shows your live input level: green gets through, grey is blocked. Set it just below your normal playing level.",
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
- "View": "What fills the main area: the note bars, or an on-screen Launchpad that shows exactly what a real one would, and can be played.",
+ "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
  "Bars show": "What a bar's height means. Live: only the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
  "Bar opacity = confidence": "With the mic on and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
@@ -4484,6 +4687,7 @@ function initSettings() {
   initDetectionControls();
   initSettingInfo();
   initMouseGlide();
+  initPaInput();
   initAlgoTips();
 
   const barsSel = document.getElementById('bars-select');
@@ -4502,9 +4706,9 @@ function initSettings() {
   initColorControls();
   let view = 'bars';
   try { view = localStorage.getItem(VIEW_KEY) || 'bars'; } catch (e) { /* storage unavailable */ }
-  setView(view === 'launchpad' ? 'launchpad' : 'bars');
+  setView(view);
   document.querySelectorAll('#view-select button').forEach(b => b.addEventListener('click', () => setView(b.dataset.value)));
-  document.getElementById('view-btn').addEventListener('click', () => setView(lpSim ? 'bars' : 'launchpad'));
+  document.getElementById('view-btn').addEventListener('click', () => setView(lpSim ? lastPianoView : 'launchpad'));
   setPadGlow('halftone', lpHalftoneGlow);
   setPadGlow('natural', lpNaturalGlow);
   document.getElementById('halftone-range').addEventListener('input', e => setPadGlow('halftone', Number(e.target.value)));
