@@ -907,7 +907,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.75</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.76</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2933,12 +2933,16 @@ function renderPaView(availH) {
   let vals, scale, yellow, red = new Set(), labels;
   const mids = paCols.map(c => c.midi);
   if (barsShow === 'live' || (barsShow === 'chroma' && mode !== 'outside')) {
-    vals = mids.map(m => now.get(m) || 0);
-    const top = Math.max(0, ...vals);
-    yellow = new Set(mids.filter((m, i) => vals[i] > 0 && vals[i] >= top * LIVE_STRONG));
-    mids.forEach((m, i) => { if (vals[i] > 0 && !yellow.has(m)) red.add(m); });
+    const cur = mids.map(m => now.get(m) || 0);
+    const top = Math.max(0, ...cur);
+    yellow = new Set(mids.filter((m, i) => cur[i] > 0 && cur[i] >= top * LIVE_STRONG));
+    mids.forEach((m, i) => { if (cur[i] > 0 && !yellow.has(m)) red.add(m); });
+    if (barsShow === 'live') { // peak hold, falls with Decay
+      mids.forEach((m, i) => { absLiveShown[m] = Math.max(absLiveShown[m], cur[i]); });
+      vals = mids.map(m => absLiveShown[m]);
+    } else vals = cur;
     scale = 1;
-    labels = vals.map(v => v > 0.005 ? Math.round(v * 100) + '%' : '');
+    labels = cur.map(v => v > 0.005 ? Math.round(v * 100) + '%' : '');
   } else if (barsShow === 'chroma') {
     yellow = new Set(now.keys());
     vals = mids.map(m => yellow.has(m) ? Math.max(absChroma[m], 0.04) : absChroma[m]);
@@ -2977,6 +2981,10 @@ function renderPaView(availH) {
 const BARS_KEY = 'keytones-bars-v1';
 const BARS_MODES = ['live', 'time', 'count', 'chroma'];
 const LIVE_STRONG = 0.75;
+/* Live: a bar jumps up with its note and falls back at the Decay rate once
+   the note fades or stops (peak hold), instead of vanishing at once */
+const liveShown = new Array(12).fill(0);
+const absLiveShown = new Float64Array(128); // the same for Pi-auto
 let barsShow = 'time';
 try { const v = localStorage.getItem(BARS_KEY); if (BARS_MODES.includes(v)) barsShow = v; } catch (e) { /* storage unavailable */ }
 
@@ -3009,16 +3017,21 @@ function render() {
   if (barsShow === 'live' || barsShow === 'chroma') {
     if (barsShow === 'live' || mode !== 'outside') {
       // mic: the detector's confidence for each heard note; keys/MIDI: held = full
-      vals = Array.from({ length: 12 }, (_, i) => soundingNow(i) ? (mode === 'outside' ? Math.max(0.05, Math.min(1, noteConf[i] ?? 1)) : 1) : 0);
-      const top = Math.max(...vals);
-      yellow = new Set(vals.flatMap((v, i) => v > 0 && v >= top * LIVE_STRONG ? [i] : []));
-      red = new Set(vals.flatMap((v, i) => v > 0 && !yellow.has(i) ? [i] : []));
+      const cur = Array.from({ length: 12 }, (_, i) => soundingNow(i) ? (mode === 'outside' ? Math.max(0.05, Math.min(1, noteConf[i] ?? 1)) : 1) : 0);
+      const top = Math.max(...cur);
+      yellow = new Set(cur.flatMap((v, i) => v > 0 && v >= top * LIVE_STRONG ? [i] : []));
+      red = new Set(cur.flatMap((v, i) => v > 0 && !yellow.has(i) ? [i] : []));
+      if (barsShow === 'live') { // peak hold: falls with Decay (see applyDecayTick)
+        for (let i = 0; i < 12; i++) liveShown[i] = Math.max(liveShown[i], cur[i]);
+        vals = liveShown.slice();
+        labels = cur.map(v => v > 0.005 ? Math.round(v * 100) + '%' : ''); // the level now, not the falling one
+      } else vals = cur;
     } else {
       yellow = new Set([...Array(12).keys()].filter(soundingNow));
       vals = chromaLevel.map((v, i) => yellow.has(i) ? Math.max(v, 0.04) : v); // a detected note always shows (its key is yellow too)
     }
     scale  = 1; // absolute: 100 % = full height
-    labels = vals.map(v => v > 0.005 ? Math.round(v * 100) + '%' : '');
+    labels = labels || vals.map(v => v > 0.005 ? Math.round(v * 100) + '%' : '');
   } else {
     let counts;
     if (barsShow === 'count') counts = mode === 'inner' ? innerPresses : outerCounts;
@@ -3082,6 +3095,7 @@ function reset() {
   }
   setLatestNote(-1);
   paReset(); // Pi-auto starts again from 12 bars
+  liveShown.fill(0); absLiveShown.fill(0);
   for (const k in noteConf) delete noteConf[k];
   // clear the glow everywhere, not just the bars: keys, Launchpad (real and
   // on-screen) and Launchkey. Notes still being held/heard stay lit.
@@ -3124,9 +3138,11 @@ function applyDecayTick(dtMs = 1000, paintHw = true) {
     const heard = mode === 'outside' && (i === lastNote || activePolyNotes.has(i));
     if (!held)  { innerCounts[i] *= factor; innerPresses[i] *= factor; }
     if (!heard) { outerCounts[i] *= factor; outerTime[i] *= factor; }
+    liveShown[i] *= factor; // Live bars fall back (a sounding note pushes its bar up again in render)
     for (let oct = PA_MIN_OCT; oct <= PA_MAX_OCT; oct++) { // Pi-auto's per-note values shrink the same way
       const m = midiOf(i, oct);
       if (!absHoldStart.has(m)) { absTimeKeys[m] *= factor; absCountKeys[m] *= factor; }
+      absLiveShown[m] *= factor;
       if (!(heard && lastOctOf[i] === oct)) { absTimeMic[m] *= factor; absCountMic[m] *= factor; }
     }
     // the Launchpad's app-triggered red glow fades at this exact same rate,
@@ -4751,8 +4767,8 @@ const SETTING_INFO = {
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
  "Listen to": "What the detector hears. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers). Detection still needs the mic switch (badge) on.",
- "Bars show": "What a bar's height means. Live: only the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
- "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
+ "Bars show": "What a bar's height means. Live: the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others; a bar falls back at the Decay rate after its note stops. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
+ "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
  "Bar opacity = confidence": "With the mic on and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
