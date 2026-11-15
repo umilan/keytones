@@ -922,7 +922,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.81</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.82</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1492,6 +1492,11 @@ let latestColor = colors.latest; // 'none' or a palette name — kept as its own
 let latestNotes = new Set();
 let latestOnsetAt = -Infinity;
 const LATEST_CHORD_MS = 250;
+
+/* Settings > Colors > Transition: cross-fade time for colour changes, in s
+   (keys and bars via the --color-fade CSS variable, pads via fadeLaunchpadRGB) */
+const COLOR_FADE_DEFAULT = 0.4;
+let colorFadeS = COLOR_FADE_DEFAULT;
 
 /* Settings > Colors > Newest fades: a newest note starts in the Newest
    colour and blends into the Sounding colour over this many seconds
@@ -3909,11 +3914,11 @@ function paintLaunchpadNoteFade(noteIdx) {
   const allLatest = latest && !exactKnown;
   const active = (allLatest ? latest : LP_RGB_NOTE) || idle; // 'none' = stays idle
   const [r, g, b] = lpBlendColor(idle, active, allLatest ? tLatest : t);
-  allPadsForIndex(noteIdx).forEach(pad => setLaunchpadRGB(midiOut, pad, r, g, b));
+  allPadsForIndex(noteIdx).forEach(pad => fadeLaunchpadRGB(midiOut, pad, r, g, b, idle));
   const exactColor = exactKnown ? latest : null; // full range: only the latest note gets its exact pad marked
   if (exactColor) {
     const [pr, pg, pb] = lpBlendColor(idle, exactColor, latest ? tLatest : t);
-    lpPadsForNoteOctave(noteIdx, lpNoteOctave[noteIdx]).forEach(pad => setLaunchpadRGB(midiOut, pad, pr, pg, pb));
+    lpPadsForNoteOctave(noteIdx, lpNoteOctave[noteIdx]).forEach(pad => fadeLaunchpadRGB(midiOut, pad, pr, pg, pb, idle));
   }
   // a note held from the keys / computer keyboard / MIDI in shows as a pressed
   // pad (Pad press colour) at its exact octave — or on every pad of the note
@@ -4114,12 +4119,39 @@ function paintLaunchpadLayoutButtons(output) {
    of the 8x8 grid's simple palette-velocity scheme, so use Novation's RGB
    SysEx directly for a real gradient instead of picking from the 128-color
    palette. LED = the button's own CC/note number. */
-function setLaunchpadRGB(output, led, r, g, b) {
+function setLaunchpadRGB(output, led, r, g, b, fromFade = false) {
+  if (!fromFade) lpFades.delete(led); // a direct paint (e.g. a pad press) wins over a running cross-fade
   lpLeds[led] = [r, g, b];
   if (lpSim) scheduleLpView();
   if (!output || !launchpadProgrammerMode) return; // on-screen only (no real Launchpad selected)
   if (midiMonitorEnabled) console.log('[MIDI out] light up', led, 'rgb', r, g, b);
   output.send([0xF0, 0x00, 0x20, 0x29, 0x02, LP_DEVICE_ID, 0x03, 0x03, led, r, g, b, 0xF7]);
+}
+
+/* Settings > Colors > Transition, on the pads (real Launchpad + LP view): an
+   LED has no fade of its own, so a colour change is sent as in-between
+   colours every LP_FADE_STEP_MS over the Transition time. A pad lighting up
+   from idle (a note starting) and pad presses stay instant. */
+const LP_FADE_STEP_MS = 50;
+const lpFades = new Map(); // led -> { from, to, start, dur }
+let lpFadeTimer = null;
+const sameRgb = (a, b) => a && b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+function fadeLaunchpadRGB(output, led, r, g, b, idle) {
+  const to = [r, g, b], cur = lpLeds[led], f = lpFades.get(led), ms = colorFadeS * 1000;
+  if (f ? sameRgb(f.to, to) : sameRgb(cur, to)) return; // already there / heading there
+  if (ms <= 0 || !cur || (idle && sameRgb(cur, idle))) { setLaunchpadRGB(output, led, r, g, b); return; }
+  lpFades.set(led, { from: cur.slice(), to, start: performance.now(), dur: ms });
+  if (!lpFadeTimer) lpFadeTimer = setInterval(lpFadeStep, LP_FADE_STEP_MS);
+}
+function lpFadeStep() {
+  const now = performance.now();
+  for (const [led, f] of lpFades) {
+    const t = Math.min(1, (now - f.start) / f.dur);
+    const [r, g, b] = lpBlendColor(f.from, f.to, t);
+    setLaunchpadRGB(midiOut, led, r, g, b, true);
+    if (t >= 1) lpFades.delete(led);
+  }
+  if (!lpFades.size) { clearInterval(lpFadeTimer); lpFadeTimer = null; }
 }
 
 /* each arrow lights up on its OWN — dim neutral at rest, then red in
@@ -4715,11 +4747,11 @@ function initColorControls() {
   });
   /* Settings > Colors > Transition: how long a key or bar takes to cross-fade
      when its colour changes (pressing a key stays instant) */
-  const COLOR_FADE_KEY = 'keytones-color-fade-v1', COLOR_FADE_DEFAULT = 0.4;
+  const COLOR_FADE_KEY = 'keytones-color-fade-v1';
   const cf = document.getElementById('color-fade-range');
   const setColorFade = v => {
     v = Math.max(0, Math.min(1.5, v));
-    cf.value = v;
+    cf.value = v; colorFadeS = v; // the pads use it too (fadeLaunchpadRGB)
     document.documentElement.style.setProperty('--color-fade', v + 's');
     setRangeLabel('color-fade-range', v > 0 ? v.toFixed(2).replace(/0$/, '') + ' s' : 'off');
     try { localStorage.setItem(COLOR_FADE_KEY, String(v)); } catch (e) { /* storage unavailable */ }
@@ -4945,7 +4977,7 @@ const SETTING_INFO = {
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses (e.g. close notes, harmonics). In Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
- "Transition": "How long a key or bar takes to cross-fade when its colour changes (newest ↔ sounding ↔ idle). off = instant. Pressing a key always lights it at once.",
+ "Transition": "How long a key, bar or pad takes to cross-fade when its colour changes (newest ↔ sounding ↔ idle) — on screen and on a real Launchpad. off = instant. A note lighting up and pressing a key or pad always show at once.",
  "Newest fades": "How long a newest note takes to blend from the Newest colour into the Sounding colour, on the bars (Time / Count), keys and pads. off = it stays in the Newest colour until another note takes over.",
  "C pads": "Idle colour of every C on the Launchpad / Launchkey, as an anchor to find octaves. none makes them like the other pads.",
  "Pad press": "Colour of a Launchpad pad while you press it. none = pads don't light up when pressed.",
