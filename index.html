@@ -774,7 +774,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.48</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.49</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2417,15 +2417,13 @@ function applyDecayTick() {
   const factor = 1 - decayPct / 100;
   const now    = Date.now();
   for (let i = 0; i < 12; i++) {
-    innerCounts[i] *= factor;
-    outerCounts[i] *= factor;
-    /* a currently-held note keeps growing outside innerCounts until release —
-       fold its live elapsed time in too, decayed, then reset the clock so it
-       keeps growing from the decayed baseline instead of being decayed again */
-    if (noteStartTimes[i] !== undefined) {
-      innerCounts[i]    += (now - noteStartTimes[i]) * factor;
-      noteStartTimes[i]  = now;
-    }
+    // decay only applies to notes that have stopped: a key still held, or a
+    // note the mic still hears, keeps its bar (decay 100% used to wipe it
+    // every second even while it was sounding)
+    const held  = noteStartTimes[i] !== undefined || heldNoteCount[i] > 0;
+    const heard = mode === 'outside' && (i === lastNote || activePolyNotes.has(i));
+    if (!held)  innerCounts[i] *= factor;
+    if (!heard) outerCounts[i] *= factor;
     // the Launchpad's app-triggered red glow fades at this exact same rate,
     // but only once the note has actually stopped — held at full while playing
     if (lpNoteBrightness[i] && !lpNotePlaying[i]) {
