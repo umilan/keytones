@@ -747,7 +747,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.38</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.39</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -3331,7 +3331,7 @@ function scheduleLpView() {
         el.style.setProperty('--lp-led', css || '');
         el.style.boxShadow = css ? `inset 0 0 0 1px ${css}` : '';
       } else {
-        el.style.background = css || '';
+        el.style.background = css || 'transparent'; // an unlit pad (e.g. the gaps in the piano layout) isn't drawn
         el.style.boxShadow  = css ? `0 0 8px ${css.replace('rgb', 'rgba').replace(')', ',0.35)')}` : '';
       }
     }
