@@ -747,7 +747,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.36</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.37</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2993,7 +2993,7 @@ const LP_TRANSPOSE_MAX = 6;
    itself with the tonic at both ends, matching the reference hardware layout,
    instead of leaving that last column dark. */
 const LP_NOTE_PAD = [
-  [{ row: 0, col: 0 }, { row: 0, col: 7 }], // C (+ duplicate for row continuity)
+  [{ row: 0, col: 0 }, { row: 0, col: 7 }], // C (+ the next octave's C at the row end)
   [{ row: 1, col: 1 }], // C#
   [{ row: 0, col: 1 }], // D
   [{ row: 1, col: 2 }], // D#
@@ -3020,8 +3020,12 @@ const LP_PIANO_PAD_TO_NOTE = {};
 const LP_PIANO_NOTE_TO_PADS = Array.from({ length: 12 }, () => []);
 for (let lpBand = 0; lpBand < LP_BANDS; lpBand++) {
   for (let lpNoteIdx = 0; lpNoteIdx < 12; lpNoteIdx++) {
-    for (const pad of padNotesForIndex(lpNoteIdx, lpBand)) {
-      LP_PIANO_PAD_TO_NOTE[pad] = { noteIdx: lpNoteIdx, octave: lpBand + 1 }; // bands read bottom-to-top as octave 1–4
+    for (const { row, col } of LP_NOTE_PAD[lpNoteIdx]) {
+      const pad = 11 + col + 10 * (lpBand * 2 + row);
+      // bands read bottom-to-top as octave 1–4; the duplicate C at the right
+      // end of a row is the C one octave UP (like the top C on a keyboard)
+      const octave = lpBand + 1 + (lpNoteIdx === 0 && col === 7 ? 1 : 0);
+      LP_PIANO_PAD_TO_NOTE[pad] = { noteIdx: lpNoteIdx, octave };
       LP_PIANO_NOTE_TO_PADS[lpNoteIdx].push(pad);
     }
   }
