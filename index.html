@@ -907,7 +907,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.76</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.77</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2722,7 +2722,7 @@ function afterDetectionFrame(sr) {
   const dt = lastFrameAt ? Math.min(250, now - lastFrameAt) : 0;
   lastFrameAt = now;
   for (let i = 0; i < 12; i++) if (i === lastNote || activePolyNotes.has(i)) outerTime[i] += dt;
-  for (const m of paSoundingNow().keys()) { absTimeMic[m] += dt; paSee(m % 12, Math.floor(m / 12) - 1); }
+  for (const [m, conf] of paSoundingNow()) { absTimeMic[m] += dt; absConf[m] = conf; paSee(m % 12, Math.floor(m / 12) - 1); }
   if (barsShow === 'chroma') measureChroma(sr);
   if (mode === 'outside') render();
 }
@@ -2838,6 +2838,7 @@ const PA_MIN_OCT = 1, PA_MAX_OCT = 7;
 const absTimeMic  = new Float64Array(128), absCountMic  = new Float64Array(128);
 const absTimeKeys = new Float64Array(128), absCountKeys = new Float64Array(128);
 const absChroma   = new Float64Array(128);
+const absConf     = new Float64Array(128).fill(-1); // last detection confidence per real note (-1 = never detected) — Bar opacity = confidence
 const absHoldStart = new Map();            // MIDI note -> when its key went down (keys' Time)
 const lastOctOf = new Array(12).fill(null); // the octave each note name was last heard / played in
 let paLo = 4, paHi = 4, paAnchored = false, paBuilt = '', paCols = [], paKeys = [];
@@ -2857,6 +2858,7 @@ function paReset() {
   paAnchored = false;
   paLo = paHi = Math.max(PA_MIN_OCT, Math.min(PA_MAX_OCT, previewOctave));
   [absTimeMic, absCountMic, absTimeKeys, absCountKeys, absChroma].forEach(a => a.fill(0));
+  absConf.fill(-1);
   absHoldStart.forEach((_, k) => absHoldStart.set(k, Date.now()));
 }
 
@@ -2965,6 +2967,8 @@ function renderPaView(availH) {
     const isYellow = latestColor !== 'none' && yellow.has(c.midi) && ratio > 0;
     c.bar.style.background = isYellow ? 'var(--latest-bg)' : barColor(ratio);
     c.bar.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), webRgb(latestColor)) : barGlow(ratio);
+    // Bar opacity = confidence: Time / Count with detection on (mic, app sound or file) — per real note
+    c.bar.style.opacity = confOpacity && mode === 'outside' && (barsShow === 'time' || barsShow === 'count') && absConf[c.midi] >= 0 ? absConf[c.midi].toFixed(2) : '';
     const lab = showLabels ? labels[i] : '';
     c.pct.textContent = lab; c.pct.classList.toggle('on', !!lab);
     paKeys[i].classList.toggle('pressed', mode !== 'outside' ? now.has(c.midi) : paHeld === c.midi);
@@ -4769,7 +4773,7 @@ const SETTING_INFO = {
  "Listen to": "What the detector hears. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers). Detection still needs the mic switch (badge) on.",
  "Bars show": "What a bar's height means. Live: the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others; a bar falls back at the Decay rate after its note stops. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
- "Bar opacity = confidence": "With the mic on and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses.",
+ "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses (e.g. close notes, harmonics). In Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
  "C pads": "Idle colour of every C on the Launchpad / Launchkey, as an anchor to find octaves. none makes them like the other pads.",
