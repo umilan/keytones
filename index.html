@@ -747,7 +747,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.37</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.38</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -2307,10 +2307,17 @@ function reset() {
     outerCounts.fill(0);
     if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
     lastNote = pendingNote = -1; pendingTicks = 0;
-    setLatestNote(-1);
     setMicUI('listening','—','');
   }
-  for (let i = 0; i < 12; i++) { keyBrightness[i] = 0; paintKeyFade(i); }
+  setLatestNote(-1);
+  // clear the glow everywhere, not just the bars: keys, Launchpad (real and
+  // on-screen) and Launchkey. Notes still being held/heard stay lit.
+  for (let i = 0; i < 12; i++) {
+    keyBrightness[i] = 0; paintKeyFade(i);
+    if (!lpNotePlaying[i]) { lpNoteBrightness[i] = 0; delete lpNoteOctave[i]; }
+    paintLaunchpadNoteFade(i);
+    if (midiOut && launchkeyDawMode && !lkNoteActive[i]) paintLaunchkeyNote(i, false);
+  }
   render();
 }
 
