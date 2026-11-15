@@ -907,7 +907,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.74</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.75</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -4997,6 +4997,13 @@ function build() {
     if (e.repeat) return;
     const key = e.key.toLowerCase();
     if (e.metaKey || e.ctrlKey || e.altKey) return; // leave shortcuts (Cmd+R…) alone
+    // only real text entry keeps the letters; a focused Settings dropdown,
+    // slider, checkbox or button doesn't (the keys used to stop playing
+    // after you'd changed any setting, because the dropdown kept focus)
+    const focused = document.activeElement;
+    const typing = focused && (focused.isContentEditable || focused.tagName === 'TEXTAREA' ||
+      (focused.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'file', 'color'].includes(focused.type)));
+    if (typing) return;
     if (e.code === 'KeyZ') { shiftPreviewOctave(-1); return; }
     if (e.code === 'KeyX') { shiftPreviewOctave(1);  return; }
     if (key === 'arrowup' || key === 'arrowdown') {
@@ -5007,9 +5014,7 @@ function build() {
     }
     const map = KEY_CODES[e.code];
     if (!map) return;
-    const el = document.activeElement;
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.isContentEditable) && el.type !== 'range' && el.type !== 'checkbox') return;
-    e.preventDefault();
+    e.preventDefault(); // also stops a focused dropdown from jumping to an option by letter
     if (heldKeys.has(e.code)) return;
     const [idx, up] = map;
     heldKeys.set(e.code, previewOctave + up); // remember the octave it started at
