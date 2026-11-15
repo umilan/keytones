@@ -886,7 +886,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.69</span></div>
+    <div class="app-title" id="app-title"><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.70</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1559,7 +1559,6 @@ function confThreshold(loose, old, strict) {
 function gateRms() { return Math.pow(10, detection.gateDb / 20); }
 
 let decayPct        = 50;   // % of value shed per second
-let decayInterval   = null;
 
 const heldKeys      = new Map(); // e.code -> octave the note started at
 const activeNotes   = {}; // noteIdx → { osc, gain }
@@ -2933,9 +2932,25 @@ function reset() {
 /* ═══════════════════════════════════════
    DECAY — shed a % of every bar's value each second
 ═══════════════════════════════════════ */
-function applyDecayTick() {
-  const factor = 1 - decayPct / 100;
-  const now    = Date.now();
+/* Decay runs every display frame (requestAnimationFrame) instead of in
+   1-second steps: each frame sheds the share that matches its own length,
+   so the speed per second is unchanged but the bars, keys and pads shrink
+   smoothly. 100 % keeps a very fast (not instant) fade. A real Launchpad
+   is repainted at most every HW_FADE_MS, so the fade doesn't flood MIDI. */
+const HW_FADE_MS = 50;
+let decayRaf = null, lastDecayAt = 0, lastHwFadeAt = 0;
+function decayFrame(t) {
+  decayRaf = requestAnimationFrame(decayFrame);
+  const dt = t - lastDecayAt; lastDecayAt = t;
+  if (dt <= 0) return;
+  const paintHw = t - lastHwFadeAt >= HW_FADE_MS;
+  if (paintHw) lastHwFadeAt = t;
+  applyDecayTick(dt, paintHw);
+}
+
+function applyDecayTick(dtMs = 1000, paintHw = true) {
+  const perSecond = Math.max(0.001, 1 - decayPct / 100); // what's left after one second
+  const factor = Math.pow(perSecond, dtMs / 1000);
   for (let i = 0; i < 12; i++) {
     // decay only applies to notes that have stopped: a key still held, or a
     // note the mic still hears, keeps its bar (decay 100% used to wipe it
@@ -2954,7 +2969,8 @@ function applyDecayTick() {
     if (lpNoteBrightness[i] && !lpNotePlaying[i]) {
       lpNoteBrightness[i] *= factor;
       if (lpNoteBrightness[i] < 0.02) lpNoteBrightness[i] = 0;
-      paintLaunchpadNoteFade(i);
+      if (paintHw || !lpNoteBrightness[i]) paintLaunchpadNoteFade(i); // pads (+ exact-octave key)
+      else paintExactKey(i);                                            // just the on-screen key this frame
     }
     // the on-screen key's own glow fades the same way, once released
     if (keyBrightness[i] && !heldNoteCount[i]) {
@@ -2978,8 +2994,8 @@ function setDecayPct(v) {
   const sel = document.getElementById('decay-select');
   if (sel) sel.value = decayPct;
   setRangeLabel('decay-select', decayPct + '%');
-  if (decayInterval) { clearInterval(decayInterval); decayInterval = null; }
-  if (decayPct > 0) decayInterval = setInterval(applyDecayTick, 1000);
+  if (decayRaf) { cancelAnimationFrame(decayRaf); decayRaf = null; }
+  if (decayPct > 0) { lastDecayAt = performance.now(); decayRaf = requestAnimationFrame(decayFrame); }
 }
 
 /* drag a value control horizontally or vertically to scrub it, like a slider.
