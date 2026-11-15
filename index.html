@@ -931,7 +931,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.84</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.85</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -3152,11 +3152,11 @@ const LIVE_STRONG = 0.75;
    the note fades or stops (peak hold), instead of vanishing at once */
 const liveShown = new Array(12).fill(0);
 const absLiveShown = new Float64Array(128); // the same for Pi-auto
-let barsShow = 'time';
+let barsShow = 'live'; // default: Live
 try { const v = localStorage.getItem(BARS_KEY); if (BARS_MODES.includes(v)) barsShow = v; } catch (e) { /* storage unavailable */ }
 
 function setBarsShow(v) {
-  barsShow = BARS_MODES.includes(v) ? v : 'time';
+  barsShow = BARS_MODES.includes(v) ? v : 'live';
   try { localStorage.setItem(BARS_KEY, barsShow); } catch (e) { /* storage unavailable */ }
   const sel = document.getElementById('bars-select'); if (sel) sel.value = barsShow;
   document.getElementById('bar-area').classList.toggle('bars-now', barsShow === 'live' || barsShow === 'chroma');
