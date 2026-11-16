@@ -968,7 +968,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.89</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.90</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -3227,6 +3227,7 @@ function renderPaView(availH) {
     const isYellow = latestColor !== 'none' && yellow.has(c.midi) && ratio > 0;
     const yRgb = isYellow ? (barsShow === 'time' || barsShow === 'count' ? newestRgb(c.pc) : webRgb(latestColor)) : null;
     c.bar.style.background = isYellow ? `rgb(${yRgb})` : barColor(ratio);
+    flashBarColor(c.bar, c.pc, ratio);
     c.bar.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), yRgb) : barGlow(ratio);
     // Bar opacity = confidence: Time / Count with detection on (mic, app sound or file) — per real note
     c.bar.style.opacity = confOpacity && mode === 'outside' && (barsShow === 'time' || barsShow === 'count') && absConf[c.midi] >= 0 ? absConf[c.midi].toFixed(2) : '';
@@ -3326,6 +3327,7 @@ function render() {
     // Live / Chroma: yellow means strongest / detected, so it stays yellow
     const yRgb = isYellow ? (barsShow === 'time' || barsShow === 'count' ? newestRgb(i) : webRgb(latestColor)) : null;
     barEl.style.background = isYellow ? `rgb(${yRgb})` : barColor(ratio);
+    flashBarColor(barEl, i, ratio);
     barEl.style.boxShadow  = isYellow ? barGlow(ratio).replace(webRgb(colors.detected), yRgb) : barGlow(ratio);
     // Settings > Bar opacity = confidence: the bar is as opaque as the last
     // detection of that note was certain (mic mode, Time / Count — Live
@@ -4016,9 +4018,17 @@ function paintExactKey(noteIdx) {
    alternates every FLASH_MS between the Pad press colour and the colour it
    gets from detection (Sounding, or Newest if it's the newest note) — on the
    keys, the Pi-auto strip and the Launchpad pads. */
-const FLASH_MS = 250;
+const FLASH_MS = 100; // fast flash
 let flashPhase = false;
 const flashing = new Set(); // notes currently flashing
+
+/* bars of a pressed + detected note flash too: on the alternate phase the
+   bar shows the Pad press colour; colour changes snap while flashing */
+function flashBarColor(bar, n, ratio) {
+  const on = flashing.has(n) && ratio > 0;
+  bar.style.transitionProperty = on ? 'height' : '';
+  if (on && flashPhase && colors.pressed !== 'none') bar.style.background = `rgb(${webRgb(colors.pressed)})`;
+}
 
 function isDetectedNow(n) {
   return !!detInterval && (lastNote === n || activePolyNotes.has(n));
@@ -4035,6 +4045,7 @@ function isPressedNow(n) {
 
 function flashPressedTick() {
   flashPhase = !flashPhase;
+  const hadFlashing = flashing.size > 0;
   for (let n = 0; n < 12; n++) {
     const on = isPressedNow(n) && isDetectedNow(n);
     if (!on && !flashing.has(n)) continue;
@@ -4059,6 +4070,7 @@ function flashPressedTick() {
       }
     }
   }
+  if (hadFlashing || flashing.size) render(); // bars flash too
 }
 setInterval(flashPressedTick, FLASH_MS);
 
