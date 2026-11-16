@@ -971,7 +971,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.92</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.93</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -3189,7 +3189,7 @@ function initPaInput() {
   document.addEventListener('pointerup', paRelease);
   document.addEventListener('pointercancel', paRelease);
   document.getElementById('pa-view').addEventListener('pointermove', e => {
-    if (paHeld === null || e.pointerType !== 'mouse' || !(e.buttons & 1)) return;
+    if (paHeld === null || (e.pointerType === 'mouse' && !(e.buttons & 1))) return; // mouse or finger
     const t = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-midi]');
     if (!t || Number(t.dataset.midi) === paHeld) return;
     const midi = Number(t.dataset.midi);
@@ -3545,6 +3545,7 @@ function makeBarCol(noteIdx, type) {
 
   col.addEventListener('touchend', e => {
     e.preventDefault(); if (!live) return; live = false;
+    if (touchGlided(e)) return; // this finger slid to another note — the glide releases that one
     onNoteOff(noteIdx, keyEls[noteIdx], false, previewOctave);
   }, { passive: false });
 
@@ -3582,6 +3583,43 @@ function initMouseGlide() {
     glideNote = n;
   });
   document.addEventListener('mouseup', () => { glideNote = -1; });
+
+  // finger glide (iPhone / iPad): each finger slides on its own; the note it
+  // started on is released when it leaves, and the one under it now plays
+  document.addEventListener('touchstart', e => {
+    for (const t of e.changedTouches) {
+      const el = t.target.closest?.(GLIDE_TARGETS);
+      if (el) touchGlide.set(t.identifier, { start: Number(el.dataset.note), note: Number(el.dataset.note), moved: false });
+    }
+  }, { capture: true, passive: true });
+  document.addEventListener('touchmove', e => {
+    for (const t of e.changedTouches) {
+      const g = touchGlide.get(t.identifier);
+      if (!g) continue;
+      const el = document.elementFromPoint(t.clientX, t.clientY)?.closest(GLIDE_TARGETS);
+      if (!el) continue;
+      const n = Number(el.dataset.note);
+      if (n === g.note) continue;
+      onNoteOff(g.note, keyEls[g.note], false, previewOctave);
+      onNoteOn(n, keyEls[n], false, previewOctave);
+      g.note = n; g.moved = true;
+    }
+  }, { capture: true, passive: true });
+  const endGlide = e => {
+    for (const t of e.changedTouches) {
+      const g = touchGlide.get(t.identifier);
+      if (g?.moved) onNoteOff(g.note, keyEls[g.note], false, previewOctave);
+      // forget it after the element's own handler has looked at it
+      setTimeout(() => touchGlide.delete(t.identifier), 0);
+    }
+  };
+  document.addEventListener('touchend', endGlide, { capture: true, passive: true });
+  document.addEventListener('touchcancel', endGlide, { capture: true, passive: true });
+}
+
+const touchGlide = new Map(); // touch id -> { start, note, moved }
+function touchGlided(e) {
+  return [...e.changedTouches].some(t => touchGlide.get(t.identifier)?.moved);
 }
 
 function makeKey(def, type) {
@@ -3610,6 +3648,7 @@ function makeKey(def, type) {
 
   el.addEventListener('touchend', e => {
     e.preventDefault(); if (!live) return; live = false;
+    if (touchGlided(e)) return; // this finger slid to another note — the glide releases that one
     onNoteOff(def.noteIdx, el, false, previewOctave);
   }, { passive: false });
 
@@ -4514,19 +4553,20 @@ function lpLedCss([r, g, b]) {
 
 /* mouse glide over the on-screen pads, like over the keys: the pad held
    follows the mouse while the button stays down (side / top buttons excluded) */
-let lpGlideLed = null;
+const lpGlide = new Map(); // pointer id -> pad it is holding now (mouse or finger glide)
 function buildLpView() {
   const grid = document.getElementById('lp-grid');
   lpViewCells = [];
   grid.addEventListener('pointermove', e => {
-    if (lpGlideLed === null || e.pointerType !== 'mouse' || !(e.buttons & 1)) return;
+    const held = lpGlide.get(e.pointerId);
+    if (held === undefined || (e.pointerType === 'mouse' && !(e.buttons & 1))) return;
     const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.lp-cell');
     if (!cell || !cell.dataset.led || cell.classList.contains('btn') || cell.classList.contains('logo')) return;
     const led = Number(cell.dataset.led);
-    if (led === lpGlideLed) return;
-    handleLaunchpadInput(0x80, lpGlideLed, 0);
+    if (led === held) return;
+    handleLaunchpadInput(0x80, held, 0);
     handleLaunchpadInput(0x90, led, 127);
-    lpGlideLed = led;
+    lpGlide.set(e.pointerId, led);
   });
   const add = (led, kind, label) => {
     const el = document.createElement('div');
@@ -4539,13 +4579,13 @@ function buildLpView() {
     let held = false;
     el.addEventListener('pointerdown', e => {
       e.preventDefault(); el.setPointerCapture?.(e.pointerId); held = true;
-      if (!isCC && e.pointerType === 'mouse') lpGlideLed = led;
+      if (!isCC) lpGlide.set(e.pointerId, led);
       handleLaunchpadInput(isCC ? 0xB0 : 0x90, led, 127);
     });
-    const up = () => {
+    const up = e => {
       if (!held) return; held = false;
-      const pad = !isCC && lpGlideLed !== null ? lpGlideLed : led; // after a glide, the pad under the mouse is the one held
-      lpGlideLed = null;
+      const pad = !isCC && lpGlide.has(e.pointerId) ? lpGlide.get(e.pointerId) : led; // after a glide, the pad now under the finger / mouse
+      lpGlide.delete(e.pointerId);
       handleLaunchpadInput(isCC ? 0xB0 : 0x80, pad, 0);
     };
     el.addEventListener('pointerup', up);
