@@ -608,6 +608,9 @@
     /* held keys keep the Pad press colour even while the bars mark them —
        a held + detected key flashes between the two (see flashPressedTick) */
     .white-key.pressed:is(.live-strong, .live-on) { background: var(--press-bg, var(--active-bg)); }
+    /* while the bars mark a note live, the key shows that colour itself — the
+       Decay glow layer (paintExactKey) only takes over once the note stops */
+    :is(.white-key, .black-key):is(.live-strong, .live-on)::after { opacity: 0 !important; }
     .black-key.pressed:is(.live-strong, .live-on) { background: var(--press-bg2, var(--active-bg2)); }
     .white-key.live-strong .key-name, .black-key.live-strong .key-name { color: rgba(30,25,50,0.70); }
 
@@ -968,7 +971,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.91</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.92</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -4011,9 +4014,10 @@ function paintExactKey(noteIdx) {
   const el = keyEls[noteIdx];
   if (!el) return;
   const isLatest = isLatestShown(noteIdx);
-  const show = lpFullRangeDetection && !keysMirrorBars()
-            && isLatest                       // full range: only the latest note is marked
-            && lpNoteOctave[noteIdx] !== undefined && lpNoteBrightness[noteIdx] > 0;
+  // every detected note's key glows and fades with Decay exactly like its
+  // Launchpad pads (Sounding colour, or Newest for the newest note); the
+  // Live / Chroma bar mirror and a held key's Pad press colour sit on top
+  const show = lpNoteBrightness[noteIdx] > 0;
   el.classList.toggle('exact', show);
   el.classList.toggle('exact-latest', show && isLatest); // same fade, Latest colour
   if (show) el.style.setProperty('--press-t', lpNoteBrightness[noteIdx]);
