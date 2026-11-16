@@ -968,7 +968,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.90</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.91</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -1995,6 +1995,13 @@ function onNoteOff(noteIdx, el, fromMidi = false, octave = 4, source = 'app', pa
   if (heldNoteCount[noteIdx] > 0) return; // still held at another octave — leave shared state alone
   if (!(source === 'pad' && micActive)) el.classList.remove('pressed');
   if (!fromMidi) sendMidiNote(noteIdx, false, source);  // echo to MIDI out
+  // no Decay afterglow for a played note: once released, its key and its
+  // Launchpad pads go straight back (only what detection hears still fades)
+  keyBrightness[noteIdx] = 0; paintKeyFade(noteIdx);
+  if (source !== 'pad' && !isDetectedNow(noteIdx)) {
+    lpNotePlaying[noteIdx] = false; lpNoteBrightness[noteIdx] = 0;
+    paintLaunchpadNoteFade(noteIdx);
+  }
   if (mode === 'inner' && noteStartTimes[noteIdx] !== undefined) {
     innerCounts[noteIdx] += Date.now() - noteStartTimes[noteIdx];
     delete noteStartTimes[noteIdx];
