@@ -590,6 +590,10 @@
     /* while a key is held, its own Pad press colour shows — no glow layer on top
        (the newest-note / exact-octave glow takes over again once it's released) */
     .white-key.pressed::after, .black-key.pressed::after { opacity: 0 !important; }
+    /* a pressed note that detection also hears flashes between the Pad press
+       colour and its detected colour (Sounding / Newest) — see flashPressedTick() */
+    .white-key.pressed.flash-b, .pa-key.pressed.flash-b { background: var(--flash-det, var(--active-bg)) !important; }
+    .black-key.pressed.flash-b { background: var(--flash-det2, var(--active-bg2)) !important; }
     /* full range detection: a detected note's key glows in the Exact octave
        colour, fading like its exact-octave Launchpad pad */
     .white-key.exact.exact-latest::after { background: var(--key-new, var(--latest-bg)); }
@@ -601,6 +605,10 @@
     .black-key.live-strong { background: var(--latest-bg2); }
     .white-key.live-on     { background: var(--active-bg); }
     .black-key.live-on     { background: var(--active-bg2); }
+    /* held keys keep the Pad press colour even while the bars mark them —
+       a held + detected key flashes between the two (see flashPressedTick) */
+    .white-key.pressed:is(.live-strong, .live-on) { background: var(--press-bg, var(--active-bg)); }
+    .black-key.pressed:is(.live-strong, .live-on) { background: var(--press-bg2, var(--active-bg2)); }
     .white-key.live-strong .key-name, .black-key.live-strong .key-name { color: rgba(30,25,50,0.70); }
 
     /* Settings > Latest note — the most recent mic-detected note */
@@ -960,7 +968,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.88</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.89</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
@@ -4003,6 +4011,57 @@ function paintExactKey(noteIdx) {
   else paintKeyFade(noteIdx);
 }
 
+/* ── PRESSED + DETECTED FLASH ─────────────────────────────────────────
+   A note you're pressing that detection (mic / app sound / file) also hears
+   alternates every FLASH_MS between the Pad press colour and the colour it
+   gets from detection (Sounding, or Newest if it's the newest note) — on the
+   keys, the Pi-auto strip and the Launchpad pads. */
+const FLASH_MS = 250;
+let flashPhase = false;
+const flashing = new Set(); // notes currently flashing
+
+function isDetectedNow(n) {
+  return !!detInterval && (lastNote === n || activePolyNotes.has(n));
+}
+function lpDetectedColor(n) {
+  if (!isDetectedNow(n)) return null;
+  return (isLatestShown(n) && lpOf(latestColor)) || LP_RGB_NOTE;
+}
+function isPressedNow(n) {
+  if (keyEls[n]?.classList.contains('pressed') || keyHeldOctaves[n].size) return true;
+  for (const v of lpPhysPressed.values()) if (v.note === n) return true;
+  return false;
+}
+
+function flashPressedTick() {
+  flashPhase = !flashPhase;
+  for (let n = 0; n < 12; n++) {
+    const on = isPressedNow(n) && isDetectedNow(n);
+    if (!on && !flashing.has(n)) continue;
+    if (on) flashing.add(n); else flashing.delete(n);
+    const alt = on && flashPhase;
+    const latest = isLatestShown(n);
+    const els = [keyEls[n], ...document.querySelectorAll(`.pa-key[data-midi]`)].filter(el => el &&
+      (el === keyEls[n] || ((+el.dataset.midi % 12) + 12) % 12 === n));
+    els.forEach(el => {
+      // the colour the key would show from detection right now
+      const yellow = el.classList.contains('live-strong') || (!el.classList.contains('live-on') && latest);
+      el.style.setProperty('--flash-det',  yellow ? 'var(--latest-bg)'  : 'var(--active-bg)');
+      el.style.setProperty('--flash-det2', yellow ? 'var(--latest-bg2)' : 'var(--active-bg2)');
+      el.classList.toggle('flash-b', alt);
+    });
+    if (lpOn()) {
+      paintLaunchpadNoteFade(n); // held-from-keys pads (uses flashPhase)
+      for (const [pad, v] of lpPhysPressed) {
+        if (v.note !== n || !LP_RGB_ACTIVE) continue;
+        const [r, g, b] = (alt && lpDetectedColor(n)) || lpActiveColorForNote(v.baseIdx);
+        setLaunchpadRGB(midiOut, pad, r, g, b);
+      }
+    }
+  }
+}
+setInterval(flashPressedTick, FLASH_MS);
+
 function paintLaunchpadNoteFade(noteIdx) {
   paintExactKey(noteIdx);
   if (!lpOn()) return;
@@ -4038,7 +4097,7 @@ function paintLaunchpadNoteFade(noteIdx) {
   // pad (Pad press colour) at its exact octave — or on every pad of the note
   // when that octave isn't on the grid
   if (LP_RGB_ACTIVE && keyHeldOctaves[noteIdx].size) {
-    const [hr, hg, hb] = LP_RGB_ACTIVE;
+    const [hr, hg, hb] = (flashPhase && lpDetectedColor(noteIdx)) || LP_RGB_ACTIVE;
     for (const oct of keyHeldOctaves[noteIdx].keys()) {
       const pads = lpPadsForNoteOctave(noteIdx, oct);
       (pads.length ? pads : allPadsForIndex(noteIdx)).forEach(pad => setLaunchpadRGB(midiOut, pad, hr, hg, hb));
@@ -4344,7 +4403,10 @@ function sendMidiNote(noteIdx, on, source = 'app', octave = null) {
    a pad's own hue/dim-vs-white status never depends on the current
    transpose. displayedNoteIdx: the chroma this press actually sounds (post-
    transpose) — used only to find sibling pads on the fretboard layout. */
+const lpPhysPressed = new Map(); // pad -> { baseIdx, note } while a real / on-screen pad is held
+
 function paintPressedPad(pad, baseIdx, displayedNoteIdx, on) {
+  if (on) lpPhysPressed.set(pad, { baseIdx, note: displayedNoteIdx }); else lpPhysPressed.delete(pad);
   if (!lpOn() || !LP_RGB_ACTIVE) return; // Settings > Colors > Pressed pad: none = pads don't light when pressed
   const [r, g, b] = on ? lpActiveColorForNote(baseIdx) : lpBacklightColorForNote(baseIdx);
   const pads = lpLayout === 'piano' ? [pad] : allPadsForIndex(displayedNoteIdx);
