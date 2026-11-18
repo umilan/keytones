@@ -83,3 +83,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.113 darker black keys
 - Black key background darker in Piano (gradient #22222F→#121219) and Like bars (+40% black, was 25%).
 - Updated: views.
+
+## [2026-11-18] ingest | v1.114 Key marks bar grows upwards
+- Bar now starts just above the label (36 px from the bottom) and grows up with confidence.
+- Updated: views.

@@ -672,12 +672,12 @@
     /* Top edge: like Dots, but a fixed 5 px line across the top of the key */
     body.km-edge .key-dot,
     body.km-edge :is(.white-key, .black-key)::after { inset: auto; top: 0; left: 0; right: 0; width: auto; height: 5px; border-radius: 0; }
-    /* Bar: a column growing from the top of the key downwards, as long as the
-       detection is certain; at full length it stops 36 px above the bottom,
-       so the note label (and some room around it) stays clear */
+    /* Bar: a column growing upwards from just above the note label (it starts
+       36 px above the key's bottom, so the label keeps clear room), as tall as
+       the detection is certain; at full length it reaches 6 px below the top */
     body.km-bar .key-dot,
     body.km-bar :is(.white-key, .black-key)::after {
-      inset: auto; top: 6px; left: 6px; right: 6px; width: auto;
+      inset: auto; bottom: 36px; left: 6px; right: 6px; width: auto;
       height: calc((100% - 6px - 36px) * var(--conf, 1)); border-radius: 3px;
     }
     /* Ring: a coloured outline (the middle masked out) */
@@ -1074,7 +1074,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.113</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.114</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>

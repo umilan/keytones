@@ -2,7 +2,7 @@
 title: Views and bars
 summary: View (Piano / Pi-auto / LP), Bars show modes, keys, Decay and reset.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.113
+updated: v1.114
 ---
 
 # Views and bars
@@ -35,8 +35,8 @@ held + detected keys flash (see [Colors](colors.md)). *Keys: Like bars* makes id
 `#22222F→#121219`, Like bars = column colour + 40% black; darkened in v1.113).
 *Key marks* (v1.108, v1.110): **Fill** (default, the whole key) · **Dots** (14 px dot near the top) · **Top edge** (a fixed 5 px
 line across the top, fading like Dots — v1.112) ·
-**Bar** (a column growing down from the top of the key, as long as the last detection was
-certain, `--conf`; at full length it stops 36 px above the bottom so the label stays clear — v1.111) ·
+**Bar** (a column growing **up** from 36 px above the key's bottom — clear of the label — as tall
+as the last detection was certain, `--conf`; full length reaches 6 px below the top — v1.114) ·
 **Ring** (3 px outline) · **Name** (only the note letter). With anything but Fill the keys keep their
 idle look; states set `--mark` (drawn by `.key-dot`), the fading glow reshapes `::after` the same way. The Pi-auto strip
 follows it (v1.109): dot, bar or ring on pressed / flashing keys (Name uses a dot there).
