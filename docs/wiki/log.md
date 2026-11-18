@@ -186,3 +186,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   16% → 13%, chord 1.00 → 0.99, onset 91 → 92 ms, release 81 → 44 ms, no ghosts. Default switched
   (pitchAlgo, both selects, strip, compact badge, card badges).
 - Updated: algorithms, settings, bench.
+
+## [2026-11-18] ingest | v1.134 Window bench tools
+- `bench/ensemble_run.js --windows 2048,8192` also runs the detectors on extra analysis windows (same input,
+  same smoothing, swapped-in analysers) on the same frames; `bench/windows.py` fuses P5 across windows and
+  with adaptive stability. Results to follow; no app behaviour change.
