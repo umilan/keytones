@@ -774,15 +774,20 @@
     #listen-menu[hidden] { display: none; }
     #listen-menu button {
       height: var(--ctrl-size); display: flex; align-items: center; justify-content: flex-start; gap: 9px;
-      padding: 0 12px 0 8px; white-space: nowrap;
+      padding: 0 10px 0 8px; white-space: nowrap;
       font-family: monospace; font-size: var(--ui-font-size); letter-spacing: var(--let-spac);
-      background: transparent; border: 1px solid transparent; border-radius: var(--radius); color: var(--dim); cursor: pointer;
+      /* readable on #22222e: ~10:1 (was --dim, ~3:1) */
+      background: transparent; border: 1px solid transparent; border-radius: var(--radius); color: #CFCBEF; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
     }
     #listen-menu button svg { flex-shrink: 0; }
-    #listen-menu button:hover { color: var(--text); background: var(--surface); }
-    #listen-menu button.active { color: var(--text); background: var(--surface-strong); border-color: var(--border-active); }
-    #listen-menu button[data-value="none"].active { color: var(--err); }
+    #listen-menu button .lm-text { flex: 1; text-align: left; }
+    #listen-menu button .lm-check { width: 16px; height: 16px; flex-shrink: 0; margin-left: 10px; visibility: hidden; }
+    #listen-menu button:hover { color: #FFFFFF; background: rgba(255,255,255,0.08); }
+    #listen-menu button:focus-visible { outline: 2px solid #A9A4FF; outline-offset: -2px; }
+    #listen-menu button.active { color: #FFFFFF; font-weight: 700; background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.28); }
+    #listen-menu button.active .lm-check { visibility: visible; }
+    #listen-menu button[data-value="none"].active { color: #FF8A8A; } /* lighter red, ~6:1 */
     /* shows the icon of the view a tap switches TO */
     #view-btn .vb-keys, #view-btn.lp .vb-grid { display: none; }
     #view-btn.lp .vb-keys { display: block; }
@@ -1089,7 +1094,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.116</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.117</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -2338,7 +2343,8 @@ function syncListenUI() {
 function initListenPicker() {
   const btn = document.getElementById('listen-btn'), menu = document.getElementById('listen-menu');
   menu.innerHTML = ['none', 'mic', 'app', 'both', 'file'].map(v =>
-    `<button type="button" role="option" data-value="${v}">${listenSvg(v)}<span>${LISTEN_MENU_TEXT[v]}</span></button>`).join('');
+    `<button type="button" role="option" data-value="${v}">${listenSvg(v)}<span class="lm-text">${LISTEN_MENU_TEXT[v]}</span>` +
+    `<svg class="lm-check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`).join('');
   const close = () => { menu.hidden = true; btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
   btn.addEventListener('click', () => {
     if (!menu.hidden) { close(); return; }
@@ -2346,6 +2352,13 @@ function initListenPicker() {
     const r = btn.getBoundingClientRect();
     menu.style.left = Math.max(4, Math.min(window.innerWidth - menu.offsetWidth - 4, r.right - menu.offsetWidth)) + 'px'; // right edge under the button
     menu.style.top = (r.bottom + 6) + 'px';
+    (menu.querySelector('button.active') || menu.querySelector('button')).focus({ preventScroll: true });
+  });
+  menu.addEventListener('keydown', e => { // arrow keys move between options
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const bs = [...menu.querySelectorAll('button')], i = bs.indexOf(document.activeElement);
+    bs[(i + (e.key === 'ArrowDown' ? 1 : bs.length - 1)) % bs.length].focus();
   });
   menu.addEventListener('click', e => {
     const b = e.target.closest('button[data-value]'); if (!b) return;

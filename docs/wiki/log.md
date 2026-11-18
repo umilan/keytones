@@ -97,3 +97,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - Top-bar GAIN scrub locks to the first axis moved (horizontal or vertical) instead of summing
   dx + dy; touch uses non-passive touch events (window move/end) for iOS.
 - Updated: input.
+
+## [2026-11-18] ingest | v1.117 Listen-to menu: checkmark + contrast
+- Active option shows a ✓ (`.lm-check`) and bold text; options use high-contrast text instead of `--dim`
+  (about 10:1 instead of 3:1); focus outline; ↑/↓ keyboard navigation; focus starts on the active option.
+- Updated: audio-sources.
