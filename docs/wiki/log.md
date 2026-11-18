@@ -133,3 +133,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - Option lines in ⓘ tips render as a two-column grid (`.tip-grid`: `.tip-term` / `.tip-desc`), term left,
   explanation right (capitalised), row separators; tip width 340 px when it has options.
 - Updated: settings.
+
+## [2026-11-18] ingest | v1.124 Tempo shown as "### BPM"
+- Top-bar tempo reads "128 BPM" (no ♩ icon); `.bpm-unit` hidden in `#topbar.micro` (320 px phones).
+- Updated: tempo, settings, index.

@@ -187,10 +187,12 @@
     }
     #topbar.compact .app-version { margin-left: 4px; }
     /* Tempo (BPM): an estimate from the detector's input, after the version */
-    .bpm-val { margin-left: 10px; font-weight: 700; color: var(--text); text-transform: none; display: inline-block; min-width: 5ch; }
+    .bpm-val { margin-left: 10px; font-weight: 700; color: var(--text); text-transform: none; display: inline-block; min-width: 7ch; }
     .bpm-val[hidden] { display: none; }
     .bpm-val.unsure { color: var(--dim); }
     #topbar.compact .bpm-val { margin-left: 6px; }
+    #topbar.micro .bpm-val { min-width: 3ch; }
+    #topbar.micro .bpm-unit { display: none; } /* 320 px phones: just the number */
 
     /* ── DECAY CONTROL (drag to scrub) ───── */
     .decay-ctrl {
@@ -1124,7 +1126,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.123</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.124</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -2657,7 +2659,7 @@ function showBpm() {
   const changed = el.hidden === show;
   el.hidden = !show;
   if (show) {
-    el.textContent = '♩' + Math.round(tempoBpm);
+    el.innerHTML = Math.round(tempoBpm) + '<span class="bpm-unit"> BPM</span>';
     el.classList.toggle('unsure', !tempoSure);
     el.title = 'Tempo ≈ ' + Math.round(tempoBpm) + ' BPM' + (tempoSure ? '' : ' (still unsure)');
   }
@@ -5589,7 +5591,7 @@ const SETTING_INFO = {
  "Keys": "How the keyboard's idle keys look.\nPiano: white and black keys.\nLike bars: the same colours as the bar columns above them, so keys and bars read as one surface.\nLit keys keep their colours either way.",
  "Key marks": "How a lit key shows its colour (sounding, newest, pressed, flashing and the fading glow).\nFill: the whole key.\nDots: a dot near the top.\nTop edge: a line across the top.\nBottom edge: a line along the bottom.\nBottom edge + name: the bottom line and the coloured letter.\nBoth edges + name: top and bottom lines and the coloured letter.\nBar: a column growing up from above the letter, as tall as the detection is certain.\nRing: a coloured outline.\nName: only the note letter.\nWith anything but Fill the keys keep their normal look.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count).\n0%: keeps everything.\n100%: clears a stopped note within a second.\nNotes still sounding are never shrunk.",
- "Tempo (BPM)": "Estimates the tempo of what the detector hears (mic, app sound or file) and shows it in the top bar as ♩120.\nHow: it finds the beat period that repeats most in the note attacks of the last 8 seconds (60–200 BPM).\nDim: still unsure. Hidden: too quiet or no clear beat.\nTakes about 4 seconds to appear. Half or double the real tempo can happen with sparse or busy rhythms.",
+ "Tempo (BPM)": "Estimates the tempo of what the detector hears (mic, app sound or file) and shows it in the top bar, e.g. 120 BPM.\nHow: it finds the beat period that repeats most in the note attacks of the last 8 seconds (60–200 BPM).\nDim: still unsure. Hidden: too quiet or no clear beat.\nTakes about 4 seconds to appear. Half or double the real tempo can happen with sparse or busy rhythms.",
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is as opaque as the last detection of that note was certain.\nSolid bars: sure.\nFaint bars: guesses (e.g. close notes, harmonics).\nIn Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",

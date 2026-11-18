@@ -1,21 +1,24 @@
 ---
 title: Tempo (BPM)
-summary: Automatic tempo estimate from what the detector hears, shown as ♩BPM in the top bar.
+summary: Automatic tempo estimate from what the detector hears, shown as "### BPM" in the top bar.
 sources: [index.html (tempoStart, tempoTick, tempoEstimate, tempoCalc, showBpm)]
-updated: v1.122
+updated: v1.124
 ---
 
 # Tempo (BPM)
 
 Keytones estimates the tempo of whatever the detector hears (mic, app sound or file, after
-Gain) and shows it after the version in the top bar, e.g. **♩128**. It's an estimate of the beat
+Gain) and shows it after the version in the top bar, e.g. **128 BPM** (no icon since v1.124). It's an estimate of the beat
 in the last few seconds, not a metronome or beat grid.
 
 | state | looks like |
 |---|---|
-| sure (recent estimates agree within 4%) | ♩128 in normal text |
-| still unsure | ♩128 dimmed |
+| sure (recent estimates agree within 4%) | 128 BPM in normal text |
+| still unsure | 128 BPM dimmed |
 | too quiet / no attack for 2.5 s / Listen to: None / setting off | hidden |
+
+On the narrowest phones (top bar `.micro`) only the number shows; the top bar hides the
+version first to make room (`fitTopbar()` re-runs when the tempo appears or disappears).
 
 Setting: **Settings > Detection > Tempo (BPM)**, on by default (`keytones-bpm-v1`).
 
