@@ -30,3 +30,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.99 no bar glow
 - Bar glow / shadow removed (`barGlow()` returns none) in Piano and Pi-auto.
 - Updated: views.
+
+## [2026-11-18] ingest | v1.100 resizable Settings panel
+- Drag the panel's left border to resize; no visual handle; width remembered.
+- Updated: input.
