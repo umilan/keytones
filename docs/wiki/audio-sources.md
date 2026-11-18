@@ -1,6 +1,6 @@
 ---
 title: Audio sources
-summary: Listen to (None / Mic / App sound / Mic + app sound / File (audio)), devices, phone call mode, synth.
+summary: Listen to (None (muted) / Mic / App sound / Mic + app sound / File (audio)), devices, phone call mode, synth.
 sources: [index.html, raw/git-history-v1.93.md]
 updated: v1.102
 ---
