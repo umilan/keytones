@@ -121,3 +121,10 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - ⓘ tips render one option per line (bold name, hanging indent) from `\n`-separated `SETTING_INFO`
   texts; long multi-option texts rewritten that way; tip width 300 px.
 - Updated: settings.
+
+## [2026-11-18] ingest | v1.122 Tempo (BPM) auto-detection
+- New: Settings > Detection > Tempo (BPM) (on). A second analyser on the detector input gives
+  spectral flux every 10 ms; 8 s autocorrelation, 60–200 BPM, log-Gaussian prior at 120; median
+  of 5; dim while unsure; hidden after 2.5 s without attacks. ♩BPM shown after the version.
+- Tested with synthetic files (128 / 90 / 100 / 150 BPM): all correct after ~4–5 s.
+- New page: tempo. Updated: settings, index.

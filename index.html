@@ -186,6 +186,11 @@
       margin-left: 6px;
     }
     #topbar.compact .app-version { margin-left: 4px; }
+    /* Tempo (BPM): an estimate from the detector's input, after the version */
+    .bpm-val { margin-left: 10px; font-weight: 700; color: var(--text); text-transform: none; display: inline-block; min-width: 5ch; }
+    .bpm-val[hidden] { display: none; }
+    .bpm-val.unsure { color: var(--dim); }
+    #topbar.compact .bpm-val { margin-left: 6px; }
 
     /* ── DECAY CONTROL (drag to scrub) ───── */
     .decay-ctrl {
@@ -1112,7 +1117,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.121</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.122</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1285,6 +1290,10 @@
         <option value="both">Mic + app sound</option>
         <option value="file">File (audio)</option>
       </select>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="bpm-check">Tempo (BPM)</label>
+      <input type="checkbox" class="sp-check" id="bpm-check">
     </div>
     <div class="sp-row">
       <span class="sp-label">Detection</span>
@@ -2502,13 +2511,14 @@ async function startMic() {
     analyser.fftSize = speedLevel().fft; analyser.smoothingTimeConstant = speedLevel().smooth; // Settings > Speed
     if (stream) { micSrc = ac.createMediaStreamSource(stream); micSrc.connect(micGainNode); }
     micGainNode.connect(analyser);
+    tempoStart(ac); // Tempo (BPM): its own analyser on the same input
     if (useApp) { // Listen to: App sound — the synth's own output, straight in
       appTap = ac.createGain(); appTap.gain.value = 1;
-      getSynthBus(ac).connect(appTap); appTap.connect(analyser);
+      getSynthBus(ac).connect(appTap); appTap.connect(analyser); if (tempoAnalyser) appTap.connect(tempoAnalyser);
     }
     if (useFile) { // Listen to: File (audio) — the player's output, straight in
       fileTap = ac.createGain(); fileTap.gain.value = 1;
-      fileSourceNode(ac)?.connect(fileTap); fileTap.connect(analyser);
+      fileSourceNode(ac)?.connect(fileTap); fileTap.connect(analyser); if (tempoAnalyser) fileTap.connect(tempoAnalyser);
     }
     micActive = true; lastNote = pendingNote = -1; pendingTicks = 0;
     setMicUI('MIC ON','—','');
@@ -2529,6 +2539,130 @@ async function startMic() {
   }
 }
 
+/* ── TEMPO (BPM) ──────────────────────────────────────────────────────
+   Settings > Detection > Tempo (BPM). A second analyser on the detector's
+   input (mic / app sound / file, after Gain) is read every 10 ms. Onset
+   strength = spectral flux: how much the spectrum (dB, 0–255 per bin, up to
+   ~8 kHz) rose since the last read — note attacks and drum hits spike it.
+   Every 0.5 s the last 8 s of flux, on a 10 ms grid with its local average
+   removed, is autocorrelated; the lag that repeats best between 60 and 200 BPM
+   (weighted towards 120 BPM — a log-Gaussian, σ = 1 octave — so half / double
+   tempos lose to the likelier one) is the beat. Shown: median of the last 5
+   estimates; dim while unsure; hidden when quiet or off. */
+const BPM_KEY = 'keytones-bpm-v1';
+const TEMPO_STEP_MS = 10, TEMPO_WIN_MS = 8000, TEMPO_MIN_MS = 4000;
+const TEMPO_MIN_BPM = 60, TEMPO_MAX_BPM = 200;
+let bpmOn = true;
+try { bpmOn = localStorage.getItem(BPM_KEY) !== '0'; } catch (e) { /* storage unavailable */ }
+let tempoAnalyser = null, tempoTimer = null, tempoCalcTimer = null, tempoPrev = null, tempoBins = 0;
+let tempoFlux = [];   // [{ t, v }] — onset strength readings
+let tempoEsts = [];   // recent BPM estimates (median shown)
+let tempoBpm = 0, tempoSure = false;
+
+function tempoStart(ac) {
+  tempoStop();
+  if (!bpmOn || !micGainNode) { showBpm(); return; }
+  tempoAnalyser = ac.createAnalyser();
+  tempoAnalyser.fftSize = 1024; tempoAnalyser.smoothingTimeConstant = 0;
+  tempoAnalyser.minDecibels = -90; tempoAnalyser.maxDecibels = -10;
+  micGainNode.connect(tempoAnalyser);
+  appTap?.connect(tempoAnalyser); fileTap?.connect(tempoAnalyser);
+  tempoBins = Math.min(tempoAnalyser.frequencyBinCount, Math.round(8000 / (ac.sampleRate / tempoAnalyser.fftSize)));
+  tempoPrev = null; tempoFlux = []; tempoEsts = []; tempoBpm = 0; tempoSure = false;
+  tempoTimer = setInterval(tempoTick, TEMPO_STEP_MS);
+  tempoCalcTimer = setInterval(tempoCalc, 500);
+  showBpm();
+}
+function tempoStop() {
+  if (tempoTimer) { clearInterval(tempoTimer); tempoTimer = null; }
+  if (tempoCalcTimer) { clearInterval(tempoCalcTimer); tempoCalcTimer = null; }
+  if (tempoAnalyser) { try { tempoAnalyser.disconnect(); micGainNode?.disconnect(tempoAnalyser); appTap?.disconnect(tempoAnalyser); fileTap?.disconnect(tempoAnalyser); } catch (e) { /* already gone */ } }
+  tempoAnalyser = null; tempoFlux = []; tempoEsts = []; tempoBpm = 0; tempoSure = false;
+  showBpm();
+}
+function tempoTick() {
+  if (!tempoAnalyser) return;
+  const cur = new Uint8Array(tempoAnalyser.frequencyBinCount);
+  tempoAnalyser.getByteFrequencyData(cur);
+  let flux = 0;
+  if (tempoPrev) for (let i = 1; i < tempoBins; i++) { const d = cur[i] - tempoPrev[i]; if (d > 0) flux += d; }
+  tempoPrev = cur;
+  const t = performance.now();
+  tempoFlux.push({ t, v: flux });
+  while (tempoFlux.length && tempoFlux[0].t < t - TEMPO_WIN_MS) tempoFlux.shift();
+}
+// the BPM of a flux history, or null — exposed for testing
+function tempoEstimate(flux) {
+  if (flux.length < 20) return null;
+  const t0 = flux[0].t, span = flux[flux.length - 1].t - t0;
+  if (span < TEMPO_MIN_MS) return null;
+  const n = Math.floor(span / TEMPO_STEP_MS) + 1, env = new Float64Array(n);
+  for (const f of flux) { const i = Math.round((f.t - t0) / TEMPO_STEP_MS); if (f.v > env[i]) env[i] = f.v; }
+  // remove the local average (±150 ms) and keep only the rises above it
+  const W = 15, on = new Float64Array(n);
+  let sum = 0, cnt = 0;
+  for (let i = 0; i < Math.min(n, W); i++) { sum += env[i]; cnt++; }
+  for (let i = 0; i < n; i++) {
+    if (i + W < n) { sum += env[i + W]; cnt++; }
+    if (i - W - 1 >= 0) { sum -= env[i - W - 1]; cnt--; }
+    on[i] = Math.max(0, env[i] - sum / cnt);
+  }
+  let energy = 0, peak = 0;
+  for (let i = 0; i < n; i++) { energy += on[i] * on[i]; if (on[i] > peak) peak = on[i]; }
+  if (peak < 40) return null; // nothing that sounds like an attack
+  const minL = Math.floor(6000 / TEMPO_MAX_BPM), maxL = Math.ceil(6000 / TEMPO_MIN_BPM);
+  const ac = new Float64Array(maxL + 2);
+  for (let L = minL - 1; L <= Math.min(maxL + 1, n - 1); L++) {
+    let a = 0; for (let i = 0; i + L < n; i++) a += on[i] * on[i + L];
+    ac[L] = a / (n - L);
+  }
+  let best = -1, bestS = 0;
+  const score = L => {
+    const bpm = 6000 / L, w = Math.exp(-0.5 * Math.pow(Math.log2(bpm / 120) / 1.0, 2));
+    return ac[L] * w;
+  };
+  for (let L = minL; L <= maxL; L++) {
+    const sc = score(L);
+    if (sc > bestS && ac[L] >= ac[L - 1] && ac[L] >= ac[L + 1]) { bestS = sc; best = L; }
+  }
+  if (best < 0) return null;
+  // parabolic interpolation around the peak for a sub-step lag
+  const a = ac[best - 1], b = ac[best], c = ac[best + 1], den = a - 2 * b + c;
+  const lag = best + (den ? 0.5 * (a - c) / den : 0);
+  const sure = b / (energy / n) > 0.35; // how much of the attacks repeat at that lag
+  return { bpm: 6000 / lag, sure };
+}
+function tempoCalc() {
+  // no attack in the last 2.5 s (paused, stopped playing): drop the estimate at once
+  const now = performance.now(), recent = tempoFlux.some(f => f.t > now - 2500 && f.v >= 40);
+  const e = recent ? tempoEstimate(tempoFlux) : null;
+  if (!e) { tempoEsts = []; tempoBpm = 0; tempoSure = false; showBpm(); return; }
+  tempoEsts.push(e.bpm); if (tempoEsts.length > 5) tempoEsts.shift();
+  const sorted = [...tempoEsts].sort((x, y) => x - y);
+  tempoBpm = sorted[sorted.length >> 1];
+  // sure = this estimate repeats well and the recent ones agree within 4 %
+  tempoSure = e.sure && tempoEsts.length >= 3 && sorted[sorted.length - 1] / sorted[0] < 1.04;
+  showBpm();
+}
+function showBpm() {
+  const el = document.getElementById('bpm-val'); if (!el) return;
+  const show = bpmOn && micActive && tempoBpm > 0;
+  const changed = el.hidden === show;
+  el.hidden = !show;
+  if (show) {
+    el.textContent = '♩' + Math.round(tempoBpm);
+    el.classList.toggle('unsure', !tempoSure);
+    el.title = 'Tempo ≈ ' + Math.round(tempoBpm) + ' BPM' + (tempoSure ? '' : ' (still unsure)');
+  }
+  if (changed && typeof fitTopbar === 'function') fitTopbar(); // it takes room in the top bar
+}
+function setBpmOn(on) {
+  bpmOn = on;
+  try { localStorage.setItem(BPM_KEY, on ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+  const cb = document.getElementById('bpm-check'); if (cb) cb.checked = on;
+  if (on && micActive && audioCtx) tempoStart(audioCtx); else tempoStop();
+}
+
 function stopMic() {
   micActive = false;
   if (detInterval) { clearInterval(detInterval);     detInterval = null; }
@@ -2537,6 +2671,7 @@ function stopMic() {
   agcSum = 0; agcSamples = 0;
   if (micSrc)      { micSrc.disconnect();            micSrc      = null; }
   if (micGainNode) { micGainNode.disconnect();       micGainNode = null; }
+  tempoStop();
   if (appTap)      { try { synthBus?.disconnect(appTap); } catch (e) { /* already gone */ } appTap.disconnect(); appTap = null; }
   if (fileTap)     { try { fileNode?.disconnect(fileTap); } catch (e) { /* already gone */ } fileTap.disconnect(); fileTap = null; }
   if (micStream)   { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
@@ -5447,6 +5582,7 @@ const SETTING_INFO = {
  "Keys": "How the keyboard's idle keys look.\nPiano: white and black keys.\nLike bars: the same colours as the bar columns above them, so keys and bars read as one surface.\nLit keys keep their colours either way.",
  "Key marks": "How a lit key shows its colour (sounding, newest, pressed, flashing and the fading glow).\nFill: the whole key.\nDots: a dot near the top.\nTop edge: a line across the top.\nBottom edge: a line along the bottom.\nBottom edge + name: the bottom line and the coloured letter.\nBoth edges + name: top and bottom lines and the coloured letter.\nBar: a column growing up from above the letter, as tall as the detection is certain.\nRing: a coloured outline.\nName: only the note letter.\nWith anything but Fill the keys keep their normal look.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count).\n0%: keeps everything.\n100%: clears a stopped note within a second.\nNotes still sounding are never shrunk.",
+ "Tempo (BPM)": "Estimates the tempo of what the detector hears (mic, app sound or file) and shows it in the top bar as ♩120.\nHow: it finds the beat period that repeats most in the note attacks of the last 8 seconds (60–200 BPM).\nDim: still unsure. Hidden: too quiet or no clear beat.\nTakes about 4 seconds to appear. Half or double the real tempo can happen with sparse or busy rhythms.",
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is as opaque as the last detection of that note was certain.\nSolid bars: sure.\nFaint bars: guesses (e.g. close notes, harmonics).\nIn Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
@@ -5690,6 +5826,10 @@ function initSettings() {
   const barsSel = document.getElementById('bars-select');
   barsSel.addEventListener('change', e => setBarsShow(e.target.value));
   setBarsShow(barsShow);
+
+  const bpmCheck = document.getElementById('bpm-check');
+  bpmCheck.checked = bpmOn;
+  bpmCheck.addEventListener('change', e => setBpmOn(e.target.checked));
 
   const confCheck = document.getElementById('conf-opacity-check');
   confCheck.checked = confOpacity;
