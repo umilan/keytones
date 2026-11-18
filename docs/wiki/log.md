@@ -71,3 +71,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.110 Key marks: Bar, Ring, Name
 - Key marks now Fill / Dots / Bar / Ring / Name (a dropdown); body classes `km-alt` + `km-<mode>`.
 - Updated: views, settings.
+
+## [2026-11-18] ingest | v1.111 vertical Key marks bar
+- Bar is now a vertical column from the top of the key, ending 36 px above the bottom at full length.
+- Updated: views.
