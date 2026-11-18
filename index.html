@@ -1180,7 +1180,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.132</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.133</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1233,7 +1233,7 @@
 
   <div id="mic-strip">
     <div class="algo-badge" id="algo-badge" title="Pitch detection algorithm">
-      <span class="algo-acronym" id="algo-acronym">P4</span>
+      <span class="algo-acronym" id="algo-acronym">P5 Ensemble</span>
       <span class="algo-chevron"></span>
       <select class="algo-native-select" id="pitch-algo-select" aria-label="Pitch Algorithm">
         <optgroup label="Monophonic">
@@ -1247,8 +1247,8 @@
           <option value="hpcp">P1 HPCP</option>
           <option value="nnls">P2 NNLS</option>
           <option value="cqtnmf">P3 CQT+NMF</option>
-          <option value="multif0" selected>P4 Multi-F0</option>
-          <option value="ensemble">P5 Ensemble</option>
+          <option value="multif0">P4 Multi-F0</option>
+          <option value="ensemble" selected>P5 Ensemble</option>
         </optgroup>
         <optgroup label="Test">
           <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
@@ -1267,8 +1267,8 @@
       <button type="button" class="algo-btn" data-algo="hpcp" aria-label="HPCP">P1</button>
       <button type="button" class="algo-btn" data-algo="nnls" aria-label="NNLS">P2</button>
       <button type="button" class="algo-btn" data-algo="cqtnmf" aria-label="CQT+NMF">P3</button>
-      <button type="button" class="algo-btn active" data-algo="multif0" aria-label="Multi-F0">P4</button>
-      <button type="button" class="algo-btn" data-algo="ensemble" aria-label="Ensemble (P4 confirmed by P1 or P2)">P5</button>
+      <button type="button" class="algo-btn" data-algo="multif0" aria-label="Multi-F0">P4</button>
+      <button type="button" class="algo-btn active" data-algo="ensemble" aria-label="Ensemble (P4 confirmed by P1 or P2)">P5</button>
       <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test" aria-label="Chromatic Sequence (Test)">T1</button>
       <button type="button" class="algo-btn" data-algo="off" aria-label="Detection off">OFF</button>
     </div>
@@ -1385,8 +1385,8 @@
           <option value="hpcp">P1 HPCP</option>
           <option value="nnls">P2 NNLS</option>
           <option value="cqtnmf">P3 CQT+NMF</option>
-          <option value="multif0" selected>P4 Multi-F0</option>
-          <option value="ensemble">P5 Ensemble</option>
+          <option value="multif0">P4 Multi-F0</option>
+          <option value="ensemble" selected>P5 Ensemble</option>
         </optgroup>
         <optgroup label="Test">
           <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
@@ -2861,7 +2861,7 @@ function stopMic() {
 /* ── PITCH DETECTION — pluggable algorithms, all tuned to the same 80–1400 Hz
    vocal/instrument range. FFT works on the spectrum; the rest are classic
    time-domain methods operating directly on a short window of raw samples. */
-let pitchAlgo = 'multif0'; // Settings > Algorithm — Multi-F0 is the most direct of the polyphonic methods, so it's the default
+let pitchAlgo = 'ensemble'; // Settings > Algorithm — P5 Ensemble is the default since v1.133 (bench: fewer wrong notes than P4, same speed)
 const TD_WINDOW = 2048; // sample window for time-domain algorithms
 
 function getTimeFrame() {
@@ -5699,12 +5699,12 @@ const ALGO_INFO = {
           watch: 'the heaviest on CPU — may lag on older phones.' },
   multif0: { name: 'P4 Multi-F0', what: 'Finds the strongest note, removes its harmonics, repeats — up to 4 notes.',
           stars: { notes: 4, chords: 5, band: 5, speed: 3, noise: 5, quiet: 4, cpu: 5 },
-          badge: 'best all-rounder · default',
+          badge: 'best single chord method',
           best: 'anything with chords — guitar, piano, a full band.',
           watch: 'fast runs (8+ notes/s) blur; in a dense distorted band it sometimes shows the 9th instead of the 5th.' },
   ensemble: { name: 'P5 Ensemble', what: 'Runs P4, P1 and P2 together; a P4 note shows only if P1 or P2 hears it too.',
           stars: { notes: 4, chords: 5, band: 5, speed: 3, noise: 5, quiet: 4, cpu: 4 },
-          badge: 'fewest wrong notes · new',
+          badge: 'default · fewest wrong notes',
           best: 'chords and a full band when stray notes bother you — about a quarter fewer than P4 on the bench.',
           watch: 'about 3× P4\'s CPU (still light); a note only P4 catches is dropped, so very quiet notes can go missing.' },
   'chroma-test': { name: 'T1 Chromatic Sequence', what: 'Not a detector: steps through all 12 notes, 0.6 s each.',

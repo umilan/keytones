@@ -180,3 +180,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   strip now fits down to 320 px (was 375 px).
 - Bench: `run.py` knows `ensemble`; `KT_CHROMIUM` env var to use an existing browser binary.
 - Updated: algorithms, settings, index.
+
+## [2026-11-18] ingest | v1.133 P5 Ensemble is the default
+- Real-app bench P5 vs P4 (`bench/p5-v1.132.md`) met the pre-set rule: band F1 0.91 → 0.93, wrong notes
+  16% → 13%, chord 1.00 → 0.99, onset 91 → 92 ms, release 81 → 44 ms, no ghosts. Default switched
+  (pitchAlgo, both selects, strip, compact badge, card badges).
+- Updated: algorithms, settings, bench.

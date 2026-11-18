@@ -2,7 +2,7 @@
 title: Settings
 summary: Every setting, its default and what it does, grouped as in the panel.
 sources: [index.html (SETTING_INFO), raw/git-history-v1.93.md]
-updated: v1.132
+updated: v1.133
 ---
 
 # Settings
@@ -31,7 +31,7 @@ Settings that can't apply right now are greyed out with the reason.
 | Tempo (BPM) | on | estimate the tempo of what the detector hears; "### BPM" in the top bar. See [Tempo](tempo.md) |
 | Chord names | on | name the chord of the detected notes (not held keys); shown after the tempo. See [Chord names](chords.md) |
 | Detection | full range | 1 oct / full range — full range marks the exact octave on the Launchpad |
-| Algorithm | P4 Multi-F0 | 10 algorithms + T1 test (P5 Ensemble since v1.132), see [Algorithms](algorithms.md) |
+| Algorithm | P5 Ensemble | 10 algorithms + T1 test; P5 default since v1.133 (was P4 Multi-F0). Not saved: every reload starts on the default. See [Algorithms](algorithms.md) |
 | Gain | +50 dB | −40…+100 dB; auto-gain stays ≤ +40 dB |
 | Gate | −40 dB | ignore quieter sound; slider shows the live level (white passes / grey blocked) |
 | Speed | 3 (50 ms) | 1–5: check interval 100→25 ms, FFT 8192→2048, smoothing 0.8→0.2 |
