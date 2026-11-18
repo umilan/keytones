@@ -2,7 +2,7 @@
 title: Audio sources
 summary: Listen to (None (muted) / Mic / App sound / Mic + app sound / File (audio)), devices, phone call mode, synth.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.105
+updated: v1.107
 ---
 
 # Audio sources
@@ -14,7 +14,7 @@ updated: v1.105
 | Mic | the microphone (default; starts on page load since v1.10) |
 | App sound | the app's own synth routed straight in — no mic, no room noise; for checking accuracy on known notes |
 | Mic + app sound | both (falls back to app sound without a mic) |
-| File (audio) | a loaded audio/video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm… — whatever the browser decodes), also played to the speakers; the player is a slim bar just below the top bar, shown only in this mode (v1.105); not restored after a reload (the file is gone) |
+| File (audio) | a loaded audio/video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm… — whatever the browser decodes), also played to the speakers; the player is a slim bar just below the top bar, shown only in this mode (v1.105); the last file is kept in IndexedDB (≤ 500 MB) and is back after a refresh — and File (audio) stays the input if it was (v1.107) |
 
 The topbar picker shows the active source as icon + short name (MUTE / MIC / APP / M+A / FILE)
 and opens the menu (v1.102). The status dot left of the title shows the state: green = listening, orange = a note is heard

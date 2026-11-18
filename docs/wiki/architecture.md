@@ -2,7 +2,7 @@
 title: Architecture
 summary: How index.html is organised: state, audio graph, render loop, persistence.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.97
+updated: v1.107
 ---
 
 # Architecture
@@ -44,6 +44,7 @@ Keys are prefixed `keytones-…-v1` (older `keymap-…` keys are still read for 
 `colors`, `detection`, `view`, `bars`, `listen`, `call-mode`, `conf-opacity`,
 `halftone-glow`, `natural-glow`, `newest-fade`, `color-fade`, `keys-look`; devices in
 `keymap-device-prefs-v1`. Every access is wrapped in try/catch.
+The last audio file itself is stored in IndexedDB (`keytones` › `files` › `last`).
 
 ## Conventions in the code
 - Comments explain *why*; settings code is grouped by its Settings section.

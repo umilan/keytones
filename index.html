@@ -1008,7 +1008,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.106</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.107</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -2078,7 +2078,7 @@ function setPhoneCallMode(on) {
 const LISTEN_KEY = 'keytones-listen-v1';
 const LISTEN_SOURCES = ['mic', 'app', 'both', 'file'];
 let listenSource = 'mic';
-try { const v = localStorage.getItem(LISTEN_KEY); if (['mic', 'app', 'both'].includes(v)) listenSource = v; } catch (e) { /* storage unavailable */ } // 'file' isn't restored: the file is gone after a reload
+try { const v = localStorage.getItem(LISTEN_KEY); if (['mic', 'app', 'both'].includes(v)) listenSource = v; } catch (e) { /* storage unavailable */ } // 'file' comes back via restoreLastFile() once the saved file is read
 let appTap = null;  // synth bus -> analyser, while listening to the app sound
 let fileTap = null; // audio file -> analyser, while listening to the file
 
@@ -2108,8 +2108,43 @@ function fileSourceNode(ac) {
   return fileNode;
 }
 
-function loadAudioFile(file) {
+/* the last loaded file is kept in IndexedDB (the file itself — a web page
+   can't remember a file's location on disk), so after a refresh it's back in
+   the player and, if File (audio) was the input, that's restored too */
+const FILE_DB = 'keytones', FILE_STORE = 'files', FILE_MAX_BYTES = 500 * 1024 * 1024;
+function fileDb() {
+  return new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('no IndexedDB'));
+    const r = indexedDB.open(FILE_DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(FILE_STORE);
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function saveLastFile(file) {
+  if (file.size > FILE_MAX_BYTES) return; // too big to keep — it still plays, just isn't remembered
+  try {
+    const db = await fileDb();
+    db.transaction(FILE_STORE, 'readwrite').objectStore(FILE_STORE)
+      .put({ blob: file, name: file.name, type: file.type, savedAt: Date.now() }, 'last');
+  } catch (e) { /* storage full / private mode — not remembered */ }
+}
+async function restoreLastFile() {
+  try {
+    const db = await fileDb();
+    const rec = await new Promise((res, rej) => {
+      const q = db.transaction(FILE_STORE).objectStore(FILE_STORE).get('last');
+      q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+    });
+    if (!rec?.blob) return;
+    const wasFile = (() => { try { return localStorage.getItem(LISTEN_KEY) === 'file'; } catch (e) { return false; } })();
+    const file = new File([rec.blob], rec.name, { type: rec.type || rec.blob.type });
+    loadAudioFile(file, { restored: true, listen: wasFile });
+  } catch (e) { /* nothing saved / storage unavailable */ }
+}
+
+function loadAudioFile(file, { restored = false, listen = true } = {}) {
   if (!file) return;
+  if (!restored) saveLastFile(file);
   if (fileEl) { fileEl.pause(); fileEl.removeAttribute('src'); }
   if (fileTap) { try { fileNode?.disconnect(fileTap); } catch (e) { /* gone */ } }
   if (fileUrl) URL.revokeObjectURL(fileUrl);
@@ -2118,9 +2153,9 @@ function loadAudioFile(file) {
   fileSourceNode(getCtx());
   document.getElementById('fp-name').textContent = fileName;
   ['fp-back', 'fp-play', 'fp-fwd', 'fp-seek'].forEach(id => { document.getElementById(id).disabled = false; });
-  // listen to it: switch the input and make sure detection is on
-  setListenSource('file');
-  try { localStorage.setItem(LISTEN_KEY, 'mic'); } catch (e) { /* a reload has no file: start from the mic */ }
+  // listen to it: switch the input and make sure detection is on (a restored
+  // file only does this if File (audio) was the input before the refresh)
+  if (listen) setListenSource('file');
   updateFilePlayer();
 }
 
@@ -2170,7 +2205,7 @@ function listenChoice() { return mode === 'outside' ? listenSource : 'none'; }
 function setListenSource(v) {
   if (v === 'none') { if (mode === 'outside') setMode('inner'); else syncListenUI(); return; }
   listenSource = LISTEN_SOURCES.includes(v) ? v : 'mic';
-  try { localStorage.setItem(LISTEN_KEY, listenSource === 'file' ? 'mic' : listenSource); } catch (e) { /* storage unavailable */ }
+  try { localStorage.setItem(LISTEN_KEY, listenSource); } catch (e) { /* storage unavailable */ }
   if (mode !== 'outside') setMode('outside');           // picking an input switches detection on
   else { stopMic(); startMic(); }                       // reconnect with the new input (also retries after a failed mic)
   syncListenUI();
@@ -5556,6 +5591,7 @@ function build() {
   initResize();
   initResponsiveAlgoPicker();
   initSettings();
+  restoreLastFile(); // the last audio file, if one was saved
   tryAutoMidi();
   tryAutoAudioDevices();
   initScrubDrag('gain-ctrl', () => micGainDb, setMicGain, 0.25);

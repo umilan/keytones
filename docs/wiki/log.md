@@ -54,3 +54,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - Finger resize uses its own non-passive touch handlers with a 24 px grab band; pointer
   events stay for mouse / pen.
 - Updated: input.
+
+## [2026-11-18] ingest | v1.107 remember the last audio file
+- The loaded file is saved in IndexedDB and restored after a refresh; Listen to: File (audio)
+  is remembered too.
+- Updated: audio-sources, architecture.
