@@ -2,13 +2,15 @@
 title: Settings
 summary: Every setting, its default and what it does, grouped as in the panel.
 sources: [index.html (SETTING_INFO), raw/git-history-v1.93.md]
-updated: v1.120
+updated: v1.121
 ---
 
 # Settings
 
 Order in the panel: **Visualisation → Detection → Colors → Audio → MIDI**. Every label has an
 ⓘ with the explanation below (`SETTING_INFO` in `index.html` — keep both in sync).
+The tip text is split into lines with `\n`: the first line is the lead; a later line `Name: text`
+becomes an option row with **Name** in bold and a hanging indent (`infoTipNodes()`, v1.121).
 Settings that can't apply right now are greyed out with the reason.
 
 ## Visualisation

@@ -116,3 +116,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - New Key marks option: top + bottom 5 px lines and the coloured letter (`edges-name` = km-bottom +
   km-edges + km-name); Pi-auto strip shows both edges. Key marks help text updated (Bar description fixed).
 - Updated: views, settings.
+
+## [2026-11-18] ingest | v1.121 Readable setting tips
+- ⓘ tips render one option per line (bold name, hanging indent) from `\n`-separated `SETTING_INFO`
+  texts; long multi-option texts rewritten that way; tip width 300 px.
+- Updated: settings.
