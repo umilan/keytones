@@ -59,3 +59,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - The loaded file is saved in IndexedDB and restored after a refresh; Listen to: File (audio)
   is remembered too.
 - Updated: audio-sources, architecture.
+
+## [2026-11-18] ingest | v1.108 Key marks: Dots
+- New setting Visualisation > Key marks: Fill / Dots; `body.key-dots` + `.key-dot` per key.
+- Updated: views, settings.

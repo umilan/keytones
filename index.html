@@ -632,6 +632,30 @@
     .white-key.latest::after, .black-key.latest::after { opacity: 0; }
     .white-key.latest .key-name, .black-key.latest .key-name { color: rgba(30,25,50,0.70); }
 
+    /* Settings > Visualisation > Key marks: Dots — keys stay in their idle
+       look and a dot near the top of each key takes the colour instead.
+       Solid states (pressed, newest, live, flash) colour .key-dot; the fading
+       glow (::after, opacity = --press-t) is reshaped into the same dot. */
+    .key-dot { display: none; }
+    body.key-dots .key-dot {
+      display: block; position: absolute; z-index: 1; pointer-events: none;
+      top: 10px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+      background: transparent;
+    }
+    body.key-dots .white-key::after, body.key-dots .black-key::after {
+      inset: auto; top: 10px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+    }
+    body.key-dots .white-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA) !important; }
+    body.key-dots .black-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%) #232333) !important; }
+    body.key-dots :is(.white-key, .black-key):is(.latest, .live-strong, .live-on)::after { opacity: 0 !important; }
+    body.key-dots .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--wk-name, rgba(30,25,50,0.50)) !important; }
+    body.key-dots .black-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(255,255,255,0.44) !important; }
+    body.key-dots :is(.white-key, .black-key).live-on     .key-dot { background: var(--active-bg); }
+    body.key-dots :is(.white-key, .black-key).live-strong .key-dot { background: var(--latest-bg); }
+    body.key-dots :is(.white-key, .black-key).latest      .key-dot { background: var(--key-new, var(--latest-bg)); }
+    body.key-dots :is(.white-key, .black-key).pressed     .key-dot { background: var(--press-bg, var(--active-bg)); }
+    body.key-dots :is(.white-key, .black-key).pressed.flash-b .key-dot { background: var(--flash-det, var(--active-bg)); }
+
     .key-name {
       font-family: monospace;
       font-weight: 700;
@@ -1008,7 +1032,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.107</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.108</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1143,6 +1167,13 @@
       <div class="sp-seg" id="keys-look-select" role="radiogroup" aria-label="Keys">
         <button type="button" role="radio" data-value="piano">Piano</button>
         <button type="button" role="radio" data-value="flat">Like bars</button>
+      </div>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Key marks</span>
+      <div class="sp-seg" id="key-marks-select" role="radiogroup" aria-label="Key marks">
+        <button type="button" role="radio" data-value="fill">Fill</button>
+        <button type="button" role="radio" data-value="dots">Dots</button>
       </div>
     </div>
     <div class="sp-row">
@@ -3715,6 +3746,10 @@ function makeKey(def, type) {
   kb.className   = 'key-kb';
   kb.textContent = def.kb;
 
+  const dot = document.createElement('span');
+  dot.className = 'key-dot'; // Settings > Key marks: Dots
+
+  el.appendChild(dot);
   el.appendChild(name);
   el.appendChild(kb);
   keyEls[def.noteIdx] = el;
@@ -5293,6 +5328,7 @@ const SETTING_INFO = {
  "Listen to": "What the detector hears — also the mini picker in the top bar. None (muted): detection off. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. File (audio): an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers).",
  "Bars show": "What a bar's height means. Live: the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others; a bar falls back at the Decay rate after its note stops. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Keys": "How the keyboard's idle keys look. Piano: white and black keys. Like bars: the same colours as the bar columns above them, so keys and bars read as one surface. Lit keys keep their colours either way.",
+ "Key marks": "How a lit key shows its colour. Fill: the whole key takes the colour. Dots: the keys keep their normal look and a dot near the top of each key takes the colour (sounding, newest, pressed, flashing and the fading glow).",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses (e.g. close notes, harmonics). In Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
@@ -5500,6 +5536,21 @@ function initSettings() {
   try { keysLook = localStorage.getItem(KEYS_LOOK_KEY) || 'piano'; } catch (e) { /* storage unavailable */ }
   document.querySelectorAll('#keys-look-select button').forEach(b => b.addEventListener('click', () => setKeysLook(b.dataset.value)));
   setKeysLook(keysLook);
+
+  /* Settings > Visualisation > Key marks: Fill (the key takes the colour) or Dots */
+  const KEY_MARKS_KEY = 'keytones-key-marks-v1';
+  const setKeyMarks = v => {
+    v = v === 'dots' ? 'dots' : 'fill';
+    document.body.classList.toggle('key-dots', v === 'dots');
+    document.querySelectorAll('#key-marks-select button').forEach(b => {
+      const on = b.dataset.value === v; b.classList.toggle('active', on); b.setAttribute('aria-checked', on);
+    });
+    try { localStorage.setItem(KEY_MARKS_KEY, v); } catch (e) { /* storage unavailable */ }
+  };
+  let keyMarks = 'fill';
+  try { keyMarks = localStorage.getItem(KEY_MARKS_KEY) || 'fill'; } catch (e) { /* storage unavailable */ }
+  document.querySelectorAll('#key-marks-select button').forEach(b => b.addEventListener('click', () => setKeyMarks(b.dataset.value)));
+  setKeyMarks(keyMarks);
 
   const barsSel = document.getElementById('bars-select');
   barsSel.addEventListener('change', e => setBarsShow(e.target.value));
