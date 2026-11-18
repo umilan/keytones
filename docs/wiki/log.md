@@ -21,3 +21,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - `--ctrl-size` 24 → 32 px (icons 14 → 18 px, GAIN box same height; Listen-to menu rows and
   file-player buttons grow too).
 - Updated: architecture.
+
+## [2026-11-18] ingest | v1.98 safe-area clipping
+- Page clipped to the safe area with black masks; safe-area spacers black; theme-color #000.
+- White corners in wrapper apps (e.g. MIDI browser) come from the host app outside the web view.
+- Updated: ios.

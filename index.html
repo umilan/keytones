@@ -7,7 +7,7 @@
 
   <!-- PWA: installable "Add to Home Screen" once served over http(s), not file:// -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0C0C14">
+  <meta name="theme-color" content="#000000">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -113,13 +113,24 @@
     .safe-top {
       flex-shrink: 0;
       height: env(safe-area-inset-top, 0px);
-      background: var(--top-bg);
+      background: var(--bg);
     }
     .safe-bottom {
       flex-shrink: 0;
       height: env(safe-area-inset-bottom, 0px);
-      background: var(--key-bg);
+      background: var(--bg);
     }
+    /* clip the whole page to the safe area: plain black masks over the status
+       bar / notch / home-indicator / browser-bar insets, so no app colour
+       (top bar, keys, Settings panel) shows there — matches dark host apps
+       such as in-app MIDI browsers */
+    html::before, html::after, body::before, body::after {
+      content: ''; position: fixed; z-index: 1000; pointer-events: none; background: var(--bg);
+    }
+    html::before { top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); }
+    html::after  { bottom: 0; left: 0; right: 0; height: env(safe-area-inset-bottom, 0px); }
+    body::before { top: 0; bottom: 0; left: 0; width: env(safe-area-inset-left, 0px); }
+    body::after  { top: 0; bottom: 0; right: 0; width: env(safe-area-inset-right, 0px); }
 
     /* ── TOPBAR ──────────────────────────── */
     #topbar {
@@ -974,7 +985,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.97</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.98</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
