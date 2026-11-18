@@ -87,3 +87,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.114 Key marks bar grows upwards
 - Bar now starts just above the label (36 px from the bottom) and grows up with confidence.
 - Updated: views.
+
+## [2026-11-18] ingest | v1.115 Key marks: Bottom edge (+ name)
+- Bottom edge: 5 px line along the key's bottom (`.key-line`, `--mark` / `--glow` at `--press-t`).
+  Bottom edge + name = `km-bottom` + `km-name`.
+- Updated: views, settings.

@@ -2,7 +2,7 @@
 title: Settings
 summary: Every setting, its default and what it does, grouped as in the panel.
 sources: [index.html (SETTING_INFO), raw/git-history-v1.93.md]
-updated: v1.112
+updated: v1.115
 ---
 
 # Settings
@@ -17,7 +17,7 @@ Settings that can't apply right now are greyed out with the reason.
 | View | Piano | Piano (12 bars) · Pi-auto (one bar per real note, grows by octaves) · LP (on-screen Launchpad) — also the topbar toggle. See [Views](views.md) |
 | Bars show | Live | Live · Time · Count · Chroma — what bar height means. See [Views](views.md) |
 | Keys | Piano | Piano (white/black) or Like bars (idle keys take the bar colours) |
-| Key marks | Fill | Fill · Dots · Top edge · Bar (length = confidence) · Ring · Name — how a lit key shows its colour |
+| Key marks | Fill | Fill · Dots · Top edge · Bottom edge · Bottom edge + name · Bar (length = confidence) · Ring · Name — how a lit key shows its colour |
 | Decay | 50% | per-second shrink of stopped notes (bars, glows, pads). Sounding notes never shrink; played notes have no afterglow (v1.91) |
 | Bar opacity = confidence | off | bar opacity = last detection confidence (Time / Count) |
 

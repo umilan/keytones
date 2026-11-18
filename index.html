@@ -279,6 +279,7 @@
       width: min(8px, 70%); aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%;
       background: var(--press-bg, var(--active-bg));
     }
+    body.km-bottom .pa-key.pressed::after { top: auto; bottom: 0; left: 0; width: 100%; height: 4px; aspect-ratio: auto; transform: none; border-radius: 0; }
     body.km-edge .pa-key.pressed::after,
     body.km-bar .pa-key.pressed::after { top: 0; left: 0; width: 100%; height: 4px; aspect-ratio: auto; transform: none; border-radius: 0; }
     body.km-ring .pa-key.pressed::after {
@@ -661,14 +662,28 @@
     body.km-alt :is(.white-key, .black-key):is(.latest, .live-strong, .live-on)::after { opacity: 0 !important; }
     body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--wk-name, rgba(30,25,50,0.50)) !important; }
     body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(255,255,255,0.44) !important; }
-    body.km-alt :is(.white-key, .black-key).live-on         { --mark: var(--active-bg); }
-    body.km-alt :is(.white-key, .black-key).live-strong     { --mark: var(--latest-bg); }
-    body.km-alt :is(.white-key, .black-key).latest          { --mark: var(--key-new, var(--latest-bg)); }
-    body.km-alt :is(.white-key, .black-key).pressed         { --mark: var(--press-bg, var(--active-bg)); }
-    body.km-alt :is(.white-key, .black-key).pressed.flash-b { --mark: var(--flash-det, var(--active-bg)); }
+    body.km-alt :is(.white-key, .black-key).live-on         { --mark: var(--active-bg); --mark-op: 1; }
+    body.km-alt :is(.white-key, .black-key).live-strong     { --mark: var(--latest-bg); --mark-op: 1; }
+    body.km-alt :is(.white-key, .black-key).latest          { --mark: var(--key-new, var(--latest-bg)); --mark-op: 1; }
+    body.km-alt :is(.white-key, .black-key).pressed         { --mark: var(--press-bg, var(--active-bg)); --mark-op: 1; }
+    body.km-alt :is(.white-key, .black-key).pressed.flash-b { --mark: var(--flash-det, var(--active-bg)); --mark-op: 1; }
     /* Dots: a 14 px dot near the top */
     body.km-dots .key-dot,
     body.km-dots :is(.white-key, .black-key)::after { inset: auto; top: 10px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; }
+    /* Bottom edge (+ name): a fixed 5 px line along the bottom of the key, drawn
+       by .key-line: solid states use --mark, the fading glow uses --glow at the
+       --press-t opacity. With "+ name" the note letter is coloured as in Name. */
+    .key-line { display: none; }
+    :is(.white-key, .black-key) { --glow: var(--press-bg, var(--active-bg)); }
+    :is(.white-key, .black-key).exact { --glow: var(--active-bg); }
+    :is(.white-key, .black-key).exact.exact-latest { --glow: var(--key-new, var(--latest-bg)); }
+    body.km-bottom .key-line {
+      display: block; position: absolute; z-index: 1; pointer-events: none;
+      left: 0; right: 0; bottom: 0; height: 5px; border-radius: 0 0 var(--radius) var(--radius);
+      background: var(--mark, var(--glow)); opacity: var(--mark-op, var(--press-t, 0));
+    }
+    body.km-bottom:not(.km-name) .key-dot { display: none; }
+    body.km-bottom:not(.km-name) :is(.white-key, .black-key)::after { display: none; }
     /* Top edge: like Dots, but a fixed 5 px line across the top of the key */
     body.km-edge .key-dot,
     body.km-edge :is(.white-key, .black-key)::after { inset: auto; top: 0; left: 0; right: 0; width: auto; height: 5px; border-radius: 0; }
@@ -1074,7 +1089,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.114</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.115</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1217,6 +1232,8 @@
         <option value="fill">Fill</option>
         <option value="dots">Dots</option>
         <option value="edge">Top edge</option>
+        <option value="bottom">Bottom edge</option>
+        <option value="bottom-name">Bottom edge + name</option>
         <option value="bar">Bar</option>
         <option value="ring">Ring</option>
         <option value="name">Name</option>
@@ -3799,7 +3816,11 @@ function makeKey(def, type) {
   dot.dataset.name = def.name; el.dataset.name = def.name;
   dot.textContent = def.name; // shown only in Key marks: Name (font-size 0 otherwise)
 
+  const line = document.createElement('span');
+  line.className = 'key-line'; // Key marks: Bottom edge (+ name)
+
   el.appendChild(dot);
+  el.appendChild(line);
   el.appendChild(name);
   el.appendChild(kb);
   keyEls[def.noteIdx] = el;
@@ -5378,7 +5399,7 @@ const SETTING_INFO = {
  "Listen to": "What the detector hears — also the mini picker in the top bar. None (muted): detection off. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. File (audio): an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers).",
  "Bars show": "What a bar's height means. Live: the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others; a bar falls back at the Decay rate after its note stops. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Keys": "How the keyboard's idle keys look. Piano: white and black keys. Like bars: the same colours as the bar columns above them, so keys and bars read as one surface. Lit keys keep their colours either way.",
- "Key marks": "How a lit key shows its colour (sounding, newest, pressed, flashing and the fading glow). Fill: the whole key. Dots: a dot near the top. Top edge: a line across the top edge. Bar: a strip along the top edge — as long as the detection is certain. Ring: a coloured outline. Name: only the note letter. With anything but Fill the keys keep their normal look.",
+ "Key marks": "How a lit key shows its colour (sounding, newest, pressed, flashing and the fading glow). Fill: the whole key. Dots: a dot near the top. Top edge / Bottom edge: a line across the top / bottom edge. Bottom edge + name: the bottom line and the coloured letter together. Bar: a strip along the top edge — as long as the detection is certain. Ring: a coloured outline. Name: only the note letter. With anything but Fill the keys keep their normal look.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is drawn as opaque as the last detection of that note was certain — solid bars are sure, faint bars are guesses (e.g. close notes, harmonics). In Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
@@ -5587,12 +5608,14 @@ function initSettings() {
   document.querySelectorAll('#keys-look-select button').forEach(b => b.addEventListener('click', () => setKeysLook(b.dataset.value)));
   setKeysLook(keysLook);
 
-  /* Settings > Visualisation > Key marks: Fill (the key takes the colour), Dots, Top edge, Bar, Ring or Name */
+  /* Settings > Visualisation > Key marks: Fill (the key takes the colour), Dots, Top / Bottom edge (+ name), Bar, Ring or Name */
   const KEY_MARKS_KEY = 'keytones-key-marks-v1';
-  const KEY_MARK_MODES = ['fill', 'dots', 'edge', 'bar', 'ring', 'name'];
+  const KEY_MARK_MODES = ['fill', 'dots', 'edge', 'bottom', 'bottom-name', 'bar', 'ring', 'name'];
   const setKeyMarks = v => {
     v = KEY_MARK_MODES.includes(v) ? v : 'fill';
-    KEY_MARK_MODES.forEach(m => document.body.classList.toggle('km-' + m, v === m));
+    // a mode is one or more body classes: Bottom edge + name = km-bottom + km-name
+    const cls = { 'bottom-name': ['bottom', 'name'] }[v] || [v];
+    ['fill', 'dots', 'edge', 'bottom', 'bar', 'ring', 'name'].forEach(m => document.body.classList.toggle('km-' + m, cls.includes(m)));
     document.body.classList.toggle('km-alt', v !== 'fill');
     document.getElementById('key-marks-select').value = v;
     try { localStorage.setItem(KEY_MARKS_KEY, v); } catch (e) { /* storage unavailable */ }
