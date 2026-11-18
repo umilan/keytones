@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.125
+updated: v1.126
 ---
 
 # Colors
@@ -44,14 +44,22 @@ at the top of `:root` in `index.html`:
 | token | value | used for |
 |---|---|---|
 | `--ui-h` | `240` (blue-violet) | root: change it to re-tint the whole UI |
-| `--ui-h-text` | `--ui-h` + 5 | light text, menu text, focus ring, dark key letters |
+| `--ui-h-text` | `--ui-h` + 5 | light text, menu text, focus ring |
+| `--ui-sat` | `1` (0–2) | tint strength: every UI saturation is multiplied by it (v1.126) |
+
+Since v1.126 both are user settings: **Settings > Colors > UI hue** (0–359°, `keytones-ui-hue-v1`) and
+**UI tint** (0–200%, `keytones-ui-tint-v1`), applied by `applyUiColor()` on load and by Reset colors.
+Only saturation changes, never lightness, so text contrast barely moves: over every hue and tint up to
+200% the main text stays ≥ 10:1 on the panel and menu text ≥ 9:1. The cap of 200% keeps every pair
+within ~10% of the original contrast. The dark letters on white keys (`--ink`) are fixed (hue 252) and
+don't follow the setting: a yellow hue would have dropped them from 3.1 to 2.5:1 on the cream.
 
 Each tinted colour is `hsl(var(--ui-h) <sat> <light>)` with its original saturation and lightness,
 so the look didn't change (screenshot diff: identical). Tokens: `--bar-bg`, `--top-bg`, `--strip-bg`,
 `--col-bg`, `--key-bg`, `--panel-bg`, `--pop-bg` (menus / tips), `--track-bg` (slider / Gate meter),
 `--bk-top` / `--bk-bot` / `--bk-flat` / `--bk-grad` (black keys), `--lp-pad` / `--lp-btn` /
 `--lp-logo` (on-screen Launchpad), `--text`, `--dim`, `--text-hsl`, `--pop-text`, `--focus`,
-`--ink` (letters on white keys, used as `hsl(var(--ink) / a)`), `--chevron-col`.
+`--chevron-col`. (`--ink`, the letters on white keys, is fixed since v1.126.)
 
 Not tied to the hue: note colours (`--active-bg`, `--latest-bg`, palette), `--ok` / `--err`,
 pure black `--bg`, the white-overlay scale (`--surface…`, `--border…`), the cream white keys,

@@ -142,3 +142,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - All tinted UI colours now derive from `--ui-h: 240` (+5 for text) as hsl() tokens; no visible change
   (pixel diff identical apart from the version). Chevron spans drawn as masks in `--chevron-col`.
 - Updated: colors.
+
+## [2026-11-18] ingest | v1.126 UI hue / UI tint settings
+- Settings > Colors: UI hue (0–359°) and UI tint (0–200%, scales all UI saturations via `--ui-sat`);
+  saved, reset by Reset colors. Contrast checked over all hues/tints; `--ink` decoupled (fixed).
+- Updated: settings, colors.
