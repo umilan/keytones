@@ -111,3 +111,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.119 Plain app title
 - "tones" / "T" in the top-bar title no longer use the sounding-notes red (`.app-title-accent` inherits).
 - Updated: colors.
+
+## [2026-11-18] ingest | v1.120 Key marks: Both edges + name
+- New Key marks option: top + bottom 5 px lines and the coloured letter (`edges-name` = km-bottom +
+  km-edges + km-name); Pi-auto strip shows both edges. Key marks help text updated (Bar description fixed).
+- Updated: views, settings.
