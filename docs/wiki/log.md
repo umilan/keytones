@@ -107,3 +107,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - With a Key marks mode other than Fill, detected notes get the mark on the Pi-auto mini keys too
   (`.pa-key.det`, colour = the note's bar: yellow newest/strongest, red otherwise).
 - Updated: views.
+
+## [2026-11-18] ingest | v1.119 Plain app title
+- "tones" / "T" in the top-bar title no longer use the sounding-notes red (`.app-title-accent` inherits).
+- Updated: colors.

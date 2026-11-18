@@ -177,7 +177,7 @@
     #topbar.tiny .app-version { display: none; } /* last resort, very narrow phones only */
     #topbar.tiny { gap: 5px; padding: 0 6px; } /* room for the view toggle on 320px phones */
     #topbar.micro .mic-badge { display: none; } /* narrowest phones: the title's status dot + mute button carry it */
-    .app-title-accent { color: var(--active-bg); } /* same red as the bars */
+    .app-title-accent { color: inherit; } /* plain, same colour as the rest of the title */
     /* bumped before every push to main — see CLAUDE.md */
     .app-version {
       text-transform: none;
@@ -1095,7 +1095,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.118</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.119</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>

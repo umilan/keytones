@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.93
+updated: v1.119
 ---
 
 # Colors
@@ -14,7 +14,7 @@ white — plus **none** for every role.
 
 | role | default | used for |
 |---|---|---|
-| Sounding notes (`detected`) | red | bars, key glow, pads of sounding notes; also the "TONES" title accent and LP UI buttons |
+| Sounding notes (`detected`) | red | bars, key glow, pads of sounding notes; also the LP UI buttons (the title has no colour accent since v1.119) |
 | Newest notes (`latest`) | yellow | newest note(s) on keys, bars, pads |
 | C pads (`cNote`) | white | idle C pads (octave anchors) on LP / LK |
 | Pad press (`pressed`) | magenta | a held pad / key; none = no press lighting |
