@@ -26,3 +26,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - Page clipped to the safe area with black masks; safe-area spacers black; theme-color #000.
 - White corners in wrapper apps (e.g. MIDI browser) come from the host app outside the web view.
 - Updated: ios.
+
+## [2026-11-18] ingest | v1.99 no bar glow
+- Bar glow / shadow removed (`barGlow()` returns none) in Piano and Pi-auto.
+- Updated: views.

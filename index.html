@@ -985,7 +985,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.98</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.99</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1409,11 +1409,10 @@ function barColor(ratio) {
   return ratio > 0 ? BAR_CLR : 'transparent';
 }
 
+/* bars have no glow / shadow (removed in v1.99 — it spilled over the
+   neighbouring columns); kept as a function so callers stay unchanged */
 function barGlow(ratio) {
-  if (ratio < 0.12) return 'none';
-  const a    = (ratio * 0.40).toFixed(2);
-  const size = Math.round(8 + ratio * 10);
-  return `0 0 ${size}px 2px rgba(${webRgb(colors.detected)},${a})`;
+  return 'none';
 }
 
 /* Piano layout */

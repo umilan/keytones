@@ -2,7 +2,7 @@
 title: Views and bars
 summary: View (Piano / Pi-auto / LP), Bars show modes, keys, Decay and reset.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.93
+updated: v1.99
 ---
 
 # Views and bars
@@ -25,7 +25,7 @@ Topbar toggle switches views; the choice is remembered.
 | Count | how often each note started |
 | Chroma | energy per note name before detection; detected notes in yellow |
 
-Percent labels = share of the total (Time / Count) or the level (Live / Chroma).
+Percent labels = share of the total (Time / Count) or the level (Live / Chroma). Bars have no glow or shadow (removed in v1.99).
 
 ## Keys
 Keys mirror the detected state: each detected note's key glows in the Sounding colour (Newest
