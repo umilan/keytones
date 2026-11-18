@@ -67,3 +67,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.109 dots on the Pi-auto strip
 - Key marks: Dots also applies to the Pi-auto strip (pressed and flashing keys).
 - Updated: views.
+
+## [2026-11-18] ingest | v1.110 Key marks: Bar, Ring, Name
+- Key marks now Fill / Dots / Bar / Ring / Name (a dropdown); body classes `km-alt` + `km-<mode>`.
+- Updated: views, settings.
