@@ -44,3 +44,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - "Audio file" renamed "File (audio)"; the topbar picker is a mini dropdown: icon + MUTE / MIC /
   APP / M+A / FILE + chevron.
 - Updated: audio-sources, settings, overview.
+
+## [2026-11-18] ingest | v1.105 slim file player
+- The audio-file player moved from Settings > Detection to a one-row bar below the top bar
+  (Load…, name, −15 / play / +15, seek, time); phones hide the file name.
+- Updated: audio-sources.

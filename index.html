@@ -964,6 +964,24 @@
     .fp-time { margin-left: auto; font-family: monospace; font-size: 11px; color: var(--dim); white-space: nowrap; }
     .fp-seek { width: 100%; margin: 0; accent-color: var(--active-bg); cursor: pointer; }
     .fp-seek:disabled { opacity: 0.35; cursor: default; }
+    /* slim one-row player bar under the top bar (v1.105) */
+    #file-player.fp-slim {
+      flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0;
+      height: 40px; margin: 0; padding: 0 12px; border: none; border-radius: 0;
+      background: var(--top-bg); border-bottom: 1px solid var(--border);
+    }
+    #file-player.fp-slim .fp-top { flex: 0 1 auto; min-width: 0; max-width: 34%; }
+    #file-player.fp-slim .fp-ctrl { flex: 1 1 auto; min-width: 0; }
+    #file-player.fp-slim .fp-seek { flex: 1; min-width: 40px; width: auto; }
+    #file-player.fp-slim .fp-time { margin-left: 0; }
+    #file-player.fp-slim .fp-btn { width: auto; min-width: 28px; height: 28px; padding: 0 5px; }
+    #file-player.fp-slim .sp-reset { padding: 4px 8px; }
+    @media (max-width: 480px) {          /* phones: name and time give way to the seek bar */
+      #file-player.fp-slim { gap: 6px; padding: 0 8px; }
+      #file-player.fp-slim .fp-name { display: none; }
+      #file-player.fp-slim .fp-top { flex: 0 0 auto; }
+      #file-player.fp-slim .fp-time { font-size: 10px; }
+    }
 
     .sp-status {
       font-family: monospace;
@@ -990,7 +1008,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.104</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.105</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1021,6 +1039,24 @@
     </button>
   </div>
 
+  <!-- Listen to: File (audio) — slim player bar under the top bar -->
+  <div class="fp-box fp-slim" id="file-player" hidden>
+    <div class="fp-top">
+      <button type="button" class="sp-reset" id="fp-load" title="Load an audio or video file">Load…</button>
+      <span class="fp-name" id="fp-name">audio or video file — played into the detector</span>
+      <input type="file" id="fp-input" accept="audio/*,video/*,.wav,.mp3,.m4a,.aac,.ogg,.oga,.opus,.flac,.aif,.aiff,.caf,.weba,.mp4,.m4v,.mov,.webm,.mkv,.3gp" hidden>
+    </div>
+    <div class="fp-ctrl">
+      <button type="button" class="fp-btn" id="fp-back" title="Back 15 s" aria-label="Back 15 seconds" disabled>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M11 6v12L2.5 12zM21 6v12l-8.5-6z"/></svg>15</button>
+      <button type="button" class="fp-btn" id="fp-play" title="Play" aria-label="Play" disabled>
+        <svg id="fp-play-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg></button>
+      <button type="button" class="fp-btn" id="fp-fwd" title="Forward 15 s" aria-label="Forward 15 seconds" disabled>
+        15<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6zM3 6v12l8.5-6z"/></svg></button>
+      <input type="range" class="fp-seek" id="fp-seek" min="0" max="1000" step="1" value="0" disabled aria-label="Position">
+      <span class="fp-time" id="fp-time">0:00 / 0:00</span>
+    </div>
+  </div>
   <div id="bar-area"><div id="lp-view" hidden><div id="lp-grid"></div></div><div id="pa-view" hidden><div id="pa-bars"></div><div id="pa-keys"></div></div></div>
 
   <div id="mic-strip">
@@ -1131,23 +1167,6 @@
         <option value="both">Mic + app sound</option>
         <option value="file">File (audio)</option>
       </select>
-    </div>
-    <div class="fp-box" id="file-player" hidden>
-      <div class="fp-top">
-        <button type="button" class="sp-reset" id="fp-load">Load audio…</button>
-        <span class="fp-name" id="fp-name">audio or video file — played into the detector</span>
-        <input type="file" id="fp-input" accept="audio/*,video/*,.wav,.mp3,.m4a,.aac,.ogg,.oga,.opus,.flac,.aif,.aiff,.caf,.weba,.mp4,.m4v,.mov,.webm,.mkv,.3gp" hidden>
-      </div>
-      <div class="fp-ctrl">
-        <button type="button" class="fp-btn" id="fp-back" title="Back 15 s" aria-label="Back 15 seconds" disabled>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M11 6v12L2.5 12zM21 6v12l-8.5-6z"/></svg>15</button>
-        <button type="button" class="fp-btn" id="fp-play" title="Play" aria-label="Play" disabled>
-          <svg id="fp-play-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg></button>
-        <button type="button" class="fp-btn" id="fp-fwd" title="Forward 15 s" aria-label="Forward 15 seconds" disabled>
-          15<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 6v12l8.5-6zM3 6v12l8.5-6z"/></svg></button>
-        <span class="fp-time" id="fp-time">0:00 / 0:00</span>
-      </div>
-      <input type="range" class="fp-seek" id="fp-seek" min="0" max="1000" step="1" value="0" disabled aria-label="Position">
     </div>
     <div class="sp-row">
       <span class="sp-label">Detection</span>
