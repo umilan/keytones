@@ -191,3 +191,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - `bench/ensemble_run.js --windows 2048,8192` also runs the detectors on extra analysis windows (same input,
   same smoothing, swapped-in analysers) on the same frames; `bench/windows.py` fuses P5 across windows and
   with adaptive stability. Results to follow; no app behaviour change.
+
+## [2026-11-18] query | v1.135 Window / adaptive-stability results
+- `bench/windows-v1.134.md`: fast notes are a Stability problem; "instant when all 3 P5 algorithms agree"
+  gives mono_fast 0.36 → 0.53, onset 116 → 81 ms, no extra CPU; long window best for band (0.98) but
+  kills fast notes. Filed into the bench page; no app change yet.
+- Updated: bench.
