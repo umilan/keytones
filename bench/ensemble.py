@@ -90,7 +90,7 @@ def stabilise(raw_frames, stability):
 
 
 def main(run_dir):
-    clips = sorted(f[:-5] for f in os.listdir(run_dir) if f.endswith('.json'))
+    clips = sorted(f[:-5] for f in os.listdir(run_dir) if f.endswith('.json') and not f.startswith('ensemble'))
     res = {}  # rule -> clip -> metrics
     for clip in clips:
         rec = json.load(open(os.path.join(run_dir, clip + '.json')))

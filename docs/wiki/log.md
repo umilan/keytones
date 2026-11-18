@@ -166,3 +166,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - New bench scripts: `bench/ensemble_run.js` records P1–P4 on the same detection frames (one browser per
   clip); `bench/ensemble.py` fuses them offline (votes, confidence sums, P4 + confirmation) through the
   app's Stability rule and scores with `bench/score.py`. Results to follow; no app behaviour change.
+
+## [2026-11-18] query | v1.131 Ensemble bench results
+- P1–P4 fused offline on the same frames (`bench/ensemble-v1.130.md`): best = P4 confirmed by P1 or P2,
+  band F1 0.92 → 0.94, wrong notes 17% → 13%, cost 0.4 → 1.2 ms/frame. Summing confidences is worse
+  than voting. mono_fast stays poor for all. Filed into the bench page.
+- Updated: bench.
