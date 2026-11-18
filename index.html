@@ -985,7 +985,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.100</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.101</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -3001,12 +3001,12 @@ function afterDetectionFrame(sr) {
 }
 
 /* Pi-auto + Chroma: the same, per real note (no folding into one octave) */
-function measureAbsChroma(mag, binHz, lo, hi) {
+function measureAbsChroma(peaks) {
   absChroma.fill(0);
   const e = new Float64Array(128);
-  for (let b = lo; b <= hi; b++) {
-    const m = Math.round(12 * Math.log2(b * binHz / 440) + 69);
-    if (m >= 0 && m < 128) e[m] += mag[b] * mag[b];
+  for (const pk of peaks) {
+    const m = Math.round(12 * Math.log2(pk.freq / 440) + 69);
+    if (m >= 0 && m < 128) e[m] += pk.mag * pk.mag;
   }
   const inRange = [];
   for (let m = midiOf(0, paLo); m <= midiOf(11, paHi); m++) inRange.push(Math.sqrt(e[m]));
@@ -3020,15 +3020,19 @@ function measureChroma(sr) {
   chromaLevel.fill(0);
   if (rms(getTimeFrame()) < gateRms()) { absChroma.fill(0); return; }
   const mag = getMagnitudeSpectrum(), binHz = sr / analyser.fftSize;
-  const lo = Math.max(1, Math.floor(55 / binHz)), hi = Math.min(mag.length - 1, Math.ceil(5000 / binHz));
+  // only real spectral peaks count, each at its interpolated frequency (the
+  // same peaks the chord algorithms use): a low note's main lobe is several
+  // bins wide and used to leak into the neighbouring semitones (D3 also lit
+  // C# and E), especially at the faster Speed settings (smaller FFT)
+  const peaks = spectralPeaks(mag, binHz);
   const e = new Array(12).fill(0);
-  for (let b = lo; b <= hi; b++) {
-    const n = Math.round(12 * Math.log2(b * binHz / C0_HZ));
-    e[((n % 12) + 12) % 12] += mag[b] * mag[b];
+  for (const pk of peaks) {
+    const n = Math.round(12 * Math.log2(pk.freq / C0_HZ));
+    e[((n % 12) + 12) % 12] += pk.mag * pk.mag;
   }
   // relative to the median note name: distortion and noise spread energy over
   // all 12, so what matters is how far a note rises above that haze
-  if (currentView === 'piauto') measureAbsChroma(mag, binHz, lo, hi);
+  if (currentView === 'piauto') measureAbsChroma(peaks);
   const amp = e.map(Math.sqrt), max = Math.max(...amp);
   const floor = amp.slice().sort((x, y) => x - y)[6];
   if (max > floor) for (let i = 0; i < 12; i++) chromaLevel[i] = Math.max(0, (amp[i] - floor) / (max - floor));

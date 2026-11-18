@@ -34,3 +34,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.100 resizable Settings panel
 - Drag the panel's left border to resize; no visual handle; width remembered.
 - Updated: input.
+
+## [2026-11-18] ingest | v1.101 Chroma from spectral peaks
+- Bars show > Chroma (Piano and Pi-auto) now sums only `spectralPeaks()` at their interpolated
+  frequency. D3 at Speed 3: before C 24 / C# 87 / D 100 / E 39, after D 100 only.
+- Updated: views.
