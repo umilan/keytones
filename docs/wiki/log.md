@@ -79,3 +79,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.112 Key marks: Top edge
 - New option: a fixed 5 px line across the top of the key, colours and fading like Dots.
 - Updated: views, settings.
+
+## [2026-11-18] ingest | v1.113 darker black keys
+- Black key background darker in Piano (gradient #22222F→#121219) and Like bars (+40% black, was 25%).
+- Updated: views.

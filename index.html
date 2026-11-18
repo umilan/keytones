@@ -267,13 +267,13 @@
       font: 700 9px/1 monospace; color: var(--wk-name, rgba(30,25,50,0.55));
       display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; overflow: hidden;
     }
-    .pa-key.black { background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%)); color: rgba(255,255,255,0.45); }
+    .pa-key.black { background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%)); color: rgba(255,255,255,0.45); }
     .pa-key.pressed { background: var(--press-bg, var(--active-bg)); }
     .pa-key.oct-start { box-shadow: -1px 0 0 0 rgba(255,255,255,0.35); }
     /* Key marks other than Fill — the strip's keys stay idle and a small mark takes the colour
        (Name falls back to a dot: the strip's keys have no letters) */
     body.km-alt .pa-key.pressed { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%)) !important; }
-    body.km-alt .pa-key.black.pressed { background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%)) !important; }
+    body.km-alt .pa-key.black.pressed { background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%)) !important; }
     body.km-alt .pa-key.pressed::after {
       content: ''; position: absolute; top: 4px; left: 50%;
       width: min(8px, 70%); aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%;
@@ -565,7 +565,7 @@
     .black-key {
       z-index: 2;
       gap: 1px;
-      background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%) #232333);
+      background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%) #1A1A24);
       border: 0px solid rgba(0,0,0,0.5);
 
     }
@@ -585,7 +585,7 @@
        columns' colours (white = column bg, black = column bg + its 25 % shade) */
     body.keys-flat {
       --wk-bg: var(--col-bg);
-      --bk-bg: linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)) var(--col-bg);
+      --bk-bg: linear-gradient(rgba(0,0,0,0.40), rgba(0,0,0,0.40)) var(--col-bg); /* black keys a shade darker (0.25 until v1.113) */
       --wk-name: rgba(255,255,255,0.44);
       --wk-kb: rgba(255,255,255,0.24);
     }
@@ -657,7 +657,7 @@
     .key-dot { display: none; }
     body.km-alt .key-dot { display: block; position: absolute; z-index: 1; pointer-events: none; background: var(--mark, transparent); font-size: 0; }
     body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA) !important; }
-    body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%) #232333) !important; }
+    body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%) #1A1A24) !important; }
     body.km-alt :is(.white-key, .black-key):is(.latest, .live-strong, .live-on)::after { opacity: 0 !important; }
     body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--wk-name, rgba(30,25,50,0.50)) !important; }
     body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(255,255,255,0.44) !important; }
@@ -1074,7 +1074,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.112</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.113</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
