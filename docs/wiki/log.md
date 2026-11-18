@@ -151,3 +151,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.127 UI subsection header
 - Settings > Colors: "UI · interface tint" subsection header above UI hue / UI tint (like the Pads one).
 - Updated: settings.
+
+## [2026-11-18] ingest | v1.128 Chord names
+- New: Settings > Detection > Chord names (on). Names the sounding notes as a chord (exact type match,
+  bass = lowest note, slash chords), shown after the tempo in the Newest colour; detected notes gathered
+  over 400 ms with ≥ 2 hits; 250 ms to show, 300 ms gap tolerance, 2 s dim hold. Narrow top-bar fits.
+- New page: chords. Updated: settings, index.

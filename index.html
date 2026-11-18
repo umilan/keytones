@@ -225,6 +225,20 @@
     #topbar.compact .bpm-val { margin-left: 6px; }
     #topbar.micro .bpm-val { min-width: 3ch; }
     #topbar.micro .bpm-unit { display: none; } /* 320 px phones: just the number */
+    /* Chord names: the chord of the sounding notes, after the tempo. A fixed
+       width so a changing name never re-flows the top bar; dim = the last chord,
+       held for a moment after the notes stop */
+    .chord-val { margin-left: 10px; font-weight: 700; color: var(--latest-bg); text-transform: none;
+      display: inline-block; width: 8ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+    .chord-val[hidden] { display: none; }
+    .chord-val.held { color: var(--dim); }
+    #topbar.compact .chord-val { margin-left: 6px; }
+    #topbar.micro .chord-val { width: 6ch; } /* 320 px phones: long names end in … */
+    /* 320 px phones with a chord showing: the readouts take the title's place */
+    #topbar.micro .app-title:has(.chord-val:not([hidden])) .tb-short { display: none; }
+    #topbar.micro .app-title:has(.chord-val:not([hidden])) .bpm-val { margin-left: 0; }
+    #topbar.micro .app-title:has(.chord-val:not([hidden])) .mic-dot { margin-right: 4px; }
+    #topbar.micro .chord-val { margin-left: 4px; }
 
     /* ── DECAY CONTROL (drag to scrub) ───── */
     .decay-ctrl {
@@ -1164,7 +1178,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.127</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.128</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1341,6 +1355,10 @@
     <div class="sp-row">
       <label class="sp-label" for="bpm-check">Tempo (BPM)</label>
       <input type="checkbox" class="sp-check" id="bpm-check">
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="chord-check">Chord names</label>
+      <input type="checkbox" class="sp-check" id="chord-check">
     </div>
     <div class="sp-row">
       <span class="sp-label">Detection</span>
@@ -2721,6 +2739,99 @@ function setBpmOn(on) {
   if (on && micActive && audioCtx) tempoStart(audioCtx); else tempoStop();
 }
 
+/* ── CHORD NAMES ─────────────────────────────────────────────────────
+   Settings > Detection > Chord names. The notes sounding now (what the bars
+   show: detected notes while listening — gathered over CHORD_WINDOW_MS — held
+   keys otherwise) are named as a chord — at least 3 note names, or a root + fifth (C5). The lowest note is the
+   bass: a chord whose root isn't the bass is written as a slash chord (C/E).
+   Shown after the tempo in the chord colour (Newest notes); after the notes
+   stop the last chord stays, dim, for CHORD_HOLD_MS. */
+const CHORD_KEY = 'keytones-chords-v1';
+const CHORD_MIN_MS = 250;   // a chord must hold this long before it's shown (no flicker)
+const CHORD_GAP_MS = 300;   // a gap shorter than this (detector drop-out) doesn't dim the chord
+const CHORD_HOLD_MS = 2000; // the last chord stays (dim) this long after the notes stop
+// detectors often catch only part of a chord per check (e.g. C+E, then C+E+G), so
+// while listening the chord is named from every note detected in the last 400 ms
+const CHORD_WINDOW_MS = 400;
+// a note counts only once detected CHORD_MIN_HITS times in that window (one-off strays don't)
+const CHORD_MIN_HITS = 2;
+const chordRecent = new Map(); // MIDI note → times it was detected (within the window)
+// [suffix, intervals from the root] — earlier entries win a tie
+const CHORD_TYPES = [
+  ['', [0, 4, 7]], ['m', [0, 3, 7]], ['5', [0, 7]],
+  ['7', [0, 4, 7, 10]], ['maj7', [0, 4, 7, 11]], ['m7', [0, 3, 7, 10]],
+  ['dim', [0, 3, 6]], ['aug', [0, 4, 8]], ['sus4', [0, 5, 7]], ['sus2', [0, 2, 7]],
+  ['6', [0, 4, 7, 9]], ['m6', [0, 3, 7, 9]], ['m7b5', [0, 3, 6, 10]], ['dim7', [0, 3, 6, 9]],
+  ['mMaj7', [0, 3, 7, 11]], ['7sus4', [0, 5, 7, 10]], ['add9', [0, 2, 4, 7]], ['madd9', [0, 2, 3, 7]],
+  ['9', [0, 2, 4, 7, 10]], ['maj9', [0, 2, 4, 7, 11]], ['m9', [0, 2, 3, 7, 10]],
+  ['7', [0, 4, 10]], ['maj7', [0, 4, 11]], ['m7', [0, 3, 10]], // 7th chords without the fifth
+];
+let chordsOn = true;
+try { chordsOn = localStorage.getItem(CHORD_KEY) !== '0'; } catch (e) { /* storage unavailable */ }
+// the chord name of a set of MIDI notes, or '' — exposed for testing
+function chordName(midis) {
+  if (!midis.length) return '';
+  const bass = Math.min(...midis) % 12;
+  const pcs = [...new Set(midis.map(m => m % 12))];
+  if (pcs.length < 2) return '';
+  let best = null;
+  pcs.forEach(root => {
+    const iv = pcs.map(pc => (pc - root + 12) % 12).sort((a, b) => a - b).join(',');
+    CHORD_TYPES.forEach(([suf, ivs], rank) => {
+      if (ivs.join(',') !== iv) return;
+      const score = (root === bass ? 100 : 0) - rank; // the bass as root first, then the commoner chord
+      if (!best || score > best.score) best = { score, name: NOTES[root] + suf + (root === bass ? '' : '/' + NOTES[bass]) };
+    });
+  });
+  return best ? best.name : '';
+}
+let chordShown = '', chordCand = '', chordCandAt = 0, chordLastAt = 0, chordHeld = false, chordHoldTimer = null;
+function updateChordName() {
+  const el = document.getElementById('chord-val'); if (!el) return;
+  if (!chordsOn) { if (!el.hidden) { el.hidden = true; chordShown = ''; fitTopbar?.(); } return; }
+  const now = performance.now();
+  const sounding = [...paSoundingNow().keys()];
+  let midis = sounding;
+  if (mode === 'outside') {
+    sounding.forEach(m => { const ts = chordRecent.get(m) || []; if (ts[ts.length - 1] !== now) ts.push(now); chordRecent.set(m, ts); });
+    for (const [m, ts] of chordRecent) {
+      while (ts.length && now - ts[0] > CHORD_WINDOW_MS) ts.shift();
+      if (!ts.length) chordRecent.delete(m);
+    }
+    midis = sounding.length ? [...chordRecent].filter(([, ts]) => ts.length >= CHORD_MIN_HITS).map(([m]) => m) : [];
+  } else chordRecent.clear();
+  const name = chordName(midis);
+  if (name !== chordCand) { chordCand = name; chordCandAt = now; }
+  if (name && now - chordCandAt >= CHORD_MIN_MS) { // steady chord: show it
+    chordLastAt = now;
+    if (name !== chordShown || chordHeld) { chordShown = name; chordHeld = false; paintChord(el); }
+  } else if (name && chordShown && !chordHeld) {
+    chordLastAt = now; // a new chord is settling: keep the old one meanwhile
+  } else if (!name && chordShown && !chordHeld && now - chordLastAt < CHORD_GAP_MS) {
+    setTimeout(updateChordName, CHORD_GAP_MS); // a short gap: look again before dimming
+  } else if (!name && chordShown && !chordHeld) { // notes stopped: hold the last chord, dim
+    chordHeld = true; paintChord(el);
+    clearTimeout(chordHoldTimer);
+    chordHoldTimer = setTimeout(() => { if (chordHeld) { chordShown = ''; chordHeld = false; paintChord(el); } }, CHORD_HOLD_MS);
+  }
+  if (name && now - chordCandAt < CHORD_MIN_MS) setTimeout(() => { if (chordCand === name) updateChordName(); }, CHORD_MIN_MS);
+}
+function paintChord(el) {
+  const show = !!chordShown;
+  const changed = el.hidden === show;
+  el.hidden = !show;
+  el.textContent = chordShown;
+  el.title = chordShown ? 'Chord: ' + chordShown + (chordHeld ? ' (last heard)' : '') : '';
+  el.classList.toggle('held', chordHeld);
+  if (changed && typeof fitTopbar === 'function') fitTopbar();
+}
+function setChordsOn(on) {
+  chordsOn = on;
+  try { localStorage.setItem(CHORD_KEY, on ? '1' : '0'); } catch (e) { /* storage unavailable */ }
+  const cb = document.getElementById('chord-check'); if (cb) cb.checked = on;
+  updateChordName();
+}
+
 function stopMic() {
   micActive = false;
   if (detInterval) { clearInterval(detInterval);     detInterval = null; }
@@ -3690,6 +3801,7 @@ let confOpacity = false;
 try { confOpacity = localStorage.getItem(CONF_OPACITY_KEY) === '1'; } catch (e) { /* storage unavailable */ }
 
 function render() {
+  updateChordName();
   const baH    = document.getElementById('bar-area').clientHeight;
   const availH = Math.max(baH - 4, 0); // bars can fill almost the full height
   if (currentView === 'piauto') renderPaView(Math.max(0, document.getElementById('pa-bars').clientHeight - 4));
@@ -5669,6 +5781,7 @@ const SETTING_INFO = {
  "Key marks": "How a lit key shows its colour (sounding, newest, pressed, flashing and the fading glow).\nFill: the whole key.\nDots: a dot near the top.\nTop edge: a line across the top.\nBottom edge: a line along the bottom.\nBottom edge + name: the bottom line and the coloured letter.\nBoth edges + name: top and bottom lines and the coloured letter.\nBar: a column growing up from above the letter, as tall as the detection is certain.\nRing: a coloured outline.\nName: only the note letter.\nWith anything but Fill the keys keep their normal look.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count).\n0%: keeps everything.\n100%: clears a stopped note within a second.\nNotes still sounding are never shrunk.",
  "Tempo (BPM)": "Estimates the tempo of what the detector hears (mic, app sound or file) and shows it in the top bar, e.g. 120 BPM.\nHow: it finds the beat period that repeats most in the note attacks of the last 8 seconds (60–200 BPM).\nDim: still unsure. Hidden: too quiet or no clear beat.\nTakes about 4 seconds to appear. Half or double the real tempo can happen with sparse or busy rhythms.",
+ "Chord names": "Names the chord of the notes sounding now and shows it in the top bar after the tempo, in the Newest notes colour.\nListening: the detected notes (use a P algorithm to hear chords).\nMuted: the keys you hold.\nNeeds at least 3 note names, or a root and fifth (C5). Lowest note = bass: a chord over another bass shows as C/E. After the notes stop the last chord stays dim for 2 s.",
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is as opaque as the last detection of that note was certain.\nSolid bars: sure.\nFaint bars: guesses (e.g. close notes, harmonics).\nIn Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "UI hue": "The colour the whole interface is tinted with: panels, bars, top bar, menus, black keys and text. Note colours (sounding, newest, pressed…) don't change.\n240°: the original blue-violet.",
  "UI tint": "How strongly the UI hue shows.\n0%: neutral grey.\n100%: the original look.\n200%: the most colourful.\nOnly the colourfulness changes, never the brightness, so text stays as readable at any value.",
@@ -5921,6 +6034,10 @@ function initSettings() {
   const barsSel = document.getElementById('bars-select');
   barsSel.addEventListener('change', e => setBarsShow(e.target.value));
   setBarsShow(barsShow);
+
+  const chordCheck = document.getElementById('chord-check');
+  chordCheck.checked = chordsOn;
+  chordCheck.addEventListener('change', e => setChordsOn(e.target.checked));
 
   const bpmCheck = document.getElementById('bpm-check');
   bpmCheck.checked = bpmOn;

@@ -12,6 +12,7 @@ Catalog of every page. Agents: read this first, then the pages you need. Keep it
 | [Detection](detection.md) | How notes are detected and how Gain, Gate, Speed, Confidence and Stability shape it. |
 | [Algorithms](algorithms.md) | The 9 detection choices (M1–M5 single-note, P1–P4 chords, T1 test), strengths and weaknesses. |
 | [Tempo (BPM)](tempo.md) | Automatic tempo estimate from what the detector hears, shown as "### BPM" in the top bar. |
+| [Chord names](chords.md) | Names the chord of the sounding notes (detected or held) and shows it in the top bar after the tempo. |
 | [Audio sources](audio-sources.md) | Listen to (None (muted) / Mic / App sound / Mic + app sound / File (audio)), devices, phone call mode, synth. |
 | [Input](input.md) | Playing notes: on-screen keys, computer keyboard, glide, touch gestures. |
 | [Launchpad](launchpad.md) | Launchpad Mini MK3 programmer-mode support: layouts, colours, buttons, on-screen mirror. |
