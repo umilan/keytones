@@ -39,3 +39,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - Bars show > Chroma (Piano and Pi-auto) now sums only `spectralPeaks()` at their interpolated
   frequency. D3 at Speed 3: before C 24 / C# 87 / D 100 / E 39, after D 100 only.
 - Updated: views.
+
+## [2026-11-18] ingest | v1.102 Listen-to picker label
+- "Audio file" renamed "File (audio)"; the topbar picker is a mini dropdown: icon + MUTE / MIC /
+  APP / M+A / FILE + chevron.
+- Updated: audio-sources, settings, overview.

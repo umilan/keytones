@@ -680,6 +680,11 @@
     /* mute: mic icon while listening, crossed-out mic (in the error red) when muted */
     /* topbar Listen to picker: the current source as an icon (None in red) */
     #listen-btn.none { color: var(--err); }
+    /* a mini dropdown: icon + 3-4 letter name + chevron */
+    #listen-btn { width: auto; padding: 0 8px 0 7px; gap: 6px; justify-content: flex-start; }
+    #listen-btn .lb-text { font-family: monospace; font-size: var(--ui-font-size); font-weight: 700; letter-spacing: var(--let-spac); min-width: 4ch; text-align: left; }
+    #listen-btn .lb-chev { width: 10px; height: 6px; background: var(--chevron-icon) no-repeat center; opacity: 0.9; }
+    #topbar.tight #listen-btn .lb-chev { display: none; }
     #listen-menu {
       position: fixed; z-index: 120; display: flex; flex-direction: column; gap: 3px; padding: 4px;
       background: #22222e; border: 1px solid rgba(255,255,255,0.14); border-radius: var(--radius);
@@ -939,7 +944,7 @@
     #topbar button svg { width: 18px; height: 18px; }
     #topbar .decay-val { height: var(--ctrl-size); display: inline-flex; align-items: center; box-sizing: border-box; }
 
-    /* Settings > Detection: audio file player (Listen to: Audio file) */
+    /* Settings > Detection: audio file player (Listen to: File (audio)) */
     .fp-box { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; margin: 2px 0 4px;
               border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); background: rgba(255,255,255,0.02); }
     .fp-box[hidden] { display: none; }
@@ -985,7 +990,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.101</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.102</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1124,7 +1129,7 @@
         <option value="mic">Mic</option>
         <option value="app">App sound</option>
         <option value="both">Mic + app sound</option>
-        <option value="file">Audio file</option>
+        <option value="file">File (audio)</option>
       </select>
     </div>
     <div class="fp-box" id="file-player" hidden>
@@ -2060,7 +2065,7 @@ let fileTap = null; // audio file -> analyser, while listening to the file
 
 /* ── AUDIO FILE PLAYER (Settings > Detection) ─────────────────────────
    An <audio> element routed through the AudioContext: it plays to the
-   speakers, and with Listen to: Audio file it also feeds the detector at a
+   speakers, and with Listen to: File (audio) it also feeds the detector at a
    fixed level. If the AudioContext is replaced (e.g. a mic at another sample
    rate), the element is recreated on the new one at the same position. */
 let fileEl = null, fileNode = null, fileUrl = null, fileName = '';
@@ -2160,15 +2165,16 @@ const LISTEN_ICONS = {
   both: '<rect x="4" y="3" width="5" height="9" rx="2.5"/><path d="M2 10a4.5 4.5 0 0 0 9 0M6.5 15v3"/><path d="M13 11v4h3l4 3V8l-4 3z"/>',
   file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><circle cx="10.5" cy="16" r="1.6"/><path d="M12.1 16V10.5l3 1"/>',
 };
-const LISTEN_MENU_TEXT = { none: 'None (muted)', mic: 'Mic', app: 'App sound', both: 'Mic + app sound', file: 'Audio file' };
-const LISTEN_LABELS = { none: 'None — detection off', mic: 'Mic', app: 'App sound', both: 'Mic + app sound', file: 'Audio file' };
+const LISTEN_SHORT = { none: 'MUTE', mic: 'MIC', app: 'APP', both: 'M+A', file: 'FILE' }; // the topbar button's label
+const LISTEN_MENU_TEXT = { none: 'None (muted)', mic: 'Mic', app: 'App sound', both: 'Mic + app sound', file: 'File (audio)' };
+const LISTEN_LABELS = { none: 'None — detection off', mic: 'Mic', app: 'App sound', both: 'Mic + app sound', file: 'File (audio)' };
 const listenSvg = v => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${LISTEN_ICONS[v]}</svg>`;
 function syncListenUI() {
   const c = listenChoice();
   const sel = document.getElementById('listen-select'); if (sel) sel.value = c;
   const btn = document.getElementById('listen-btn');
   if (btn) {
-    btn.innerHTML = listenSvg(c);
+    btn.innerHTML = listenSvg(c) + `<span class="lb-text">${LISTEN_SHORT[c]}</span><span class="lb-chev"></span>`;
     btn.classList.toggle('none', c === 'none');
     btn.title = 'Listen to: ' + LISTEN_LABELS[c];
     btn.setAttribute('aria-label', btn.title);
@@ -2176,7 +2182,7 @@ function syncListenUI() {
   document.querySelectorAll('#listen-menu button').forEach(b => {
     const on = b.dataset.value === c; b.classList.toggle('active', on); b.setAttribute('aria-selected', on);
   });
-  const fp = document.getElementById('file-player'); if (fp) fp.hidden = c !== 'file'; // the player only with Listen to: Audio file
+  const fp = document.getElementById('file-player'); if (fp) fp.hidden = c !== 'file'; // the player only with Listen to: File (audio)
   if (document.getElementById('gain-ctrl')) updateOffRows();
 }
 
@@ -2213,11 +2219,11 @@ function initListenPicker() {
    decides it changes (Listen to, View, Bars show, detection on/off). */
 const OFF_ROWS = {
   'gain-db-select': () => listenSource === 'app'  ? 'Not used: Listen to is App sound, which goes into the detector at a fixed level. Gain only affects the microphone.'
-                        : listenSource === 'file' ? 'Not used: Listen to is Audio file, which goes into the detector at a fixed level. Gain only affects the microphone.' : '',
+                        : listenSource === 'file' ? 'Not used: Listen to is File (audio), which goes into the detector at a fixed level. Gain only affects the microphone.' : '',
   'call-mode-select': () => listenSource === 'app' || listenSource === 'file'
-                        ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'Audio file'}. Phone call mode only changes how the microphone is opened.` : '',
+                        ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'File (audio)'}. Phone call mode only changes how the microphone is opened.` : '',
   'audio-in-select': () => listenSource === 'app' || listenSource === 'file'
-                        ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'Audio file'}. Audio in picks the microphone.` : '',
+                        ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'File (audio)'}. Audio in picks the microphone.` : '',
   'newest-fade-range': () => colors.latest === 'none' ? 'Not used: Newest notes is set to none.'
                            : colors.detected === 'none' ? 'Not used: Sounding notes is set to none, so there is no colour to fade into.' : '',
   'bars-select': () => currentView === 'launchpad' ? 'Not used in the LP view, which shows pads instead of bars. Switch View to Piano or Pi-auto.' : '',
@@ -2320,7 +2326,7 @@ async function startMic() {
       appTap = ac.createGain(); appTap.gain.value = 1;
       getSynthBus(ac).connect(appTap); appTap.connect(analyser);
     }
-    if (useFile) { // Listen to: Audio file — the player's output, straight in
+    if (useFile) { // Listen to: File (audio) — the player's output, straight in
       fileTap = ac.createGain(); fileTap.gain.value = 1;
       fileSourceNode(ac)?.connect(fileTap); fileTap.connect(analyser);
     }
@@ -5230,7 +5236,7 @@ const SETTING_INFO = {
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
- "Listen to": "What the detector hears — also the mini picker in the top bar. None (muted): detection off. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers).",
+ "Listen to": "What the detector hears — also the mini picker in the top bar. None (muted): detection off. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. File (audio): an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers).",
  "Bars show": "What a bar's height means. Live: the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others; a bar falls back at the Decay rate after its note stops. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Keys": "How the keyboard's idle keys look. Piano: white and black keys. Like bars: the same colours as the bar columns above them, so keys and bars read as one surface. Lit keys keep their colours either way.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
