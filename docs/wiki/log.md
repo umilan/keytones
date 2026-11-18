@@ -161,3 +161,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.129 Chord names: detected only
 - Chord names ignore held keys (mode not 'outside' → nothing named); only detected chords show.
 - Updated: chords, settings, index.
+
+## [2026-11-18] ingest | v1.130 Ensemble bench tools
+- New bench scripts: `bench/ensemble_run.js` records P1–P4 on the same detection frames (one browser per
+  clip); `bench/ensemble.py` fuses them offline (votes, confidence sums, P4 + confirmation) through the
+  app's Stability rule and scores with `bench/score.py`. Results to follow; no app behaviour change.
