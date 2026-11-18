@@ -17,14 +17,33 @@
     *, *::before, *::after {box-sizing: border-box;margin: 0;padding: 0;}
 
     :root {
+      /* ── ROOT UI HUE — every tinted UI colour below is built from it, as
+         hsl(var(--ui-h) <saturation> <lightness>); change it to re-tint the whole
+         UI (surfaces, text, menus, black keys, Launchpad mirror). Light text sits
+         5° further towards violet (--ui-h-text). Note colours (sounding, newest,
+         pressed…), OK / error and the neutral white / black overlays don't use it. */
+      --ui-h: 240;
+      --ui-h-text: calc(var(--ui-h) + 5);
+
       /* ── backgrounds ── */
       --bg:       #000000;
-      --bar-bg:   #0A0A0E;
-      --top-bg:   #0C0C14;
-      --strip-bg: #0E0E18;
-      --col-bg:   #232336; /* neutral bar-column fill */
-      --key-bg:   #141420; /* keyboard container background */
-      --panel-bg: #0D0D1C; /* settings panel + its dropdowns */
+      --bar-bg:   hsl(var(--ui-h) 16.7% 4.7%);  /* #0A0A0E */
+      --top-bg:   hsl(var(--ui-h) 25%   6.3%);  /* #0C0C14 */
+      --strip-bg: hsl(var(--ui-h) 26.3% 7.5%);  /* #0E0E18 */
+      --col-bg:   hsl(var(--ui-h) 21.3% 17.5%); /* #232336 — neutral bar-column fill */
+      --key-bg:   hsl(var(--ui-h) 23.1% 10.2%); /* #141420 — keyboard container background */
+      --panel-bg: hsl(var(--ui-h) 36.6% 8%);    /* #0D0D1C — settings panel + its dropdowns */
+      --pop-bg:   hsl(var(--ui-h) 15%   15.7%); /* #22222E — menus, tips, popovers */
+      --track-bg: hsl(var(--ui-h) 7.9%  24.7%); /* #3A3A44 — unfilled slider / meter track */
+      /* black keys (Piano look): gradient top → bottom, and the flat fallback */
+      --bk-top:   hsl(var(--ui-h) 16%   15.9%); /* #22222F */
+      --bk-bot:   hsl(var(--ui-h) 16.3% 8.4%);  /* #121219 */
+      --bk-flat:  hsl(var(--ui-h) 16.1% 12.2%); /* #1A1A24 */
+      --bk-grad:  linear-gradient(180deg, var(--bk-top) 0%, var(--bk-bot) 100%);
+      /* on-screen Launchpad */
+      --lp-pad:   hsl(var(--ui-h) 13.6% 15.9%); /* #23232E — unlit pad */
+      --lp-btn:   hsl(var(--ui-h) 15.8% 7.5%);  /* #101016 — round side / top buttons */
+      --lp-logo:  hsl(var(--ui-h) 10.6% 18.4%); /* #2A2A34 */
 
       /* ── accent / status ── */
       --active-bg:  rgb(251, 91, 36) !important;
@@ -37,8 +56,12 @@
 
       /* ── text ── */
       --border:   rgba(255,255,255,0.06);
-      --text:     rgba(220,216,255,0.85);
-      --dim:      rgba(200,196,255,0.36);
+      --text:     hsl(var(--ui-h-text) 100% 92.4% / 0.85); /* #DCD8FF */
+      --dim:      hsl(var(--ui-h-text) 100% 88.4% / 0.36); /* #C8C4FF */
+      --text-hsl: var(--ui-h-text) 100% 92.4%;               /* for other opacities: hsl(var(--text-hsl) / a) */
+      --pop-text: hsl(var(--ui-h-text) 52.9% 86.7%);        /* #CFCBEF — readable text on --pop-bg (~10:1) */
+      --focus:    hsl(var(--ui-h-text) 100% 82.2%);         /* #A9A4FF — keyboard focus ring */
+      --ink:      var(--ui-h-text) 33.3% 14.7%;             /* #1E1932 — dark letters on white keys: hsl(var(--ink) / a) */
 
       /* ── white-overlay scale — subtle surfaces & borders on dark panels ── */
       --surface:        rgba(255,255,255,0.05);
@@ -52,6 +75,10 @@
       --let-spac: 1px;
       --radius: 4px;
       --ctrl-size: 32px; /* square icon/toggle controls in the topbar (was 24px until v1.97) */
+      /* dropdown chevron: --chevron-icon is the shape; spans draw it as a mask in --chevron-col.
+         The native <select>s in Settings can only use it as a background image, whose
+         stroke colour (#c8c4ff at 40%) is fixed in the SVG and doesn't follow --ui-h. */
+      --chevron-col: hsl(var(--ui-h-text) 100% 88.4%); /* solid: the mask already carries the icon's 40% */
       --chevron-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='10'%20height='6'%20viewBox='0%200%2010%206'%3E%3Cpath%20d='M1%201l4%204%204-4'%20stroke='%23c8c4ff'%20stroke-opacity='0.4'%20stroke-width='1.5'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     }
 
@@ -271,16 +298,16 @@
       flex: 1; min-width: 0; position: relative; cursor: pointer; touch-action: none;
       background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%));
       border-radius: 0 0 3px 3px;
-      font: 700 9px/1 monospace; color: var(--wk-name, rgba(30,25,50,0.55));
+      font: 700 9px/1 monospace; color: var(--wk-name, hsl(var(--ink) / 0.55));
       display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; overflow: hidden;
     }
-    .pa-key.black { background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%)); color: rgba(255,255,255,0.45); }
+    .pa-key.black { background: var(--bk-bg, var(--bk-grad)); color: rgba(255,255,255,0.45); }
     .pa-key.pressed { background: var(--press-bg, var(--active-bg)); }
     .pa-key.oct-start { box-shadow: -1px 0 0 0 rgba(255,255,255,0.35); }
     /* Key marks other than Fill — the strip's keys stay idle and a small mark takes the colour
        (Name falls back to a dot: the strip's keys have no letters) */
     body.km-alt .pa-key.pressed { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%)) !important; }
-    body.km-alt .pa-key.black.pressed { background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%)) !important; }
+    body.km-alt .pa-key.black.pressed { background: var(--bk-bg, var(--bk-grad)) !important; }
     body.km-alt .pa-key:is(.pressed,.det)::after {
       content: ''; position: absolute; top: 4px; left: 50%;
       width: min(8px, 70%); aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%;
@@ -312,11 +339,11 @@
       padding: 0; /* no frame margin — the pads use all the space */
     }
     .lp-cell {
-      border-radius: 4px; background: #23232e; position: relative;
+      border-radius: 4px; background: var(--lp-pad); position: relative;
       transition: background 0.06s linear, box-shadow 0.06s linear;
       touch-action: none; cursor: pointer;
     }
-    .lp-cell.btn { border-radius: 3px; background: #101016; }
+    .lp-cell.btn { border-radius: 3px; background: var(--lp-btn); }
     .lp-cell.btn::after {
       content: attr(data-label); position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center; text-align: center;
@@ -324,7 +351,7 @@
       color: var(--lp-led, rgba(255,255,255,0.35)); pointer-events: none;
     }
     .lp-cell.btn[data-led="19"]::after { font-size: clamp(11px, 3.4vmin, 20px); } /* reset ✕ */
-    .lp-cell.logo { background: #2a2a34; border-radius: 3px; cursor: default; }
+    .lp-cell.logo { background: var(--lp-logo); border-radius: 3px; cursor: default; }
 
     .bar-col {
       position: absolute;
@@ -487,7 +514,8 @@
     .algo-chevron {
       width: 10px;
       height: 6px;
-      background: var(--chevron-icon) no-repeat center;
+      background: var(--chevron-col); /* the icon is a mask, so it takes the root hue */
+      -webkit-mask: var(--chevron-icon) no-repeat center; mask: var(--chevron-icon) no-repeat center;
       pointer-events: none;
       flex-shrink: 0;
     }
@@ -581,7 +609,7 @@
     .black-key {
       z-index: 2;
       gap: 1px;
-      background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%) #1A1A24);
+      background: var(--bk-bg, var(--bk-grad) var(--bk-flat));
       border: 0px solid rgba(0,0,0,0.5);
 
     }
@@ -607,8 +635,8 @@
     }
     body.keys-flat .black-key::before { display: none; } /* no piano gloss */
     /* a lit white key keeps dark text */
-    body.keys-flat .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(30,25,50,0.60); }
-    body.keys-flat .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-kb { color: rgba(30,25,50,0.30); }
+    body.keys-flat .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: hsl(var(--ink) / 0.60); }
+    body.keys-flat .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-kb { color: hsl(var(--ink) / 0.30); }
 
     /* a key you play (on screen, computer keyboard, MIDI in) is drawn in the
        Pad press colour — the same as its pad in the Launchpad view; falls
@@ -656,14 +684,14 @@
        Decay glow layer (paintExactKey) only takes over once the note stops */
     :is(.white-key, .black-key):is(.live-strong, .live-on)::after { opacity: 0 !important; }
     .black-key.pressed:is(.live-strong, .live-on) { background: var(--press-bg2, var(--active-bg2)); }
-    .white-key.live-strong .key-name, .black-key.live-strong .key-name { color: rgba(30,25,50,0.70); }
+    .white-key.live-strong .key-name, .black-key.live-strong .key-name { color: hsl(var(--ink) / 0.70); }
 
     /* Settings > Latest note — the most recent mic-detected note */
     /* --key-new: Newest colour blending into Sounding as the note ages (Newest fades) */
     .white-key.latest { background: var(--key-new, var(--latest-bg)); }
     .black-key.latest { background: var(--key-new2, var(--latest-bg2)); }
     .white-key.latest::after, .black-key.latest::after { opacity: 0; }
-    .white-key.latest .key-name, .black-key.latest .key-name { color: rgba(30,25,50,0.70); }
+    .white-key.latest .key-name, .black-key.latest .key-name { color: hsl(var(--ink) / 0.70); }
 
     /* Settings > Visualisation > Key marks: Dots / Bar / Ring / Name — the keys
        stay in their idle look (body.km-alt) and a mark takes the colour.
@@ -673,9 +701,9 @@
     .key-dot { display: none; }
     body.km-alt .key-dot { display: block; position: absolute; z-index: 1; pointer-events: none; background: var(--mark, transparent); font-size: 0; }
     body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA) !important; }
-    body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%) #1A1A24) !important; }
+    body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--bk-bg, var(--bk-grad) var(--bk-flat)) !important; }
     body.km-alt :is(.white-key, .black-key):is(.latest, .live-strong, .live-on)::after { opacity: 0 !important; }
-    body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--wk-name, rgba(30,25,50,0.50)) !important; }
+    body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--wk-name, hsl(var(--ink) / 0.50)) !important; }
     body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(255,255,255,0.44) !important; }
     body.km-alt :is(.white-key, .black-key).live-on         { --mark: var(--active-bg); --mark-op: 1; }
     body.km-alt :is(.white-key, .black-key).live-strong     { --mark: var(--latest-bg); --mark-op: 1; }
@@ -730,7 +758,7 @@
       content: attr(data-name); left: 0; right: 0; top: auto; bottom: 8px; width: auto; height: auto;
       font: 700 var(--ui-font-size)/1 monospace; letter-spacing: normal; text-align: center; border-radius: 0;
     }
-    body.km-name .key-dot { background: none; color: var(--mark, var(--wk-name, rgba(30,25,50,0.50))); }
+    body.km-name .key-dot { background: none; color: var(--mark, var(--wk-name, hsl(var(--ink) / 0.50))); }
     body.km-name .black-key .key-dot { color: var(--mark, rgba(255,255,255,0.44)); }
     body.km-name :is(.white-key, .black-key)::after { -webkit-background-clip: text !important; background-clip: text !important; color: transparent; z-index: 2; }
 
@@ -750,8 +778,8 @@
     }
 
     /* dark text on light white keys */
-    .white-key .key-name { font-size: var(--ui-font-size); color: var(--wk-name, rgba(30,25,50,0.50)); }
-    .white-key .key-kb   { font-size: var(--ui-font-size);  color: var(--wk-kb, rgba(30,25,50,0.28)); }
+    .white-key .key-name { font-size: var(--ui-font-size); color: var(--wk-name, hsl(var(--ink) / 0.50)); }
+    .white-key .key-kb   { font-size: var(--ui-font-size);  color: var(--wk-kb, hsl(var(--ink) / 0.28)); }
 
     /* light text on dark black keys */
     .black-key .key-name { font-size: var(--ui-font-size); color: rgba(255,255,255,0.44); }
@@ -785,11 +813,11 @@
     /* a mini dropdown: icon + 3-4 letter name + chevron */
     #listen-btn { width: auto; padding: 0 8px 0 7px; gap: 6px; justify-content: flex-start; }
     #listen-btn .lb-text { font-family: monospace; font-size: var(--ui-font-size); font-weight: 700; letter-spacing: var(--let-spac); min-width: 4ch; text-align: left; }
-    #listen-btn .lb-chev { width: 10px; height: 6px; background: var(--chevron-icon) no-repeat center; opacity: 0.9; }
+    #listen-btn .lb-chev { width: 10px; height: 6px; background: var(--chevron-col); -webkit-mask: var(--chevron-icon) no-repeat center; mask: var(--chevron-icon) no-repeat center; opacity: 0.9; }
     #topbar.tight #listen-btn .lb-chev { display: none; }
     #listen-menu {
       position: fixed; z-index: 120; display: flex; flex-direction: column; gap: 3px; padding: 4px;
-      background: #22222e; border: 1px solid rgba(255,255,255,0.14); border-radius: var(--radius);
+      background: var(--pop-bg); border: 1px solid rgba(255,255,255,0.14); border-radius: var(--radius);
       box-shadow: 0 6px 18px rgba(0,0,0,0.5);
     }
     #listen-menu[hidden] { display: none; }
@@ -797,15 +825,15 @@
       height: var(--ctrl-size); display: flex; align-items: center; justify-content: flex-start; gap: 9px;
       padding: 0 10px 0 8px; white-space: nowrap;
       font-family: monospace; font-size: var(--ui-font-size); letter-spacing: var(--let-spac);
-      /* readable on #22222e: ~10:1 (was --dim, ~3:1) */
-      background: transparent; border: 1px solid transparent; border-radius: var(--radius); color: #CFCBEF; cursor: pointer;
+      /* --pop-text: readable on --pop-bg, ~10:1 (was --dim, ~3:1) */
+      background: transparent; border: 1px solid transparent; border-radius: var(--radius); color: var(--pop-text); cursor: pointer;
       -webkit-tap-highlight-color: transparent;
     }
     #listen-menu button svg { flex-shrink: 0; }
     #listen-menu button .lm-text { flex: 1; text-align: left; }
     #listen-menu button .lm-check { width: 16px; height: 16px; flex-shrink: 0; margin-left: 10px; visibility: hidden; }
     #listen-menu button:hover { color: #FFFFFF; background: rgba(255,255,255,0.08); }
-    #listen-menu button:focus-visible { outline: 2px solid #A9A4FF; outline-offset: -2px; }
+    #listen-menu button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     #listen-menu button.active { color: #FFFFFF; font-weight: 700; background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.28); }
     #listen-menu button.active .lm-check { visibility: visible; }
     #listen-menu button[data-value="none"].active { color: #FF8A8A; } /* lighter red, ~6:1 */
@@ -915,7 +943,7 @@
       font-size: var(--ui-font-size);
 			font-weight: 600;
 			letter-spacing: var(--let-spac);
-      color: rgba(220,216,255,0.50);
+      color: hsl(var(--text-hsl) / 0.5);
       flex: 1; min-width: min-content; /* never narrower than its longest word */
     }
 
@@ -963,7 +991,7 @@
     #sp-tip {
       position: fixed; z-index: 100; max-width: 260px;
       padding: 8px 10px; border-radius: var(--radius);
-      background: #22222e; border: 1px solid rgba(255,255,255,0.14);
+      background: var(--pop-bg); border: 1px solid rgba(255,255,255,0.14);
       box-shadow: 0 6px 18px rgba(0,0,0,0.5);
       font-family: monospace; font-size: 11px; line-height: 1.45; color: var(--text);
       pointer-events: none;
@@ -978,14 +1006,14 @@
     #sp-tip .tip-term, #sp-tip .tip-desc { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
     #sp-tip .tip-grid > :nth-last-child(-n+2) { border-bottom: 0; } /* the tip's own edge closes the last row */
     #sp-tip .tip-term { color: #FFFFFF; font-weight: 700; padding-right: 12px; } /* padding, not a gap, so row lines don't break */
-    #sp-tip .tip-desc { color: #CFCBEF; }
-    #sp-tip .tip-p { margin-top: 6px; color: #CFCBEF; }
+    #sp-tip .tip-desc { color: var(--pop-text); }
+    #sp-tip .tip-p { margin-top: 6px; color: var(--pop-text); }
     /* algorithm card: hover an algorithm button (or long-press on touch), or
        Settings > Algorithm ⓘ — what it does, star ratings, when to use it */
     #algo-tip {
       position: fixed; z-index: 100; width: min(300px, calc(100vw - 16px));
       padding: 10px 12px; border-radius: var(--radius);
-      background: #22222e; border: 1px solid rgba(255,255,255,0.14);
+      background: var(--pop-bg); border: 1px solid rgba(255,255,255,0.14);
       box-shadow: 0 6px 18px rgba(0,0,0,0.5);
       font-family: monospace; font-size: 11px; line-height: 1.45; color: var(--text);
       pointer-events: none;
@@ -1034,7 +1062,7 @@
     #gate-range {
       -webkit-appearance: none; appearance: none;
       height: 6px; border-radius: 3px; outline: none;
-      background: #3a3a44;
+      background: var(--track-bg);
     }
     #gate-range::-webkit-slider-thumb {
       -webkit-appearance: none; appearance: none;
@@ -1126,7 +1154,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.124</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.125</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -3377,8 +3405,8 @@ function paintGateMeter(rmsLevel) {
   gateMeterDb = Math.max(db, gateMeterDb - 1.5);           // rises instantly, falls smoothly
   const min = +el.min, max = +el.max;
   const pct = Math.max(0, Math.min(100, (gateMeterDb - min) / (max - min) * 100));
-  const fill = gateMeterDb >= detection.gateDb ? 'rgba(240,240,248,0.85)' : 'rgba(150,148,170,0.45)'; // white = gets through, grey = blocked
-  el.style.background = `linear-gradient(90deg, ${fill} ${pct}%, #3a3a44 ${pct}%)`;
+  const fill = gateMeterDb >= detection.gateDb ? 'hsl(var(--ui-h) 36.4% 95.7% / 0.85)' : 'hsl(var(--ui-h-text) 11.5% 62.4% / 0.45)'; // white = gets through, grey = blocked
+  el.style.background = `linear-gradient(90deg, ${fill} ${pct}%, var(--track-bg) ${pct}%)`;
 }
 
 function animateLevel() {

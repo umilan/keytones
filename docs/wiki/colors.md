@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.119
+updated: v1.125
 ---
 
 # Colors
@@ -36,3 +36,25 @@ and its detected colour — keys, bars (Piano and Pi-auto), LP pads (real and on
 fades are skipped while flashing. With single-note algorithms only one held note can be detected.
 
 Removed: Exact octave colour (v1.33), bar hit flash (v1.13).
+
+## UI hue (v1.125)
+The app's own interface colours (not the note colours above) are all built from one root hue
+at the top of `:root` in `index.html`:
+
+| token | value | used for |
+|---|---|---|
+| `--ui-h` | `240` (blue-violet) | root: change it to re-tint the whole UI |
+| `--ui-h-text` | `--ui-h` + 5 | light text, menu text, focus ring, dark key letters |
+
+Each tinted colour is `hsl(var(--ui-h) <sat> <light>)` with its original saturation and lightness,
+so the look didn't change (screenshot diff: identical). Tokens: `--bar-bg`, `--top-bg`, `--strip-bg`,
+`--col-bg`, `--key-bg`, `--panel-bg`, `--pop-bg` (menus / tips), `--track-bg` (slider / Gate meter),
+`--bk-top` / `--bk-bot` / `--bk-flat` / `--bk-grad` (black keys), `--lp-pad` / `--lp-btn` /
+`--lp-logo` (on-screen Launchpad), `--text`, `--dim`, `--text-hsl`, `--pop-text`, `--focus`,
+`--ink` (letters on white keys, used as `hsl(var(--ink) / a)`), `--chevron-col`.
+
+Not tied to the hue: note colours (`--active-bg`, `--latest-bg`, palette), `--ok` / `--err`,
+pure black `--bg`, the white-overlay scale (`--surface…`, `--border…`), the cream white keys,
+and the chevron inside the native Settings `<select>`s (an SVG background with a fixed colour,
+#c8c4ff at 40%).
+

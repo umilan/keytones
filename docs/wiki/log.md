@@ -137,3 +137,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.124 Tempo shown as "### BPM"
 - Top-bar tempo reads "128 BPM" (no ♩ icon); `.bpm-unit` hidden in `#topbar.micro` (320 px phones).
 - Updated: tempo, settings, index.
+
+## [2026-11-18] ingest | v1.125 UI colours from one root hue
+- All tinted UI colours now derive from `--ui-h: 240` (+5 for text) as hsl() tokens; no visible change
+  (pixel diff identical apart from the version). Chevron spans drawn as masks in `--chevron-col`.
+- Updated: colors.
