@@ -2,7 +2,7 @@
 title: Input
 summary: Playing notes: on-screen keys, computer keyboard, glide, touch gestures.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.100
+updated: v1.106
 ---
 
 # Input
@@ -24,8 +24,10 @@ v1.93** (each finger independently; Pi-auto one at a time).
 ## Touch gestures
 - Swipe in from the right screen edge (18 px zone) → open Settings.
 - Swipe the panel right, tap ✕ / header → close; on phones (≤760 px) a tap on the app closes it.
-- Drag the open panel's left border (±10 px, no visible handle) → resize it (240 px – 90% of the
-  window, max 900 px); remembered (`keytones-panel-width-v1`). Added v1.100.
+- Drag the open panel's left border (±10 px with a mouse, ±24 px with a finger; no visible
+  handle) → resize it (240 px – 90% of the
+  window, max 900 px); remembered (`keytones-panel-width-v1`). Added v1.100; on iOS fingers use touch events
+  (non-passive) since v1.106 — pointer events were cancelled by the panel's scrolling.
 - Drag the algorithm strip up/down → resize the keyboard (a press turns into a drag after 8 px).
 
 ## Mic default

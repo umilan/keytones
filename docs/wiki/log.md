@@ -49,3 +49,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - The audio-file player moved from Settings > Detection to a one-row bar below the top bar
   (Load…, name, −15 / play / +15, seek, time); phones hide the file name.
 - Updated: audio-sources.
+
+## [2026-11-18] ingest | v1.106 panel resize on iOS
+- Finger resize uses its own non-passive touch handlers with a 24 px grab band; pointer
+  events stay for mouse / pen.
+- Updated: input.

@@ -1008,7 +1008,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.105</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.106</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -5335,30 +5335,60 @@ function initPanelResize(panel) {
   const root = document.documentElement.style;
   const clamp = w => Math.round(Math.max(240, Math.min(w, window.innerWidth * 0.9, 900)));
   try { const w = Number(localStorage.getItem(SP_WIDTH_KEY)); if (w) root.setProperty('--sp-width', clamp(w) + 'px'); } catch (e) { /* storage unavailable */ }
-  let drag = null;
-  document.addEventListener('pointerdown', e => {
-    if (!panel.classList.contains('open') || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    const left = panel.getBoundingClientRect().left;
-    if (Math.abs(e.clientX - left) > 10) return;
-    drag = { id: e.pointerId, startX: e.clientX, startW: panel.getBoundingClientRect().width };
+  let drag = null; // { id, touch, startX, startW }
+  const BAND_MOUSE = 10, BAND_TOUCH = 24; // grab distance from the border, px (fingers get more)
+  const near = (x, band) => panel.classList.contains('open') && Math.abs(x - panel.getBoundingClientRect().left) <= band;
+  const start = (id, touch, x) => {
+    drag = { id, touch, startX: x, startW: panel.getBoundingClientRect().width };
     panel.style.transition = 'none';
-    e.preventDefault(); e.stopPropagation(); // not a tap on the app, not a swipe-to-close
-  }, true);
-  document.addEventListener('pointermove', e => {
-    if (!drag || e.pointerId !== drag.id) return;
-    root.setProperty('--sp-width', clamp(drag.startW + (drag.startX - e.clientX)) + 'px');
-    e.stopPropagation();
-  }, true);
-  const end = e => {
-    if (!drag || e.pointerId !== drag.id) return;
+  };
+  const move = x => root.setProperty('--sp-width', clamp(drag.startW + (drag.startX - x)) + 'px');
+  const finish = () => {
     drag = null; panel.style.transition = '';
     try { localStorage.setItem(SP_WIDTH_KEY, parseInt(root.getPropertyValue('--sp-width'))); } catch (err) { /* storage unavailable */ }
-    e.stopPropagation();
   };
-  document.addEventListener('pointerup', end, true);
-  document.addEventListener('pointercancel', end, true);  // touch: keys / bars listen to touch events, which follow the pointer events —
-  // keep a resize drag from also playing the key under the border
-  ['touchstart', 'touchmove', 'touchend'].forEach(t => document.addEventListener(t, e => { if (drag) e.stopPropagation(); }, { capture: true, passive: true }));
+
+  // mouse / pen: pointer events
+  document.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') {
+      // fingers use the touch path below; just keep this touch away from
+      // swipe-to-close and the tap-to-close layer
+      if (near(e.clientX, BAND_TOUCH)) e.stopPropagation();
+      return;
+    }
+    if (e.button !== 0 || !near(e.clientX, BAND_MOUSE)) return;
+    start(e.pointerId, false, e.clientX);
+    e.preventDefault(); e.stopPropagation();
+  }, true);
+  document.addEventListener('pointermove', e => {
+    if (!drag || drag.touch || e.pointerId !== drag.id) return;
+    move(e.clientX); e.stopPropagation();
+  }, true);
+  const pEnd = e => { if (drag && !drag.touch && e.pointerId === drag.id) { finish(); e.stopPropagation(); } };
+  document.addEventListener('pointerup', pEnd, true);
+  document.addEventListener('pointercancel', pEnd, true);
+
+  // fingers (iPhone / iPad): touch events, not passive, so the panel's own
+  // scrolling can't take the gesture over (on iOS that cancelled the drag)
+  document.addEventListener('touchstart', e => {
+    if (drag || e.touches.length !== 1) return;
+    const t = e.changedTouches[0];
+    if (!near(t.clientX, BAND_TOUCH)) return;
+    start(t.identifier, true, t.clientX);
+    e.preventDefault(); e.stopPropagation(); // not a key press, not a scroll / swipe / tap-to-close
+  }, { capture: true, passive: false });
+  document.addEventListener('touchmove', e => {
+    if (!drag || !drag.touch) return;
+    const t = [...e.changedTouches].find(t => t.identifier === drag.id);
+    if (t) move(t.clientX);
+    e.preventDefault(); e.stopPropagation();
+  }, { capture: true, passive: false });
+  const tEnd = e => {
+    if (!drag || !drag.touch || ![...e.changedTouches].some(t => t.identifier === drag.id)) return;
+    finish(); e.stopPropagation();
+  };
+  document.addEventListener('touchend', tEnd, { capture: true, passive: true });
+  document.addEventListener('touchcancel', tEnd, { capture: true, passive: true });
 }
 
 function initSettings() {
