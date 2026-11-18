@@ -2,7 +2,7 @@
 title: Settings
 summary: Every setting, its default and what it does, grouped as in the panel.
 sources: [index.html (SETTING_INFO), raw/git-history-v1.93.md]
-updated: v1.128
+updated: v1.129
 ---
 
 # Settings
@@ -29,7 +29,7 @@ Settings that can't apply right now are greyed out with the reason.
 |---|---|---|
 | Listen to | Mic | None (muted) · Mic · App sound · Mic + app sound · File (audio). See [Audio sources](audio-sources.md) |
 | Tempo (BPM) | on | estimate the tempo of what the detector hears; "### BPM" in the top bar. See [Tempo](tempo.md) |
-| Chord names | on | name the chord of the sounding notes; shown after the tempo. See [Chord names](chords.md) |
+| Chord names | on | name the chord of the detected notes (not held keys); shown after the tempo. See [Chord names](chords.md) |
 | Detection | full range | 1 oct / full range — full range marks the exact octave on the Launchpad |
 | Algorithm | P4 Multi-F0 | 9 choices, see [Algorithms](algorithms.md) |
 | Gain | +50 dB | −40…+100 dB; auto-gain stays ≤ +40 dB |

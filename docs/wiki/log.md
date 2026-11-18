@@ -157,3 +157,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   bass = lowest note, slash chords), shown after the tempo in the Newest colour; detected notes gathered
   over 400 ms with ≥ 2 hits; 250 ms to show, 300 ms gap tolerance, 2 s dim hold. Narrow top-bar fits.
 - New page: chords. Updated: settings, index.
+
+## [2026-11-18] ingest | v1.129 Chord names: detected only
+- Chord names ignore held keys (mode not 'outside' → nothing named); only detected chords show.
+- Updated: chords, settings, index.

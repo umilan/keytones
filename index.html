@@ -1178,7 +1178,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.128</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.129</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -2741,8 +2741,8 @@ function setBpmOn(on) {
 
 /* ── CHORD NAMES ─────────────────────────────────────────────────────
    Settings > Detection > Chord names. The notes sounding now (what the bars
-   show: detected notes while listening — gathered over CHORD_WINDOW_MS — held
-   keys otherwise) are named as a chord — at least 3 note names, or a root + fifth (C5). The lowest note is the
+   show while listening: detected notes, gathered over CHORD_WINDOW_MS) are
+   named as a chord — held keys are not — at least 3 note names, or a root + fifth (C5). The lowest note is the
    bass: a chord whose root isn't the bass is written as a slash chord (C/E).
    Shown after the tempo in the chord colour (Newest notes); after the notes
    stop the last chord stays, dim, for CHORD_HOLD_MS. */
@@ -2790,7 +2790,8 @@ function updateChordName() {
   const el = document.getElementById('chord-val'); if (!el) return;
   if (!chordsOn) { if (!el.hidden) { el.hidden = true; chordShown = ''; fitTopbar?.(); } return; }
   const now = performance.now();
-  const sounding = [...paSoundingNow().keys()];
+  // detected chords only: while not listening (held keys) nothing is named
+  const sounding = mode === 'outside' ? [...paSoundingNow().keys()] : [];
   let midis = sounding;
   if (mode === 'outside') {
     sounding.forEach(m => { const ts = chordRecent.get(m) || []; if (ts[ts.length - 1] !== now) ts.push(now); chordRecent.set(m, ts); });
@@ -5781,7 +5782,7 @@ const SETTING_INFO = {
  "Key marks": "How a lit key shows its colour (sounding, newest, pressed, flashing and the fading glow).\nFill: the whole key.\nDots: a dot near the top.\nTop edge: a line across the top.\nBottom edge: a line along the bottom.\nBottom edge + name: the bottom line and the coloured letter.\nBoth edges + name: top and bottom lines and the coloured letter.\nBar: a column growing up from above the letter, as tall as the detection is certain.\nRing: a coloured outline.\nName: only the note letter.\nWith anything but Fill the keys keep their normal look.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count).\n0%: keeps everything.\n100%: clears a stopped note within a second.\nNotes still sounding are never shrunk.",
  "Tempo (BPM)": "Estimates the tempo of what the detector hears (mic, app sound or file) and shows it in the top bar, e.g. 120 BPM.\nHow: it finds the beat period that repeats most in the note attacks of the last 8 seconds (60–200 BPM).\nDim: still unsure. Hidden: too quiet or no clear beat.\nTakes about 4 seconds to appear. Half or double the real tempo can happen with sparse or busy rhythms.",
- "Chord names": "Names the chord of the notes sounding now and shows it in the top bar after the tempo, in the Newest notes colour.\nListening: the detected notes (use a P algorithm to hear chords).\nMuted: the keys you hold.\nNeeds at least 3 note names, or a root and fifth (C5). Lowest note = bass: a chord over another bass shows as C/E. After the notes stop the last chord stays dim for 2 s.",
+ "Chord names": "Names the chord of the notes sounding now and shows it in the top bar after the tempo, in the Newest notes colour.\nOnly detected chords (mic, app sound or file) — keys you hold aren't named. Use a P algorithm to hear chords.\nNeeds at least 3 note names, or a root and fifth (C5). Lowest note = bass: a chord over another bass shows as C/E. After the notes stop the last chord stays dim for 2 s.",
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is as opaque as the last detection of that note was certain.\nSolid bars: sure.\nFaint bars: guesses (e.g. close notes, harmonics).\nIn Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "UI hue": "The colour the whole interface is tinted with: panels, bars, top bar, menus, black keys and text. Note colours (sounding, newest, pressed…) don't change.\n240°: the original blue-violet.",
  "UI tint": "How strongly the UI hue shows.\n0%: neutral grey.\n100%: the original look.\n200%: the most colourful.\nOnly the colourfulness changes, never the brightness, so text stays as readable at any value.",

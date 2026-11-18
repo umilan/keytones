@@ -1,8 +1,8 @@
 ---
 title: Chord names
-summary: Names the chord of the sounding notes (detected or held) and shows it in the top bar after the tempo.
+summary: Names the chord of the detected notes and shows it in the top bar after the tempo.
 sources: [index.html (CHORD_TYPES, chordName, updateChordName, paintChord)]
-updated: v1.128
+updated: v1.129
 ---
 
 # Chord names
@@ -14,13 +14,14 @@ chord stays dimmed for 2 s, then disappears.
 Setting: **Settings > Detection > Chord names**, on by default (`keytones-chords-v1`).
 
 ## Which notes
-The same notes the bars show (`paSoundingNow()`):
+Only detected notes — the same notes the bars show while listening (`paSoundingNow()`):
 - **Listening** (mic / app sound / file): the detected notes. Use a P algorithm to hear chords
   (M algorithms detect one note at a time). Detectors often catch only part of a chord per
   check (multi-F0 on a C major chord: C+E in ~70% of checks, C+E+G in ~25%), so notes are gathered
   over the last **400 ms** (`CHORD_WINDOW_MS`). A note counts only once it has been detected **twice** in
   that window (`CHORD_MIN_HITS`), which drops one-off strays.
-- **Muted** (Listen to: None): the keys you hold (on screen, computer keyboard, MIDI).
+- **Held keys are not named** (since v1.129): with Listen to: None nothing shows; while listening,
+  keys you play count only through what the detector hears (e.g. app sound).
 
 ## Naming (`chordName`)
 - At least 3 note names, or a root + fifth (power chord, **C5**). Other two-note intervals and
