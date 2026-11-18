@@ -63,3 +63,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.108 Key marks: Dots
 - New setting Visualisation > Key marks: Fill / Dots; `body.key-dots` + `.key-dot` per key.
 - Updated: views, settings.
+
+## [2026-11-18] ingest | v1.109 dots on the Pi-auto strip
+- Key marks: Dots also applies to the Pi-auto strip (pressed and flashing keys).
+- Updated: views.

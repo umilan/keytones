@@ -270,6 +270,15 @@
     .pa-key.black { background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%)); color: rgba(255,255,255,0.45); }
     .pa-key.pressed { background: var(--press-bg, var(--active-bg)); }
     .pa-key.oct-start { box-shadow: -1px 0 0 0 rgba(255,255,255,0.35); }
+    /* Key marks: Dots — the strip's keys stay idle, a small dot near the top takes the colour */
+    body.key-dots .pa-key.pressed { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%)) !important; }
+    body.key-dots .pa-key.black.pressed { background: var(--bk-bg, linear-gradient(180deg, #2C2C3E 0%, #1A1A28 100%)) !important; }
+    body.key-dots .pa-key.pressed::after {
+      content: ''; position: absolute; top: 4px; left: 50%;
+      width: min(8px, 70%); aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%;
+      background: var(--press-bg, var(--active-bg));
+    }
+    body.key-dots .pa-key.pressed.flash-b::after { background: var(--flash-det, var(--active-bg)); }
     #bar-area.lp-mode { background: var(--bg); }          /* no panel colour around the grid */
     #bar-area.lp-mode .bar-col { visibility: hidden; }   /* bars stay counted, just not drawn */
     #lp-grid {
@@ -1032,7 +1041,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.108</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.109</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
