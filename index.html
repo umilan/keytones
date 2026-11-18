@@ -971,15 +971,12 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.94</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.95</span></div>
     <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
       <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
       <span class="decay-val" id="decay-val">50%</span>
     </div>
 
-    <div class="mic-badge" id="mic-badge" title="Click to toggle mic listening">
-      <div class="mic-status-text" id="mic-status">MUTED</div>
-    </div>
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
       <span class="decay-val" id="gain-val">0dB</span>
@@ -1113,7 +1110,7 @@
     <div class="sp-row">
       <span class="sp-label">Listen to</span>
       <select class="sp-select" id="listen-select">
-        <option value="none">None</option>
+        <option value="none">None (muted)</option>
         <option value="mic">Mic</option>
         <option value="app">App sound</option>
         <option value="both">Mic + app sound</option>
@@ -2154,7 +2151,7 @@ const LISTEN_ICONS = {
   both: '<rect x="4" y="3" width="5" height="9" rx="2.5"/><path d="M2 10a4.5 4.5 0 0 0 9 0M6.5 15v3"/><path d="M13 11v4h3l4 3V8l-4 3z"/>',
   file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><circle cx="10.5" cy="16" r="1.6"/><path d="M12.1 16V10.5l3 1"/>',
 };
-const LISTEN_MENU_TEXT = { none: 'None', mic: 'Mic', app: 'App sound', both: 'Mic + app sound', file: 'Audio file' };
+const LISTEN_MENU_TEXT = { none: 'None (muted)', mic: 'Mic', app: 'App sound', both: 'Mic + app sound', file: 'Audio file' };
 const LISTEN_LABELS = { none: 'None — detection off', mic: 'Mic', app: 'App sound', both: 'Mic + app sound', file: 'Audio file' };
 const listenSvg = v => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${LISTEN_ICONS[v]}</svg>`;
 function syncListenUI() {
@@ -2267,7 +2264,7 @@ async function startMic() {
   if (useMic && !navigator.mediaDevices?.getUserMedia) {
     console.error('[mic] navigator.mediaDevices.getUserMedia is unavailable — insecure context (not https/localhost) or unsupported browser?');
     setMicUI('error', '—', '');
-    document.getElementById('mic-status').textContent = 'N/A';
+    setStatusText('N/A');
     return;
   }
   try {
@@ -2333,7 +2330,7 @@ async function startMic() {
     // "does nothing" from the outside, which makes this exact class of bug
     // impossible to diagnose without opening devtools. Kept short (full
     // detail is in the console.error above) — just the error's own short name.
-    document.getElementById('mic-status').textContent = e.name || 'N/A';
+    setStatusText(e.name || 'N/A');
   }
 }
 
@@ -2352,7 +2349,7 @@ function stopMic() {
   if (lastNote !== -1) sendMidiNote(lastNote, false); // release a stuck note-out
   releasePolyNotes();
   analyser = null; lastNote = pendingNote = -1; pendingTicks = 0;
-  document.getElementById('mic-badge').style.background = '';
+  document.getElementById('mic-badge')?.style.removeProperty('background');
   setMicUI('off', '—', '');
 }
 
@@ -3049,7 +3046,8 @@ function animateLevel() {
   rms = Math.sqrt(rms / tData.length);
   const levelPct = Math.min(rms*380, 100);
   // (the noise gate is shown in its own Settings slider now, not as a tick here)
-  document.getElementById('mic-badge').style.background =
+  const badge = document.getElementById('mic-badge'); // (removed from the top bar in v1.95)
+  if (badge) badge.style.background =
     `linear-gradient(90deg, ${micHearing ? 'rgba(255,140,0,0.32)' : 'rgba(0,209,124,0.28)'} ${levelPct}%, transparent ${levelPct}%), var(--surface)`;
   agcSum += levelPct; agcSamples++; // fed to agcTick() every ~10s
   paintGateMeter(rms);
@@ -3067,11 +3065,20 @@ function setMicUI(state) {
   const isOk = MIC_OK_STATES.has(state);
   micHearing = state === 'mic on';
   dot.className = 'mic-dot' + (isOk ? ' ok' : state==='error' ? ' error' : '') + (micHearing ? ' hearing' : '');
-  statEl.classList.toggle('ok', isOk);
+  statEl?.classList.toggle('ok', isOk);
   const L = {connecting:'WAIT', listening:'LIVE', error:'N/A', off:'MUTED',
              'MIC ON':'LIVE', 'mic on':'LIVE'};
   const appOnly = listenSource === 'app' || (listenSource === 'both' && !micStream); // Mic + app sound without a mic
-  statEl.textContent = (isOk && appOnly) ? 'APP' : (isOk && listenSource === 'file') ? 'FILE' : (L[state] || state); // Listen to
+  setStatusText((isOk && appOnly) ? 'APP' : (isOk && listenSource === 'file') ? 'FILE' : (L[state] || state)); // Listen to
+}
+
+/* the LIVE / MUTED badge is gone (the Listen-to picker's None (muted) replaces
+   it); its text now lives in the status dot's tooltip */
+function setStatusText(text) {
+  const st = document.getElementById('mic-status');
+  if (st) st.textContent = text;
+  const dot = document.getElementById('mic-dot');
+  if (dot) dot.title = 'Detection: ' + text;
 }
 
 /* ═══════════════════════════════════════
@@ -5210,7 +5217,7 @@ const SETTING_INFO = {
  "Confidence": "How sure an algorithm must be before a sound counts as a note. Higher ignores unclear sounds and noise; lower catches more but makes more mistakes. 50% is the original setting.",
  "Stability": "How many checks in a row a note must be heard before it counts. Higher stops flicker and stray notes; lower reacts faster.",
  "View": "What fills the main area. Piano: 12 bars, one per note name. Pi-auto: one bar per real note (C3, C4…); starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars. LP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
- "Listen to": "What the detector hears — also the mini picker in the top bar. None: detection off. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers).",
+ "Listen to": "What the detector hears — also the mini picker in the top bar. None (muted): detection off. Mic: the microphone. App sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound. Mic + app sound: both together. Audio file: an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in (and to the speakers).",
  "Bars show": "What a bar's height means. Live: the notes sounding now, as tall as the detector is sure of them; yellow = the clearly strongest, red = the others; a bar falls back at the Decay rate after its note stops. Time: how long each note has sounded. Count: how often each note started. Chroma: how much each note name stands out in the sound, before any detection (shows what the detector hears); yellow = detected. Time and Count build up and shrink with Decay.",
  "Keys": "How the keyboard's idle keys look. Piano: white and black keys. Like bars: the same colours as the bar columns above them, so keys and bars read as one surface. Lit keys keep their colours either way.",
  "Decay": "How fast the bars and glows shrink once a note has stopped, per second (Bars show: Live / Time / Count). 0% keeps everything; 100% clears a stopped note within a second. Notes still sounding are never shrunk.",
@@ -5456,9 +5463,7 @@ function build() {
   setMode('outside');     // mic on by default
   applyLayout();
 
-  document.getElementById('mic-badge').addEventListener('click', () =>
-    setMode(mode === 'outside' ? 'inner' : 'outside')
-  );
+
 
   document.getElementById('app-title').addEventListener('click', reset);
   window.addEventListener('resize', applyLayout);

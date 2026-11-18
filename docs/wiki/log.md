@@ -8,3 +8,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   PALETTE, defaults), `bench/README.md`, `bench/baseline-v1.60.md`.
 - Created: index, overview, settings, views, colors, detection, algorithms, audio-sources,
   input, launchpad, launchkey, midi, ios, architecture, bench, versioning-and-deploy.
+
+## [2026-11-18] ingest | v1.95 top bar
+- LIVE / MUTED badge removed from the top bar; "None" in Listen to renamed "None (muted)".
+- Updated: architecture, audio-sources, settings.

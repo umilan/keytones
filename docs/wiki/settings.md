@@ -2,7 +2,7 @@
 title: Settings
 summary: Every setting, its default and what it does, grouped as in the panel.
 sources: [index.html (SETTING_INFO), raw/git-history-v1.93.md]
-updated: v1.93
+updated: v1.95
 ---
 
 # Settings
@@ -23,7 +23,7 @@ Settings that can't apply right now are greyed out with the reason.
 ## Detection
 | setting | default | does |
 |---|---|---|
-| Listen to | Mic | None · Mic · App sound · Mic + app sound · Audio file. See [Audio sources](audio-sources.md) |
+| Listen to | Mic | None (muted) · Mic · App sound · Mic + app sound · Audio file. See [Audio sources](audio-sources.md) |
 | Detection | full range | 1 oct / full range — full range marks the exact octave on the Launchpad |
 | Algorithm | P4 Multi-F0 | 9 choices, see [Algorithms](algorithms.md) |
 | Gain | +50 dB | −40…+100 dB; auto-gain stays ≤ +40 dB |
