@@ -1089,7 +1089,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.115</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.116</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -3637,35 +3637,44 @@ function setDecayPct(v) {
 }
 
 /* drag a value control horizontally or vertically to scrub it, like a slider.
+   The drag locks to whichever axis moves first (right / up = increase), so a
+   sideways drag isn't cancelled by vertical wobble. Touch uses its own
+   non-passive handlers so iOS webviews (e.g. MIDI Web) never treat it as a scroll.
    getVal returns the control's current value; setVal applies a new one. */
 function initScrubDrag(elId, getVal, setVal, sens = 0.4) {
   const el = document.getElementById(elId);
-  let dragging = false;
+  let dragging = false, axis = null;
   let startX = 0, startY = 0, startVal = 0;
+  const begin = (x, y) => {
+    if (el.classList.contains('off')) return false; // e.g. GAIN while listening to a file
+    dragging = true; axis = null; startX = x; startY = y; startVal = getVal();
+    el.classList.add('dragging'); return true;
+  };
+  const move = (x, y) => {
+    if (!dragging) return;
+    const dx = x - startX, dy = startY - y;
+    if (!axis && Math.max(Math.abs(dx), Math.abs(dy)) >= 4) axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+    if (axis) setVal(startVal + (axis === 'x' ? dx : dy) * sens);
+  };
+  const stopDrag = () => { dragging = false; axis = null; el.classList.remove('dragging'); };
 
   el.addEventListener('pointerdown', e => {
-    if (el.classList.contains('off')) return; // e.g. GAIN while listening to a file
-    dragging = true;
-    startX   = e.clientX;
-    startY   = e.clientY;
-    startVal = getVal();
-    el.classList.add('dragging');
-    el.setPointerCapture(e.pointerId);
+    if (e.pointerType === 'touch') return; // handled by the touch listeners below
+    if (begin(e.clientX, e.clientY)) el.setPointerCapture(e.pointerId);
   });
+  el.addEventListener('pointermove', e => { if (e.pointerType !== 'touch') move(e.clientX, e.clientY); });
+  el.addEventListener('pointerup', e => { if (e.pointerType !== 'touch') stopDrag(); });
+  el.addEventListener('pointercancel', e => { if (e.pointerType !== 'touch') stopDrag(); });
 
-  el.addEventListener('pointermove', e => {
-    if (!dragging) return;
-    const dx = e.clientX - startX;   // right = increase
-    const dy = startY - e.clientY;   // up    = increase
-    setVal(startVal + (dx + dy) * sens);
-  });
-
-  function stopDrag() {
-    dragging = false;
-    el.classList.remove('dragging');
-  }
-  el.addEventListener('pointerup', stopDrag);
-  el.addEventListener('pointercancel', stopDrag);
+  el.addEventListener('touchstart', e => {
+    const t = e.touches[0]; if (begin(t.clientX, t.clientY)) e.preventDefault();
+  }, { passive: false });
+  // listen on window so the drag keeps going when the finger leaves the control
+  window.addEventListener('touchmove', e => {
+    if (!dragging) return; e.preventDefault(); const t = e.touches[0]; move(t.clientX, t.clientY);
+  }, { passive: false });
+  window.addEventListener('touchend', () => { if (dragging) stopDrag(); });
+  window.addEventListener('touchcancel', () => { if (dragging) stopDrag(); });
 }
 
 /* mic input gain — applied via a GainNode ahead of the analyser/metering.

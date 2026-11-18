@@ -92,3 +92,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - Bottom edge: 5 px line along the key's bottom (`.key-line`, `--mark` / `--glow` at `--press-t`).
   Bottom edge + name = `km-bottom` + `km-name`.
 - Updated: views, settings.
+
+## [2026-11-18] ingest | v1.116 GAIN drag: axis lock + touch
+- Top-bar GAIN scrub locks to the first axis moved (horizontal or vertical) instead of summing
+  dx + dy; touch uses non-passive touch events (window move/end) for iOS.
+- Updated: input.
