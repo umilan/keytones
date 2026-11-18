@@ -971,11 +971,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.95</span></div>
-    <div class="decay-ctrl" id="decay-ctrl" title="Drag to adjust decay rate">
-      <span class="decay-lbl"><span class="tb-full">decay</span><span class="tb-short">dcy</span></span>
-      <span class="decay-val" id="decay-val">50%</span>
-    </div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.96</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -3459,7 +3455,7 @@ function setRangeLabel(id, text) {
 
 function setDecayPct(v) {
   decayPct = Math.max(0, Math.min(100, Math.round(v)));
-  document.getElementById('decay-val').textContent = decayPct + '%';
+  const dv = document.getElementById('decay-val'); if (dv) dv.textContent = decayPct + '%'; // (topbar DECAY removed in v1.96)
   const sel = document.getElementById('decay-select');
   if (sel) sel.value = decayPct;
   setRangeLabel('decay-select', decayPct + '%');
@@ -5456,7 +5452,6 @@ function build() {
   initSettings();
   tryAutoMidi();
   tryAutoAudioDevices();
-  initScrubDrag('decay-ctrl', () => decayPct, setDecayPct);
   initScrubDrag('gain-ctrl', () => micGainDb, setMicGain, 0.25);
   setDecayPct(decayPct); // starts the decay interval for the default rate
   setMicGain(micGainDb);  // fills in the Settings gain slider label
