@@ -51,7 +51,7 @@
       --ui-font-size: 12px;
       --let-spac: 1px;
       --radius: 4px;
-      --ctrl-size: 24px; /* square icon/toggle controls in the topbar */
+      --ctrl-size: 32px; /* square icon/toggle controls in the topbar (was 24px until v1.97) */
       --chevron-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='10'%20height='6'%20viewBox='0%200%2010%206'%3E%3Cpath%20d='M1%201l4%204%204-4'%20stroke='%23c8c4ff'%20stroke-opacity='0.4'%20stroke-width='1.5'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     }
 
@@ -924,6 +924,9 @@
     .sp-row.sp-off > :not(.sp-label) { opacity: 0.35; pointer-events: none; }
     .sp-row.sp-off > .sp-label { opacity: 0.5; }
     .decay-ctrl.off { opacity: 0.35; cursor: not-allowed; }
+    /* top bar: icons scale with the 32px buttons, and the GAIN box matches their height */
+    #topbar button svg { width: 18px; height: 18px; }
+    #topbar .decay-val { height: var(--ctrl-size); display: inline-flex; align-items: center; box-sizing: border-box; }
 
     /* Settings > Detection: audio file player (Listen to: Audio file) */
     .fp-box { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; margin: 2px 0 4px;
@@ -971,7 +974,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.96</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.97</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>

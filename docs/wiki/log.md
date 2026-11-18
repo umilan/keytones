@@ -16,3 +16,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.96 top bar
 - DECAY scrub control removed from the top bar; Decay stays in Settings > Visualisation.
 - Updated: architecture.
+
+## [2026-11-18] ingest | v1.97 bigger top bar buttons
+- `--ctrl-size` 24 → 32 px (icons 14 → 18 px, GAIN box same height; Listen-to menu rows and
+  file-player buttons grow too).
+- Updated: architecture.
