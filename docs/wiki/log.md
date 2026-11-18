@@ -102,3 +102,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - Active option shows a ✓ (`.lm-check`) and bold text; options use high-contrast text instead of `--dim`
   (about 10:1 instead of 3:1); focus outline; ↑/↓ keyboard navigation; focus starts on the active option.
 - Updated: audio-sources.
+
+## [2026-11-18] ingest | v1.118 Pi-auto strip marks detected notes
+- With a Key marks mode other than Fill, detected notes get the mark on the Pi-auto mini keys too
+  (`.pa-key.det`, colour = the note's bar: yellow newest/strongest, red otherwise).
+- Updated: views.

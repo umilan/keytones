@@ -274,15 +274,16 @@
        (Name falls back to a dot: the strip's keys have no letters) */
     body.km-alt .pa-key.pressed { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%)) !important; }
     body.km-alt .pa-key.black.pressed { background: var(--bk-bg, linear-gradient(180deg, #22222F 0%, #121219 100%)) !important; }
-    body.km-alt .pa-key.pressed::after {
+    body.km-alt .pa-key:is(.pressed,.det)::after {
       content: ''; position: absolute; top: 4px; left: 50%;
       width: min(8px, 70%); aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%;
       background: var(--press-bg, var(--active-bg));
     }
-    body.km-bottom .pa-key.pressed::after { top: auto; bottom: 0; left: 0; width: 100%; height: 4px; aspect-ratio: auto; transform: none; border-radius: 0; }
-    body.km-edge .pa-key.pressed::after,
-    body.km-bar .pa-key.pressed::after { top: 0; left: 0; width: 100%; height: 4px; aspect-ratio: auto; transform: none; border-radius: 0; }
-    body.km-ring .pa-key.pressed::after {
+    body.km-alt .pa-key.det:not(.pressed)::after { background: var(--pa-mark); } /* a detected note: its bar's colour */
+    body.km-bottom .pa-key:is(.pressed,.det)::after { top: auto; bottom: 0; left: 0; width: 100%; height: 4px; aspect-ratio: auto; transform: none; border-radius: 0; }
+    body.km-edge .pa-key:is(.pressed,.det)::after,
+    body.km-bar .pa-key:is(.pressed,.det)::after { top: 0; left: 0; width: 100%; height: 4px; aspect-ratio: auto; transform: none; border-radius: 0; }
+    body.km-ring .pa-key:is(.pressed,.det)::after {
       inset: 0; top: 0; left: 0; width: auto; aspect-ratio: auto; transform: none; border-radius: inherit;
       padding: 2px; box-sizing: border-box;
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
@@ -1094,7 +1095,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.117</span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.118</span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -3431,6 +3432,11 @@ function renderPaView(availH) {
     const lab = showLabels ? labels[i] : '';
     c.pct.textContent = lab; c.pct.classList.toggle('on', !!lab);
     paKeys[i].classList.toggle('pressed', mode !== 'outside' ? now.has(c.midi) : paHeld === c.midi);
+    // detected notes (mic / app sound / file) get the key mark too, in their bar's colour (not in Fill)
+    const detRgb = mode === 'outside' && now.has(c.midi)
+      ? (latestColor !== 'none' && yellow.has(c.midi) ? (yRgb || webRgb(latestColor)) : colors.detected !== 'none' ? webRgb(colors.detected) : null) : null;
+    paKeys[i].classList.toggle('det', !!detRgb);
+    if (detRgb) paKeys[i].style.setProperty('--pa-mark', `rgb(${detRgb})`);
   });
 }
 

@@ -2,7 +2,7 @@
 title: Views and bars
 summary: View (Piano / Pi-auto / LP), Bars show modes, keys, Decay and reset.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.115
+updated: v1.118
 ---
 
 # Views and bars
@@ -40,7 +40,9 @@ line across the top, fading like Dots — v1.112) · **Bottom edge** (the same l
 as the last detection was certain, `--conf`; full length reaches 6 px below the top — v1.114) ·
 **Ring** (3 px outline) · **Name** (only the note letter). With anything but Fill the keys keep their
 idle look; states set `--mark` (drawn by `.key-dot`), the fading glow reshapes `::after` the same way. The Pi-auto strip
-follows it (v1.109): dot, bar or ring on pressed / flashing keys (Name uses a dot there).
+follows it (v1.109): dot, bar or ring on pressed / flashing keys (Name uses a dot there). Since
+v1.118 notes detected from mic / app sound / file also get the mark (class `.det`, `--pa-mark` = their
+bar's colour: newest/strongest yellow, the rest red); in Fill mode the strip still shows only played keys.
 
 ## Decay
 Per-second shrink, applied every display frame (smooth, v1.70). Never applies to notes still
