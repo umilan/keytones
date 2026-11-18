@@ -968,8 +968,15 @@
     }
     #sp-tip[hidden] { display: none; }
     #sp-tip .tip-lead { margin-bottom: 6px; }
-    #sp-tip .tip-opt { padding-left: 10px; text-indent: -10px; margin-top: 3px; } /* hanging indent */
-    #sp-tip .tip-opt b { color: #FFFFFF; font-weight: 700; }
+    /* options: a two-column grid, term left (at most ~40%, wraps) and explanation right */
+    #sp-tip .tip-grid {
+      display: grid; grid-template-columns: fit-content(40%) 1fr;
+      margin: 2px 0 0; border-top: 1px solid rgba(255,255,255,0.10);
+    }
+    #sp-tip .tip-term, #sp-tip .tip-desc { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
+    #sp-tip .tip-grid > :nth-last-child(-n+2) { border-bottom: 0; } /* the tip's own edge closes the last row */
+    #sp-tip .tip-term { color: #FFFFFF; font-weight: 700; padding-right: 12px; } /* padding, not a gap, so row lines don't break */
+    #sp-tip .tip-desc { color: #CFCBEF; }
     #sp-tip .tip-p { margin-top: 6px; color: #CFCBEF; }
     /* algorithm card: hover an algorithm button (or long-press on touch), or
        Settings > Algorithm ⓘ — what it does, star ratings, when to use it */
@@ -1117,7 +1124,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.122</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.123</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -5610,16 +5617,23 @@ const SETTING_INFO = {
    "Name: text" (Name up to ~30 chars, no full stop) becomes an option row with
    Name in bold and the text hanging under it */
 function infoTipNodes(text) {
-  return text.split('\n').map((line, i) => {
-    const d = document.createElement('div');
+  // consecutive option lines share one two-column grid: term left, explanation right
+  const out = []; let grid = null;
+  text.split('\n').forEach((line, i) => {
     const m = i > 0 && line.match(/^([^:.]{1,32}):\s(.+)$/);
     if (m) {
-      d.className = 'tip-opt';
-      const b = document.createElement('b'); b.textContent = m[1];
-      d.append(b, ' ' + m[2]);
-    } else { d.className = i ? 'tip-p' : 'tip-lead'; d.textContent = line; }
-    return d;
+      if (!grid) { grid = document.createElement('div'); grid.className = 'tip-grid'; out.push(grid); }
+      const t = document.createElement('div'); t.className = 'tip-term'; t.textContent = m[1];
+      const d = document.createElement('div'); d.className = 'tip-desc';
+      d.textContent = m[2].charAt(0).toUpperCase() + m[2].slice(1);
+      grid.append(t, d);
+    } else {
+      grid = null;
+      const d = document.createElement('div'); d.className = i ? 'tip-p' : 'tip-lead'; d.textContent = line;
+      out.push(d);
+    }
   });
+  return out;
 }
 
 /* add an ⓘ after every Settings label that has an explanation; hover (mouse)
@@ -5641,7 +5655,7 @@ function initSettingInfo() {
       tip.replaceChildren(...infoTipNodes(icon.dataset.info));
     }
     tip.hidden = false;
-    const r = icon.getBoundingClientRect(), w = Math.min(300, window.innerWidth - 16);
+    const r = icon.getBoundingClientRect(), w = Math.min(icon.dataset.info.includes(': ') ? 340 : 300, window.innerWidth - 16);
     tip.style.maxWidth = w + 'px';
     const left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left - 12));
     tip.style.left = left + 'px';

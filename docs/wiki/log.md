@@ -128,3 +128,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   of 5; dim while unsure; hidden after 2.5 s without attacks. ♩BPM shown after the version.
 - Tested with synthetic files (128 / 90 / 100 / 150 BPM): all correct after ~4–5 s.
 - New page: tempo. Updated: settings, index.
+
+## [2026-11-18] ingest | v1.123 Setting tips as tables
+- Option lines in ⓘ tips render as a two-column grid (`.tip-grid`: `.tip-term` / `.tip-desc`), term left,
+  explanation right (capitalised), row separators; tip width 340 px when it has options.
+- Updated: settings.
