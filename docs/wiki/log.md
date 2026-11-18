@@ -75,3 +75,7 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-18] ingest | v1.111 vertical Key marks bar
 - Bar is now a vertical column from the top of the key, ending 36 px above the bottom at full length.
 - Updated: views.
+
+## [2026-11-18] ingest | v1.112 Key marks: Top edge
+- New option: a fixed 5 px line across the top of the key, colours and fading like Dots.
+- Updated: views, settings.

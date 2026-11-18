@@ -2,7 +2,7 @@
 title: Views and bars
 summary: View (Piano / Pi-auto / LP), Bars show modes, keys, Decay and reset.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.111
+updated: v1.112
 ---
 
 # Views and bars
@@ -32,7 +32,8 @@ Keys mirror the detected state: each detected note's key glows in the Sounding c
 for the newest) and **fades with Decay in step with its Launchpad pads** (v1.92). In Live /
 Chroma the key shows the bar colour while sounding. Held keys show the Pad press colour;
 held + detected keys flash (see [Colors](colors.md)). *Keys: Like bars* makes idle keys match the bar columns.
-*Key marks* (v1.108, v1.110): **Fill** (default, the whole key) · **Dots** (14 px dot near the top) ·
+*Key marks* (v1.108, v1.110): **Fill** (default, the whole key) · **Dots** (14 px dot near the top) · **Top edge** (a fixed 5 px
+line across the top, fading like Dots — v1.112) ·
 **Bar** (a column growing down from the top of the key, as long as the last detection was
 certain, `--conf`; at full length it stops 36 px above the bottom so the label stays clear — v1.111) ·
 **Ring** (3 px outline) · **Name** (only the note letter). With anything but Fill the keys keep their
