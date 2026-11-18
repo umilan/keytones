@@ -172,3 +172,11 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   band F1 0.92 → 0.94, wrong notes 17% → 13%, cost 0.4 → 1.2 ms/frame. Summing confidences is worse
   than voting. mono_fast stays poor for all. Filed into the bench page.
 - Updated: bench.
+
+## [2026-11-18] ingest | v1.132 P5 Ensemble
+- New algorithm P5 Ensemble (`detectEnsemble`): P4 Multi-F0 notes kept only when P1 HPCP or P2 NNLS also
+  hears them (from the ensemble bench). Strip button, both pickers, card, help text; P4 stays default.
+- Algorithm strip: tighter buttons (`.algo-btn-group.tight`) before falling back to the dropdown — the
+  strip now fits down to 320 px (was 375 px).
+- Bench: `run.py` knows `ensemble`; `KT_CHROMIUM` env var to use an existing browser binary.
+- Updated: algorithms, settings, index.

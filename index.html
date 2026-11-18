@@ -590,6 +590,8 @@
     }
 
     .algo-btn-test { opacity: 0.6; }
+    /* narrow phones: tighter buttons before giving up on the strip for the dropdown */
+    .algo-btn-group.tight .algo-btn { padding: 5px 2px; letter-spacing: 0; }
 
     /* ── KEYBOARD ─────────────────────────── */
     #keyboard {
@@ -1178,7 +1180,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.131</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.132</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
       <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
@@ -1246,6 +1248,7 @@
           <option value="nnls">P2 NNLS</option>
           <option value="cqtnmf">P3 CQT+NMF</option>
           <option value="multif0" selected>P4 Multi-F0</option>
+          <option value="ensemble">P5 Ensemble</option>
         </optgroup>
         <optgroup label="Test">
           <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
@@ -1265,6 +1268,7 @@
       <button type="button" class="algo-btn" data-algo="nnls" aria-label="NNLS">P2</button>
       <button type="button" class="algo-btn" data-algo="cqtnmf" aria-label="CQT+NMF">P3</button>
       <button type="button" class="algo-btn active" data-algo="multif0" aria-label="Multi-F0">P4</button>
+      <button type="button" class="algo-btn" data-algo="ensemble" aria-label="Ensemble (P4 confirmed by P1 or P2)">P5</button>
       <button type="button" class="algo-btn algo-btn-test" data-algo="chroma-test" aria-label="Chromatic Sequence (Test)">T1</button>
       <button type="button" class="algo-btn" data-algo="off" aria-label="Detection off">OFF</button>
     </div>
@@ -1382,6 +1386,7 @@
           <option value="nnls">P2 NNLS</option>
           <option value="cqtnmf">P3 CQT+NMF</option>
           <option value="multif0" selected>P4 Multi-F0</option>
+          <option value="ensemble">P5 Ensemble</option>
         </optgroup>
         <optgroup label="Test">
           <option value="chroma-test">T1 Chromatic Sequence (Test)</option>
@@ -3017,7 +3022,7 @@ function detectMPM(sr) {
    frame), these return an ARRAY of {freq}, zero or more simultaneous
    pitches. Experimental / for side-by-side comparison, not tuned as
    carefully as the monophonic set — see runPolyDetection(). */
-const POLY_ALGOS = new Set(['hpcp', 'nnls', 'cqtnmf', 'multif0']);
+const POLY_ALGOS = new Set(['hpcp', 'nnls', 'cqtnmf', 'multif0', 'ensemble']);
 
 let detFrame = 0;                       // counts detection frames
 let lastMag = null, lastMagFrame = -1;  // the spectrum already read this frame (Bars show > Chroma reuses it)
@@ -3308,12 +3313,27 @@ function detectMultiF0(sr) {
   return results;
 }
 
+/* P5 Ensemble: P4 Multi-F0's notes, each kept only when P1 HPCP or P2 NNLS
+   also hears that note name in the same frame. A note one method invents
+   rarely shows up in another, so most stray notes drop out. Chosen with the
+   ensemble bench (bench/ensemble-v1.130.md): band F1 0.92 → 0.94, wrong notes
+   17% → 13%, for about 3× P4's CPU (P3 CQT+NMF added nothing there and costs
+   the most, so it isn't used). Octave and confidence come from P4. */
+function detectEnsemble(sr) {
+  const main = detectMultiF0(sr);
+  if (!main.length) return main;
+  const pcOf = f => ((Math.round(12 * Math.log2(f / C0_HZ)) % 12) + 12) % 12;
+  const others = new Set([...detectHPCP(sr), ...detectNNLS(sr)].map(r => pcOf(r.freq)));
+  return main.filter(r => others.has(pcOf(r.freq)));
+}
+
 function detectPitchPoly(sr) {
   switch (pitchAlgo) {
     case 'hpcp':    return detectHPCP(sr);
     case 'nnls':    return detectNNLS(sr);
     case 'cqtnmf':  return detectCQTNMF(sr);
     case 'multif0': return detectMultiF0(sr);
+    case 'ensemble': return detectEnsemble(sr);
     default:        return [];
   }
 }
@@ -3343,7 +3363,7 @@ function detectPitch(sr) {
    rather than just the short id — same text as each <select> option. */
 const ALGO_LABEL = { fft:'M1 FFT Peak', acf:'M2 Autocorrelation (ACF)', amdf:'M3 AMDF',
                       yin:'M4 YIN', mpm:'M5 MPM', hpcp:'P1 HPCP', nnls:'P2 NNLS',
-                      cqtnmf:'P3 CQT+NMF', multif0:'P4 Multi-F0',
+                      cqtnmf:'P3 CQT+NMF', multif0:'P4 Multi-F0', ensemble:'P5 Ensemble',
                       'chroma-test':'T1 Chromatic Sequence (Test)', off:'OFF' };
 
 /* the currently-sounding notes under a polyphonic algorithm — nIdx -> octave.
@@ -4332,8 +4352,9 @@ function initResponsiveAlgoPicker() {
 
   function apply() {
     group.style.display = 'flex'; // lay it out so scrollWidth reflects its real, unwrapped width
-    const requiredWidth = group.scrollWidth;
-    const fits = row.clientWidth >= requiredWidth;
+    group.classList.remove('tight');
+    let fits = row.clientWidth >= group.scrollWidth;
+    if (!fits) { group.classList.add('tight'); fits = row.clientWidth >= group.scrollWidth; } // try tighter buttons first
     compact.style.display = fits ? 'none' : 'flex';
     group.style.display   = fits ? 'flex' : 'none';
   }
@@ -5681,6 +5702,11 @@ const ALGO_INFO = {
           badge: 'best all-rounder · default',
           best: 'anything with chords — guitar, piano, a full band.',
           watch: 'fast runs (8+ notes/s) blur; in a dense distorted band it sometimes shows the 9th instead of the 5th.' },
+  ensemble: { name: 'P5 Ensemble', what: 'Runs P4, P1 and P2 together; a P4 note shows only if P1 or P2 hears it too.',
+          stars: { notes: 4, chords: 5, band: 5, speed: 3, noise: 5, quiet: 4, cpu: 4 },
+          badge: 'fewest wrong notes · new',
+          best: 'chords and a full band when stray notes bother you — about a quarter fewer than P4 on the bench.',
+          watch: 'about 3× P4\'s CPU (still light); a note only P4 catches is dropped, so very quiet notes can go missing.' },
   'chroma-test': { name: 'T1 Chromatic Sequence', what: 'Not a detector: steps through all 12 notes, 0.6 s each.',
           best: 'checking that bars, colours and MIDI / Launchpad output light up for every note.' },
   off:  { name: 'OFF', what: 'Pitch detection is off; nothing is detected from the mic.' },
@@ -5769,7 +5795,7 @@ function initAlgoTips() {
 
 const SETTING_INFO = {
  "Detection": "How far the Launchpad lights a detected note.\n1 oct: every octave of the note.\nFull range: also marks the exact octave you played — the newest note's exact pad, and its key, glow in the Newest notes colour.",
- "Algorithm": "How pitch is detected.\nM1–M5: one note at a time (singing, solo instruments).\nP1–P4: several notes at once (chords, a band).\nHover an algorithm button (long-press on touch) to compare them. Selected now:",
+ "Algorithm": "How pitch is detected.\nM1–M5: one note at a time (singing, solo instruments).\nP1–P5: several notes at once (chords, a band). P5 combines P4 with P1 and P2.\nHover an algorithm button (long-press on touch) to compare them. Selected now:",
  "Gain": "Boosts or cuts the mic signal before detection. Raise it if quiet playing isn't picked up; the level fill in the mic badge and in Gate shows the result.",
  "Speed": "How quickly detection reacts.\nFaster: checks more often and listens to shorter pieces of sound, so notes appear sooner, but low notes and chords get less accurate.\nShown: time between checks.",
  "Gate": "Sound quieter than this is ignored.\nThe bar shows your live input level: white gets through, grey is blocked.\nSet it just below your normal playing level.",

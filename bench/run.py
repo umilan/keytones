@@ -36,7 +36,7 @@ import score
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 FIX = os.path.join(HERE, 'fixtures')
-ALL_ALGOS = ['fft', 'acf', 'amdf', 'yin', 'mpm', 'hpcp', 'nnls', 'cqtnmf', 'multif0']
+ALL_ALGOS = ['fft', 'acf', 'amdf', 'yin', 'mpm', 'hpcp', 'nnls', 'cqtnmf', 'multif0', 'ensemble']
 
 # runs inside the page once it has loaded: stop the default mic, apply the
 # bench settings, wrap the detection loop with a logger, then reopen the mic
@@ -83,7 +83,8 @@ def serve(root):
 
 
 async def run_one(pw, url, wav, duration, algo, settings, gain_db):
-    browser = await pw.chromium.launch(args=[
+    # KT_CHROMIUM: a Chrome/Chromium binary to use instead of Playwright's own download
+    browser = await pw.chromium.launch(executable_path=os.environ.get('KT_CHROMIUM') or None, args=[
         '--use-fake-ui-for-media-stream',
         '--use-fake-device-for-media-stream',
         f'--use-file-for-fake-audio-capture={wav}%noloop',

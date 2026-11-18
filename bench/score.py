@@ -184,11 +184,12 @@ def score(log, truth, gain_db=0.0):
 
 # ── report ────────────────────────────────────────────────────────────────
 ALGO_LABEL = {'fft': 'M1 FFT', 'acf': 'M2 ACF', 'amdf': 'M3 AMDF', 'yin': 'M4 YIN', 'mpm': 'M5 MPM',
-              'hpcp': 'P1 HPCP', 'nnls': 'P2 NNLS', 'cqtnmf': 'P3 CQT+NMF', 'multif0': 'P4 Multi-F0'}
+              'hpcp': 'P1 HPCP', 'nnls': 'P2 NNLS', 'cqtnmf': 'P3 CQT+NMF', 'multif0': 'P4 Multi-F0',
+              'ensemble': 'P5 Ensemble'}
 MONO_CLIPS = ['mono_sine', 'mono_harmonic', 'mono_piano', 'mono_fast', 'piano_in_noise']
 CHORD_CLIPS = ['dyads', 'triads', 'sevenths']
 BAND_CLIPS = ['band_power', 'band_open', 'band_palm']
-POLY = {'hpcp', 'nnls', 'cqtnmf', 'multif0'}
+POLY = {'hpcp', 'nnls', 'cqtnmf', 'multif0', 'ensemble'}
 INTERVAL = ['unison', 'm2', 'M2', 'm3', 'M3', 'P4', 'tritone', 'P5', 'm6', 'M6', 'm7', 'M7']
 
 
