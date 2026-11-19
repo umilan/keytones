@@ -862,19 +862,14 @@
     #listen-menu button[data-value="none"].active { color: #FF8A8A; } /* lighter red, ~6:1 */
     /* shows the icon of the view a tap switches TO */
     /* View toggle: two icon segments in one frame, the current view highlighted */
-    .view-toggle {
-      display: flex; align-items: stretch; flex-shrink: 0; height: var(--ctrl-size);
-      background: var(--surface); border: 1px solid var(--surface-strong); border-radius: var(--radius);
-    }
+    .view-toggle { align-items: stretch; height: var(--ctrl-size); } /* track + plate: see .sp-seg */
     .view-toggle button {
-      width: calc(var(--ctrl-size) - 2px); display: flex; align-items: center; justify-content: center;
-      background: transparent; border: 0; color: var(--dim); cursor: pointer; padding: 0;
-      transition: background 0.15s, color 0.15s; -webkit-tap-highlight-color: transparent;
+      width: calc(var(--ctrl-size) - 6px); display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid transparent; border-radius: calc(var(--radius) - 1px);
+      color: var(--dim); cursor: pointer; padding: 0;
+      transition: background 0.15s, color 0.15s, border-color 0.15s; -webkit-tap-highlight-color: transparent;
     }
-    .view-toggle .vt-keys { border-radius: var(--radius) 0 0 var(--radius); }
-    .view-toggle .vt-lp   { border-radius: 0 var(--radius) var(--radius) 0; }
-    .view-toggle button.active { background: var(--surface-strong); color: var(--text); }
-    .view-toggle button:not(.active):hover { color: var(--text); }
+    .view-toggle button svg { width: 16px !important; height: 16px !important; }
     .view-toggle button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     #settings-btn .mdot {
       position: absolute;
@@ -1081,18 +1076,24 @@
     #algo-tip .at-watch { min-height: var(--at-watch); }
     #algo-tip .at-foot  { min-height: var(--at-foot); }
     /* grouped switch (segmented control), e.g. Settings > View */
-    .sp-seg {
-      display: flex; flex-shrink: 0; overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.10); border-radius: var(--radius);
+    /* Segmented switches (Settings > View / Keys, topbar view toggle): a recessed
+       track with 2 px padding; the selected option is a raised plate inside it, the
+       others plain text — so with two options it can't be read the other way round */
+    .sp-seg, .view-toggle {
+      display: flex; flex-shrink: 0; gap: 2px; padding: 2px;
+      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius);
     }
     .sp-seg button {
-      background: var(--surface); color: var(--dim); border: none;
-      border-right: 1px solid rgba(255,255,255,0.10);
+      background: transparent; color: var(--dim); border: 1px solid transparent; border-radius: calc(var(--radius) - 1px);
       font-family: monospace; font-size: var(--ui-font-size); font-weight: 600;
-      padding: 8px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+      padding: 6px 11px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
-    .sp-seg button:last-child { border-right: none; }
-    .sp-seg button.active { background: var(--surface-strong); color: var(--text); }
+    .sp-seg button:not(.active):hover, .view-toggle button:not(.active):hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .sp-seg button.active, .view-toggle button.active {
+      background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.20); color: var(--text); font-weight: 700;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
     .sp-swatch {
       width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
       border: 1px solid rgba(255,255,255,0.18);
@@ -1199,7 +1200,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.138</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.139</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
     <div class="src-group" id="src-group">
@@ -1220,7 +1221,6 @@
           <rect x="13.5" y="3" width="3" height="12" fill="currentColor" stroke="none"/>
         </svg>
       </button>
-      <span class="src-div" aria-hidden="true"></span>
       <button type="button" class="vt-lp" data-view="launchpad" title="LP view" aria-label="LP view" aria-pressed="false">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>

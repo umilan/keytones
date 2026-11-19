@@ -2,7 +2,7 @@
 title: Views and bars
 summary: View (Piano / Pi-auto / LP), Bars show modes, keys, Decay and reset.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.137
+updated: v1.139
 ---
 
 # Views and bars
@@ -16,7 +16,7 @@ updated: v1.137
   Unlit pads are transparent; no frame or padding. See [Launchpad](launchpad.md).
 
 Topbar toggle switches views; the choice is remembered. Since v1.137 it's a 2-icon toggle (`#view-btn`):
-piano keys | Launchpad grid, the current one highlighted. The keys half returns to the last piano view
+piano keys | Launchpad grid, the current one on a raised plate (v1.139). The keys half returns to the last piano view
 (Piano or Pi-auto, its tooltip says which); Pi-auto vs Piano is picked in Settings > View.
 
 ## Bars show (default Live)

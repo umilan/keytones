@@ -214,3 +214,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   letters 0.5 → 0.68, black-key / Like-bars letters 0.44 → 0.62, chevrons 0.4 → 0.65; T1 italic instead of
   faded. All non-disabled text ≥ 4.5:1. Global `:focus-visible` ring on controls.
 - Updated: colors.
+
+## [2026-11-19] ingest | v1.139 Segmented switches: track + plate
+- `.sp-seg` (Settings View / Keys) and the topbar `.view-toggle`: recessed track with 2 px padding, selected
+  option a raised plate, others plain text, no dividers — unambiguous with two options.
+- Updated: colors, views.

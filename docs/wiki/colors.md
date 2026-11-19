@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.138
+updated: v1.139
 ---
 
 # Colors
@@ -81,4 +81,10 @@ non-disabled text now meets **AA (≥ 4.5:1)**:
 Hierarchy stays: dim (62%) < labels (75%) < text (85%). Disabled rows stay dimmer on purpose (WCAG exempts
 them) but readable (≈ 3.6:1). Dropdown chevrons 40% → 65% opacity (non-text UI ≥ 3:1). Keyboard focus:
 one 2 px `--focus` ring on every button, select, slider and ⓘ (`:focus-visible`, so not on mouse / touch).
+
+## Segmented switches (v1.139)
+Settings > View / Keys and the topbar view toggle are a recessed track (`rgba(0,0,0,.35)`, 2 px padding,
+2 px gap) with the selected option as a raised plate (lighter fill, 1 px border, small shadow, bold text);
+unselected options are plain text with no separators. With two options there is only one plate, so the
+state can't be read the wrong way round (`.sp-seg`, `.view-toggle`).
 
