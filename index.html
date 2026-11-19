@@ -56,6 +56,8 @@
       --latest-bg2: rgb(230, 186, 0);
       --ok:      #00D17C;
       --ok-glow: rgba(0,209,124,0.67);
+      --ok-fill: rgba(0,209,124,0.28);        /* mic level fill while listening */
+      --hearing-fill: rgba(255,140,0,0.32);  /* … while a note is heard */
       --err:     #EF4444;
 
       /* ── text ── */
@@ -76,6 +78,42 @@
       --hairline:       rgba(255,255,255,0.08);
       --border-focus:   rgba(255,255,255,0.22);
       --border-active:  rgba(255,255,255,0.26);
+      --surface-faint:  rgba(255,255,255,0.02); /* barely-there fill (status boxes) */
+      --surface-hint:   rgba(255,255,255,0.04); /* hover on plain options */
+      --line:           rgba(255,255,255,0.10); /* dividers, input / switch borders */
+      --pop-border:     rgba(255,255,255,0.14); /* menus, tips, cards */
+      --line-strong:    rgba(255,255,255,0.18); /* colour swatch edge */
+      --border-bold:    rgba(255,255,255,0.28); /* the active menu option */
+      --plate-bg:       rgba(255,255,255,0.14); /* selected option of a segmented switch */
+      --plate-border:   rgba(255,255,255,0.20);
+      --plate-shine:    rgba(255,255,255,0.06); /* the plate's top highlight */
+
+      /* ── black overlays and shadows ── */
+      --sunk:        rgba(0,0,0,1);    /* segmented-switch track (recessed) */
+      --shade-soft:  rgba(0,0,0,0.25); /* black-note columns, LP mirror backdrop */
+      --shade-key:   rgba(0,0,0,0.40); /* Like bars: black keys a shade darker */
+      --shade:       rgba(0,0,0,0.5);
+      --shadow-pop:  0 6px 18px var(--shade); /* menus, tips, cards */
+      --shadow-plate: 0 1px 2px var(--shade), inset 0 1px 0 var(--plate-shine);
+
+      /* ── bright text and accents on dark ── */
+      --text-bright: #FFFFFF;                  /* emphasis in menus / tips, slider thumb */
+      --text-card:   rgba(255,255,255,0.72);   /* algorithm card description */
+      --err-soft:    #FF8A8A;                  /* error red readable on menus (~6:1) */
+      --hearing:     #FF8C00;                  /* status dot: a note is heard now */
+      --hearing-glow: rgba(255,140,0,0.67);
+      --star:        #f5b301;                  /* algorithm card ratings */
+      --star-off:    rgba(255,255,255,0.16);
+      --oct-line:    rgba(255,255,255,0.35);   /* octave start line, unlit LP led text */
+
+      /* ── keys ── */
+      --wk-top:  #EDEAE0;  /* white key gradient top → bottom, and flat fallback */
+      --wk-bot:  #E2DDD4;
+      --wk-flat: #E8E4DA;
+      --wk-grad: linear-gradient(180deg, var(--wk-top) 0%, var(--wk-bot) 100%);
+      --wk-edge: rgba(0,0,0,0.28);              /* (0 px wide today) key outline */
+      --bk-name: rgba(255,255,255,0.62);        /* letters on black keys ≈ 5–7:1 */
+      --bk-kb:   rgba(255,255,255,0.40);        /* computer-keyboard hints on black keys */
       --ui-font-size: 12px;
       --let-spac: 1px;
       --radius: 4px;
@@ -300,23 +338,23 @@
     #pa-bars, #pa-keys { display: flex; gap: 1px; }
     #pa-bars { flex: 1; min-height: 0; }
     .pa-col { flex: 1; min-width: 0; position: relative; background: var(--col-bg); cursor: pointer; touch-action: none; }
-    .pa-col.black::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.25); z-index: 2; pointer-events: none; }
+    .pa-col.black::before { content: ''; position: absolute; inset: 0; background: var(--shade-soft); z-index: 2; pointer-events: none; }
     .pa-col .bar { z-index: 1; }
     .pa-col .pct-label { font-size: 10px; top: 6px; }
     #pa-keys { height: 30px; flex-shrink: 0; margin-top: 2px; }
     .pa-key {
       flex: 1; min-width: 0; position: relative; cursor: pointer; touch-action: none;
-      background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%));
+      background: var(--wk-bg, var(--wk-grad));
       border-radius: 0 0 3px 3px;
       font: 700 9px/1 monospace; color: var(--wk-name, hsl(var(--ink) / 0.70));
       display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; overflow: hidden;
     }
-    .pa-key.black { background: var(--bk-bg, var(--bk-grad)); color: rgba(255,255,255,0.62); }
+    .pa-key.black { background: var(--bk-bg, var(--bk-grad)); color: var(--bk-name); }
     .pa-key.pressed { background: var(--press-bg, var(--active-bg)); }
-    .pa-key.oct-start { box-shadow: -1px 0 0 0 rgba(255,255,255,0.35); }
+    .pa-key.oct-start { box-shadow: -1px 0 0 0 var(--oct-line); }
     /* Key marks other than Fill — the strip's keys stay idle and a small mark takes the colour
        (Name falls back to a dot: the strip's keys have no letters) */
-    body.km-alt .pa-key.pressed { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%)) !important; }
+    body.km-alt .pa-key.pressed { background: var(--wk-bg, var(--wk-grad)) !important; }
     body.km-alt .pa-key.black.pressed { background: var(--bk-bg, var(--bk-grad)) !important; }
     body.km-alt .pa-key:is(.pressed,.det)::after {
       content: ''; position: absolute; top: 4px; left: 50%;
@@ -358,7 +396,7 @@
       content: attr(data-label); position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center; text-align: center;
       font-family: monospace; font-size: clamp(6px, 1.6vmin, 10px); line-height: 1.05;
-      color: var(--lp-led, rgba(255,255,255,0.35)); pointer-events: none;
+      color: var(--lp-led, var(--oct-line)); pointer-events: none;
     }
     .lp-cell.btn[data-led="19"]::after { font-size: clamp(11px, 3.4vmin, 20px); } /* reset ✕ */
     .lp-cell.logo { background: var(--lp-logo); border-radius: 3px; cursor: default; }
@@ -380,7 +418,7 @@
     .black-mask {
       position: absolute;
       inset: 0;
-      background: rgba(0,0,0,0.25);
+      background: var(--shade-soft);
       z-index: 2;
       pointer-events: none;
     }
@@ -475,7 +513,7 @@
 
     .mic-dot.error { background: var(--err); }
     /* a note is being heard right now: orange instead of green */
-    .mic-dot.ok.hearing { background: #FF8C00; box-shadow: 0 0 7px rgba(255,140,0,0.67); }
+    .mic-dot.ok.hearing { background: var(--hearing); box-shadow: 0 0 7px var(--hearing-glow); }
 
     .mic-status-text {
       font-family: monospace;
@@ -613,8 +651,8 @@
     .white-key {
       z-index: 1;
       gap: 2px;
-      background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA);
-      border: 0px solid rgba(0,0,0,0.28);
+      background: var(--wk-bg, var(--wk-grad) var(--wk-flat));
+      border: 0px solid var(--wk-edge);
     }
 
     /* black key — piano ebony */
@@ -622,7 +660,7 @@
       z-index: 2;
       gap: 1px;
       background: var(--bk-bg, var(--bk-grad) var(--bk-flat));
-      border: 0px solid rgba(0,0,0,0.5);
+      border: 0px solid var(--shade);
 
     }
 
@@ -641,9 +679,9 @@
        columns' colours (white = column bg, black = column bg + its 25 % shade) */
     body.keys-flat {
       --wk-bg: var(--col-bg);
-      --bk-bg: linear-gradient(rgba(0,0,0,0.40), rgba(0,0,0,0.40)) var(--col-bg); /* black keys a shade darker (0.25 until v1.113) */
-      --wk-name: rgba(255,255,255,0.62); /* ≥ 4.5:1 on the column colour */
-      --wk-kb: rgba(255,255,255,0.40);
+      --bk-bg: linear-gradient(var(--shade-key), var(--shade-key)) var(--col-bg); /* black keys a shade darker (0.25 until v1.113) */
+      --wk-name: var(--bk-name); /* ≥ 4.5:1 on the column colour */
+      --wk-kb: var(--bk-kb);
     }
     body.keys-flat .black-key::before { display: none; } /* no piano gloss */
     /* a lit white key keeps dark text */
@@ -712,11 +750,11 @@
        into the same mark. Bar length = detection confidence (--conf). */
     .key-dot { display: none; }
     body.km-alt .key-dot { display: block; position: absolute; z-index: 1; pointer-events: none; background: var(--mark, transparent); font-size: 0; }
-    body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA) !important; }
+    body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--wk-bg, var(--wk-grad) var(--wk-flat)) !important; }
     body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--bk-bg, var(--bk-grad) var(--bk-flat)) !important; }
     body.km-alt :is(.white-key, .black-key):is(.latest, .live-strong, .live-on)::after { opacity: 0 !important; }
     body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--wk-name, hsl(var(--ink) / 0.68)) !important; }
-    body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(255,255,255,0.62) !important; }
+    body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--bk-name) !important; }
     body.km-alt :is(.white-key, .black-key).live-on         { --mark: var(--active-bg); --mark-op: 1; }
     body.km-alt :is(.white-key, .black-key).live-strong     { --mark: var(--latest-bg); --mark-op: 1; }
     body.km-alt :is(.white-key, .black-key).latest          { --mark: var(--key-new, var(--latest-bg)); --mark-op: 1; }
@@ -771,7 +809,7 @@
       font: 700 var(--ui-font-size)/1 monospace; letter-spacing: normal; text-align: center; border-radius: 0;
     }
     body.km-name .key-dot { background: none; color: var(--mark, var(--wk-name, hsl(var(--ink) / 0.68))); }
-    body.km-name .black-key .key-dot { color: var(--mark, rgba(255,255,255,0.62)); }
+    body.km-name .black-key .key-dot { color: var(--mark, var(--bk-name)); }
     body.km-name :is(.white-key, .black-key)::after { -webkit-background-clip: text !important; background-clip: text !important; color: transparent; z-index: 2; }
 
     .key-name {
@@ -794,8 +832,8 @@
     .white-key .key-kb   { font-size: var(--ui-font-size);  color: var(--wk-kb, hsl(var(--ink) / 0.45)); }
 
     /* light text on dark black keys */
-    .black-key .key-name { font-size: var(--ui-font-size); color: rgba(255,255,255,0.62); } /* ≈ 5:1 (was 0.44 ≈ 4.2:1) */
-    .black-key .key-kb   { font-size: var(--ui-font-size); color: rgba(255,255,255,0.40); }
+    .black-key .key-name { font-size: var(--ui-font-size); color: var(--bk-name); } /* ≈ 5:1 (was 0.44 ≈ 4.2:1) */
+    .black-key .key-kb   { font-size: var(--ui-font-size); color: var(--bk-kb); }
 
     /* ── SETTINGS BUTTON ─────────────────── */
     #settings-btn, #listen-btn {
@@ -840,8 +878,8 @@
     .src-group #gain-ctrl.dragging .decay-val { background: var(--surface-hover); }
     #listen-menu {
       position: fixed; z-index: 120; display: flex; flex-direction: column; gap: 3px; padding: 4px;
-      background: var(--pop-bg); border: 1px solid rgba(255,255,255,0.14); border-radius: var(--radius);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      background: var(--pop-bg); border: 1px solid var(--pop-border); border-radius: var(--radius);
+      box-shadow: var(--shadow-pop);
     }
     #listen-menu[hidden] { display: none; }
     #listen-menu button {
@@ -855,11 +893,11 @@
     #listen-menu button svg { flex-shrink: 0; }
     #listen-menu button .lm-text { flex: 1; text-align: left; }
     #listen-menu button .lm-check { width: 16px; height: 16px; flex-shrink: 0; margin-left: 10px; visibility: hidden; }
-    #listen-menu button:hover { color: #FFFFFF; background: rgba(255,255,255,0.08); }
+    #listen-menu button:hover { color: var(--text-bright); background: var(--hairline); }
     #listen-menu button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-    #listen-menu button.active { color: #FFFFFF; font-weight: 700; background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.28); }
+    #listen-menu button.active { color: var(--text-bright); font-weight: 700; background: var(--surface-strong); border-color: var(--border-bold); }
     #listen-menu button.active .lm-check { visibility: visible; }
-    #listen-menu button[data-value="none"].active { color: #FF8A8A; } /* lighter red, ~6:1 */
+    #listen-menu button[data-value="none"].active { color: var(--err-soft); } /* lighter red, ~6:1 */
     /* shows the icon of the view a tap switches TO */
     /* View toggle: two icon segments in one frame, the current view highlighted */
     .view-toggle { align-items: stretch; height: var(--ctrl-size); } /* track + plate: see .sp-seg */
@@ -980,7 +1018,7 @@
 
     .sp-select {
       background: var(--surface) var(--chevron-icon) no-repeat right 10px center;
-      border: 1px solid rgba(255,255,255,0.10);
+      border: 1px solid var(--line);
       border-radius: var(--radius);
       color: var(--text);
       font-family: monospace;
@@ -1009,8 +1047,8 @@
     /* UI hue: the track is a hue rainbow so the slider shows what it picks */
     .ui-hue-range { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 4px;
       background: linear-gradient(90deg, hsl(0 70% 60%), hsl(60 70% 60%), hsl(120 70% 60%), hsl(180 70% 60%), hsl(240 70% 60%), hsl(300 70% 60%), hsl(359 70% 60%)); }
-    .ui-hue-range::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid rgba(0,0,0,0.5); }
-    .ui-hue-range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid rgba(0,0,0,0.5); }
+    .ui-hue-range::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--text-bright); border: 2px solid var(--shade); }
+    .ui-hue-range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--text-bright); border: 2px solid var(--shade); }
     .sp-subsection {
       font-family: monospace; font-size: var(--ui-font-size); letter-spacing: var(--let-spac);
       color: var(--dim); margin-top: 6px;
@@ -1031,8 +1069,8 @@
     #sp-tip {
       position: fixed; z-index: 100; max-width: 260px;
       padding: 8px 10px; border-radius: var(--radius);
-      background: var(--pop-bg); border: 1px solid rgba(255,255,255,0.14);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      background: var(--pop-bg); border: 1px solid var(--pop-border);
+      box-shadow: var(--shadow-pop);
       font-family: monospace; font-size: 11px; line-height: 1.45; color: var(--text);
       pointer-events: none;
     }
@@ -1041,11 +1079,11 @@
     /* options: a two-column grid, term left (at most ~40%, wraps) and explanation right */
     #sp-tip .tip-grid {
       display: grid; grid-template-columns: fit-content(40%) 1fr;
-      margin: 2px 0 0; border-top: 1px solid rgba(255,255,255,0.10);
+      margin: 2px 0 0; border-top: 1px solid var(--line);
     }
-    #sp-tip .tip-term, #sp-tip .tip-desc { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.10); }
+    #sp-tip .tip-term, #sp-tip .tip-desc { padding: 5px 0; border-bottom: 1px solid var(--line); }
     #sp-tip .tip-grid > :nth-last-child(-n+2) { border-bottom: 0; } /* the tip's own edge closes the last row */
-    #sp-tip .tip-term { color: #FFFFFF; font-weight: 700; padding-right: 12px; } /* padding, not a gap, so row lines don't break */
+    #sp-tip .tip-term { color: var(--text-bright); font-weight: 700; padding-right: 12px; } /* padding, not a gap, so row lines don't break */
     #sp-tip .tip-desc { color: var(--pop-text); }
     #sp-tip .tip-p { margin-top: 6px; color: var(--pop-text); }
     /* algorithm card: hover an algorithm button (or long-press on touch), or
@@ -1053,8 +1091,8 @@
     #algo-tip {
       position: fixed; z-index: 100; width: min(300px, calc(100vw - 16px));
       padding: 10px 12px; border-radius: var(--radius);
-      background: var(--pop-bg); border: 1px solid rgba(255,255,255,0.14);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+      background: var(--pop-bg); border: 1px solid var(--pop-border);
+      box-shadow: var(--shadow-pop);
       font-family: monospace; font-size: 11px; line-height: 1.45; color: var(--text);
       pointer-events: none;
     }
@@ -1062,10 +1100,10 @@
     .at-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 10px; font-weight: 700; font-size: 12px; }
     .at-head > span:first-child { white-space: nowrap; }
     .at-badge { color: var(--active-bg); font-weight: 700; font-size: 11px; white-space: nowrap; }
-    .at-what { color: rgba(255,255,255,0.72); margin-top: 3px; }
+    .at-what { color: var(--text-card); margin-top: 3px; }
     .at-rows { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: center; gap: 0 14px; margin: 8px 0; }
-    .at-stars { color: #f5b301; font-size: 14px; line-height: 1.25; letter-spacing: 1px; white-space: nowrap; }
-    .at-stars i { font-style: normal; color: rgba(255,255,255,0.16); }
+    .at-stars { color: var(--star); font-size: 14px; line-height: 1.25; letter-spacing: 1px; white-space: nowrap; }
+    .at-stars i { font-style: normal; color: var(--star-off); }
     .at-note { margin-top: 4px; }
     .at-note b { color: var(--text); }
     .at-foot { margin-top: 6px; color: var(--dim); font-size: 10px; }
@@ -1081,7 +1119,7 @@
        others plain text — so with two options it can't be read the other way round */
     .sp-seg, .view-toggle {
       display: flex; flex-shrink: 0; gap: 2px; padding: 2px;
-      background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius);
+      background: var(--sunk); border: 1px solid var(--hairline); border-radius: var(--radius);
     }
     .sp-seg button {
       background: transparent; color: var(--dim); border: 1px solid transparent; border-radius: calc(var(--radius) - 1px);
@@ -1089,14 +1127,14 @@
       padding: 6px 11px; cursor: pointer; -webkit-tap-highlight-color: transparent;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
-    .sp-seg button:not(.active):hover, .view-toggle button:not(.active):hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .sp-seg button:not(.active):hover, .view-toggle button:not(.active):hover { color: var(--text); background: var(--surface-hint); }
     .sp-seg button.active, .view-toggle button.active {
-      background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.20); color: var(--text); font-weight: 700;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+      background: var(--plate-bg); border-color: var(--plate-border); color: var(--text); font-weight: 700;
+      box-shadow: var(--shadow-plate);
     }
     .sp-swatch {
       width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
-      border: 1px solid rgba(255,255,255,0.18);
+      border: 1px solid var(--line-strong);
     }
     /* colour pickers: the swatch sits inside the dropdown, before the name */
     .sp-color { position: relative; flex-shrink: 0; width: 140px; display: block; }
@@ -1121,7 +1159,7 @@
     }
     .sp-reset {
       background: var(--surface); color: var(--text);
-      border: 1px solid rgba(255,255,255,0.10); border-radius: var(--radius);
+      border: 1px solid var(--line); border-radius: var(--radius);
       font-family: monospace; font-size: var(--ui-font-size);
       padding: 6px 10px; cursor: pointer; margin-left: auto;
     }
@@ -1138,7 +1176,7 @@
 
     /* Settings > Detection: audio file player (Listen to: File (audio)) */
     .fp-box { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; margin: 2px 0 4px;
-              border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); background: rgba(255,255,255,0.02); }
+              border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface-faint); }
     .fp-box[hidden] { display: none; }
     .fp-top { display: flex; align-items: center; gap: 8px; }
     .fp-name { flex: 1; min-width: 0; font-family: monospace; font-size: 11px; color: var(--dim);
@@ -1200,7 +1238,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.140</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.141</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
     <div class="src-group" id="src-group">
@@ -3605,7 +3643,7 @@ function animateLevel() {
   // (the noise gate is shown in its own Settings slider now, not as a tick here)
   const badge = document.getElementById('mic-badge'); // (removed from the top bar in v1.95)
   if (badge) badge.style.background =
-    `linear-gradient(90deg, ${micHearing ? 'rgba(255,140,0,0.32)' : 'rgba(0,209,124,0.28)'} ${levelPct}%, transparent ${levelPct}%), var(--surface)`;
+    `linear-gradient(90deg, ${micHearing ? 'var(--hearing-fill)' : 'var(--ok-fill)'} ${levelPct}%, transparent ${levelPct}%), var(--surface)`;
   agcSum += levelPct; agcSamples++; // fed to agcTick() every ~10s
   paintGateMeter(rms);
   levelRaf = requestAnimationFrame(animateLevel);

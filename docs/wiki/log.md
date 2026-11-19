@@ -225,3 +225,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   without the Stability wait. Quick real-app bench: mono_fast 0.36 → 0.52, triads settled 1.00. Full
   bench to follow. Stability help text mentions it.
 - Updated: algorithms, detection, settings.
+
+## [2026-11-19] ingest | v1.141 Colour tokens
+- All remaining stylesheet colour literals (borders, dividers, menu / tip frames, shadows, plate, white-key
+  gradient, black-key letters, stars, hearing orange, error-soft, mic level fills in JS) became `:root`
+  tokens; no visible change (pixel diff). Segmented-switch track now black (`--sunk`).
+- Updated: colors.

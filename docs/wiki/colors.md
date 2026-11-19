@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.139
+updated: v1.141
 ---
 
 # Colors
@@ -87,4 +87,20 @@ Settings > View / Keys and the topbar view toggle are a recessed track (`rgba(0,
 2 px gap) with the selected option as a raised plate (lighter fill, 1 px border, small shadow, bold text);
 unselected options are plain text with no separators. With two options there is only one plate, so the
 state can't be read the wrong way round (`.sp-seg`, `.view-toggle`).
+
+## Colour tokens (v1.141)
+Every UI colour in the stylesheet is a `:root` variable; outside `:root` the only literal left is `#000` in
+two masks (a shape, not a colour). Groups:
+
+| group | tokens |
+|---|---|
+| UI hue (tinted) | `--bar-bg` `--top-bg` `--strip-bg` `--col-bg` `--key-bg` `--panel-bg` `--pop-bg` `--track-bg` `--bk-top/bot/flat/grad` `--lp-pad/btn/logo` `--text` `--dim` `--pop-text` `--focus` `--chevron-col` |
+| white overlays | `--surface-faint` .02 · `--surface-hint` .04 · `--surface` .05 · `--border` .06 · `--surface-soft` .07 · `--hairline` .08 · `--surface-hover` .09 · `--line` .10 · `--surface-strong` .12 · `--pop-border` / `--plate-bg` .14 · `--line-strong` .18 · `--plate-border` .20 · `--border-focus` .22 · `--border-active` .26 · `--border-bold` .28 |
+| black overlays, shadows | `--sunk` (switch track, black since v1.141) · `--shade-soft` .25 · `--shade-key` .40 · `--shade` .5 · `--shadow-pop` · `--shadow-plate` |
+| bright / accents | `--text-bright` · `--text-card` · `--err-soft` · `--hearing` / `--hearing-glow` / `--hearing-fill` · `--ok-fill` · `--star` / `--star-off` · `--oct-line` |
+| keys | `--wk-top/bot/flat/grad` · `--wk-edge` · `--bk-name` · `--bk-kb` · `--ink` |
+| notes (Settings > Colors) | `--active-bg` `--latest-bg` … set by `applyColors()` from `PALETTE` |
+
+The refactor changed nothing visible (screenshot diff identical) except the segmented-switch track, now pure
+black (`--sunk`).
 
