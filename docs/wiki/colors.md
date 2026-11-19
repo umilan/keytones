@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.141
+updated: v1.143
 ---
 
 # Colors
@@ -103,4 +103,9 @@ two masks (a shape, not a colour). Groups:
 
 The refactor changed nothing visible (screenshot diff identical) except the segmented-switch track, now pure
 black (`--sunk`).
+
+## Checkboxes (v1.143)
+Settings checkboxes (`.sp-check`) are drawn like the dropdowns: `--surface` fill, `--line` border, `--radius`;
+hover brightens the border; checked = `--active-bg` with a white tick (SVG background). Before, browsers
+drew them natively (a bright white box when unchecked).
 

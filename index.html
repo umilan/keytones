@@ -1053,10 +1053,21 @@
       font-family: monospace; font-size: var(--ui-font-size); letter-spacing: var(--let-spac);
       color: var(--dim); margin-top: 6px;
     }
+    /* checkboxes styled like the dropdowns: same fill, border and radius; checked =
+       the accent colour with a white tick (an SVG background, so it works everywhere) */
     .sp-check {
+      appearance: none; -webkit-appearance: none;
       width: 20px; height: 20px; margin: 0 4px 0 0; flex-shrink: 0;
-      accent-color: var(--active-bg); cursor: pointer;
+      background: var(--surface) no-repeat center / 14px 14px;
+      border: 1px solid var(--line); border-radius: var(--radius);
+      cursor: pointer; transition: background-color 0.12s, border-color 0.12s;
     }
+    .sp-check:hover { border-color: var(--border-focus); }
+    .sp-check:checked {
+      background-color: var(--active-bg); border-color: var(--active-bg);
+      background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3%208.5l3.2%203.2L13%204.8'%20fill='none'%20stroke='white'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+    .sp-check:disabled { cursor: not-allowed; }
     /* ⓘ after each Settings label: hover (mouse) or tap shows an explanation */
     .sp-info {
       display: inline-flex; align-items: center; justify-content: center;
@@ -1238,7 +1249,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.142</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.143</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
     <div class="src-group" id="src-group">
