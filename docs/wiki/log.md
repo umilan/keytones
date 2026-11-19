@@ -208,3 +208,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - Top-bar view button → 2-segment toggle (keys | Launchpad grid) in one frame, current view highlighted;
   keys returns to the last piano view (Piano / Pi-auto). Checked at 320–900 px.
 - Updated: views, architecture.
+
+## [2026-11-19] ingest | v1.138 Contrast and focus
+- Contrast audit of all visible text; raised `--dim` 0.36 → 0.62, Settings labels 0.5 → 0.75, white-key
+  letters 0.5 → 0.68, black-key / Like-bars letters 0.44 → 0.62, chevrons 0.4 → 0.65; T1 italic instead of
+  faded. All non-disabled text ≥ 4.5:1. Global `:focus-visible` ring on controls.
+- Updated: colors.

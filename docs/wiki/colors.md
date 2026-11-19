@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.126
+updated: v1.138
 ---
 
 # Colors
@@ -65,4 +65,20 @@ Not tied to the hue: note colours (`--active-bg`, `--latest-bg`, palette), `--ok
 pure black `--bg`, the white-overlay scale (`--surface…`, `--border…`), the cream white keys,
 and the chevron inside the native Settings `<select>`s (an SVG background with a fixed colour,
 #c8c4ff at 40%).
+
+## Contrast and focus (v1.138)
+Every visible text was audited (WCAG contrast, colour blended over the real background). All
+non-disabled text now meets **AA (≥ 4.5:1)**:
+
+| text | before | after |
+|---|---|---|
+| `--dim` — version, section headers, ⓘ, inactive buttons, status lines | 36% · ≈ 2.5:1 | 62% · ≈ 5:1 |
+| Settings labels (`.sp-label`) | 50% · ≈ 4.2:1 | 75% · ≈ 8:1 |
+| letters on white keys (`--ink`) | 50% · ≈ 3.1:1 | 68% · ≈ 5.4:1 |
+| letters on black keys / Like bars keys | 44% white · ≈ 4.2:1 | 62% · ≈ 6.8:1 |
+| T1 test button | dimmed to 60% | full colour, italic |
+
+Hierarchy stays: dim (62%) < labels (75%) < text (85%). Disabled rows stay dimmer on purpose (WCAG exempts
+them) but readable (≈ 3.6:1). Dropdown chevrons 40% → 65% opacity (non-text UI ≥ 3:1). Keyboard focus:
+one 2 px `--focus` ring on every button, select, slider and ⓘ (`:focus-visible`, so not on mouse / touch).
 

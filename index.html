@@ -61,7 +61,7 @@
       /* ── text ── */
       --border:   rgba(255,255,255,0.06);
       --text:     hsl(var(--ui-h-text) calc(100% * var(--ui-sat)) 92.4% / 0.85); /* #DCD8FF */
-      --dim:      hsl(var(--ui-h-text) calc(100% * var(--ui-sat)) 88.4% / 0.36); /* #C8C4FF */
+      --dim:      hsl(var(--ui-h-text) calc(100% * var(--ui-sat)) 88.4% / 0.62); /* #C8C4FF — secondary text; 0.62 ≈ 5:1 on the panels (WCAG AA), was 0.36 ≈ 2.5:1 */
       --text-hsl: var(--ui-h-text) calc(100% * var(--ui-sat)) 92.4%;               /* for other opacities: hsl(var(--text-hsl) / a) */
       --pop-text: hsl(var(--ui-h-text) calc(52.9% * var(--ui-sat)) 86.7%);        /* #CFCBEF — readable text on --pop-bg (~10:1) */
       --focus:    hsl(var(--ui-h-text) calc(100% * var(--ui-sat)) 82.2%);         /* #A9A4FF — keyboard focus ring */
@@ -82,9 +82,9 @@
       --ctrl-size: 32px; /* square icon/toggle controls in the topbar (was 24px until v1.97) */
       /* dropdown chevron: --chevron-icon is the shape; spans draw it as a mask in --chevron-col.
          The native <select>s in Settings can only use it as a background image, whose
-         stroke colour (#c8c4ff at 40%) is fixed in the SVG and doesn't follow --ui-h. */
-      --chevron-col: hsl(var(--ui-h-text) calc(100% * var(--ui-sat)) 88.4%); /* solid: the mask already carries the icon's 40% */
-      --chevron-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='10'%20height='6'%20viewBox='0%200%2010%206'%3E%3Cpath%20d='M1%201l4%204%204-4'%20stroke='%23c8c4ff'%20stroke-opacity='0.4'%20stroke-width='1.5'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+         stroke colour (#c8c4ff at 65%) is fixed in the SVG and doesn't follow --ui-h. */
+      --chevron-col: hsl(var(--ui-h-text) calc(100% * var(--ui-sat)) 88.4%); /* solid: the mask already carries the icon's 65% */
+      --chevron-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='10'%20height='6'%20viewBox='0%200%2010%206'%3E%3Cpath%20d='M1%201l4%204%204-4'%20stroke='%23c8c4ff'%20stroke-opacity='0.65'%20stroke-width='1.5'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     }
 
     html {
@@ -308,10 +308,10 @@
       flex: 1; min-width: 0; position: relative; cursor: pointer; touch-action: none;
       background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%));
       border-radius: 0 0 3px 3px;
-      font: 700 9px/1 monospace; color: var(--wk-name, hsl(var(--ink) / 0.55));
+      font: 700 9px/1 monospace; color: var(--wk-name, hsl(var(--ink) / 0.70));
       display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; overflow: hidden;
     }
-    .pa-key.black { background: var(--bk-bg, var(--bk-grad)); color: rgba(255,255,255,0.45); }
+    .pa-key.black { background: var(--bk-bg, var(--bk-grad)); color: rgba(255,255,255,0.62); }
     .pa-key.pressed { background: var(--press-bg, var(--active-bg)); }
     .pa-key.oct-start { box-shadow: -1px 0 0 0 rgba(255,255,255,0.35); }
     /* Key marks other than Fill — the strip's keys stay idle and a small mark takes the colour
@@ -580,7 +580,7 @@
       color: var(--text);
     }
 
-    .algo-btn-test { opacity: 0.6; }
+    .algo-btn-test { font-style: italic; } /* the test entry: marked by style, not by fading it below 4.5:1 */
     /* narrow phones: tighter buttons before giving up on the strip for the dropdown */
     .algo-btn-group.tight .algo-btn { padding: 5px 2px; letter-spacing: 0; }
 
@@ -642,8 +642,8 @@
     body.keys-flat {
       --wk-bg: var(--col-bg);
       --bk-bg: linear-gradient(rgba(0,0,0,0.40), rgba(0,0,0,0.40)) var(--col-bg); /* black keys a shade darker (0.25 until v1.113) */
-      --wk-name: rgba(255,255,255,0.44);
-      --wk-kb: rgba(255,255,255,0.24);
+      --wk-name: rgba(255,255,255,0.62); /* ≥ 4.5:1 on the column colour */
+      --wk-kb: rgba(255,255,255,0.40);
     }
     body.keys-flat .black-key::before { display: none; } /* no piano gloss */
     /* a lit white key keeps dark text */
@@ -715,8 +715,8 @@
     body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--wk-bg, linear-gradient(180deg, #EDEAE0 0%, #E2DDD4 100%) #E8E4DA) !important; }
     body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on, .flash-b) { background: var(--bk-bg, var(--bk-grad) var(--bk-flat)) !important; }
     body.km-alt :is(.white-key, .black-key):is(.latest, .live-strong, .live-on)::after { opacity: 0 !important; }
-    body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--wk-name, hsl(var(--ink) / 0.50)) !important; }
-    body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(255,255,255,0.44) !important; }
+    body.km-alt .white-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: var(--wk-name, hsl(var(--ink) / 0.68)) !important; }
+    body.km-alt .black-key:is(.pressed, .latest, .live-strong, .live-on) .key-name { color: rgba(255,255,255,0.62) !important; }
     body.km-alt :is(.white-key, .black-key).live-on         { --mark: var(--active-bg); --mark-op: 1; }
     body.km-alt :is(.white-key, .black-key).live-strong     { --mark: var(--latest-bg); --mark-op: 1; }
     body.km-alt :is(.white-key, .black-key).latest          { --mark: var(--key-new, var(--latest-bg)); --mark-op: 1; }
@@ -770,8 +770,8 @@
       content: attr(data-name); left: 0; right: 0; top: auto; bottom: 8px; width: auto; height: auto;
       font: 700 var(--ui-font-size)/1 monospace; letter-spacing: normal; text-align: center; border-radius: 0;
     }
-    body.km-name .key-dot { background: none; color: var(--mark, var(--wk-name, hsl(var(--ink) / 0.50))); }
-    body.km-name .black-key .key-dot { color: var(--mark, rgba(255,255,255,0.44)); }
+    body.km-name .key-dot { background: none; color: var(--mark, var(--wk-name, hsl(var(--ink) / 0.68))); }
+    body.km-name .black-key .key-dot { color: var(--mark, rgba(255,255,255,0.62)); }
     body.km-name :is(.white-key, .black-key)::after { -webkit-background-clip: text !important; background-clip: text !important; color: transparent; z-index: 2; }
 
     .key-name {
@@ -790,12 +790,12 @@
     }
 
     /* dark text on light white keys */
-    .white-key .key-name { font-size: var(--ui-font-size); color: var(--wk-name, hsl(var(--ink) / 0.50)); }
-    .white-key .key-kb   { font-size: var(--ui-font-size);  color: var(--wk-kb, hsl(var(--ink) / 0.28)); }
+    .white-key .key-name { font-size: var(--ui-font-size); color: var(--wk-name, hsl(var(--ink) / 0.68)); }
+    .white-key .key-kb   { font-size: var(--ui-font-size);  color: var(--wk-kb, hsl(var(--ink) / 0.45)); }
 
     /* light text on dark black keys */
-    .black-key .key-name { font-size: var(--ui-font-size); color: rgba(255,255,255,0.44); }
-    .black-key .key-kb   { font-size: var(--ui-font-size); color: rgba(255,255,255,0.24); }
+    .black-key .key-name { font-size: var(--ui-font-size); color: rgba(255,255,255,0.62); } /* ≈ 5:1 (was 0.44 ≈ 4.2:1) */
+    .black-key .key-kb   { font-size: var(--ui-font-size); color: rgba(255,255,255,0.40); }
 
     /* ── SETTINGS BUTTON ─────────────────── */
     #settings-btn, #listen-btn {
@@ -979,7 +979,7 @@
       font-size: var(--ui-font-size);
 			font-weight: 600;
 			letter-spacing: var(--let-spac);
-      color: hsl(var(--text-hsl) / 0.5);
+      color: hsl(var(--text-hsl) / 0.75); /* Settings labels: ≈ 8:1 (was 0.5 ≈ 4.2:1) */
       flex: 1; min-width: min-content; /* never narrower than its longest word */
     }
 
@@ -995,6 +995,10 @@
       cursor: pointer; outline: none;
     }
     .sp-select:focus { border-color: var(--border-focus); }
+    /* keyboard focus: one clear ring on every control (mouse / touch clicks don't show it) */
+    :is(button, select, input, [role="button"], [role="slider"], .sp-info):focus-visible {
+      outline: 2px solid var(--focus); outline-offset: 1px;
+    }
     .sp-select option { background: var(--panel-bg); }
     .sp-row .sp-select { width: 140px; flex-shrink: 0; }
     .sp-value {
@@ -1125,7 +1129,7 @@
        file): greyed out, its controls inert; hovering / tapping the row shows why */
     .sp-row.sp-off { cursor: not-allowed; }
     .sp-row.sp-off > :not(.sp-label) { opacity: 0.35; pointer-events: none; }
-    .sp-row.sp-off > .sp-label { opacity: 0.5; }
+    .sp-row.sp-off > .sp-label { opacity: 0.6; } /* disabled, but still legible (≈ 3:1) */
     .decay-ctrl.off { opacity: 0.35; cursor: not-allowed; }
     /* top bar: icons scale with the 32px buttons, and the GAIN box matches their height */
     #topbar button svg { width: 18px; height: 18px; }
@@ -1195,7 +1199,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.137</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.138</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
     <div class="src-group" id="src-group">
