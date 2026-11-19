@@ -1200,7 +1200,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.139</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.140</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
     <div class="src-group" id="src-group">
@@ -3350,8 +3350,12 @@ function detectEnsemble(sr) {
   const main = detectMultiF0(sr);
   if (!main.length) return main;
   const pcOf = f => ((Math.round(12 * Math.log2(f / C0_HZ)) % 12) + 12) % 12;
-  const others = new Set([...detectHPCP(sr), ...detectNNLS(sr)].map(r => pcOf(r.freq)));
-  return main.filter(r => others.has(pcOf(r.freq)));
+  const h = new Set(detectHPCP(sr).map(r => pcOf(r.freq))), n = new Set(detectNNLS(sr).map(r => pcOf(r.freq)));
+  // adaptive (v1.140): a note all three methods hear is marked instant — it skips the
+  // Stability wait (see runPolyDetection). Bench (bench/windows-v1.134.md): fast notes
+  // 0.36 → 0.53, onset 116 → 81 ms, band / chords unchanged, no extra CPU.
+  return main.filter(r => h.has(pcOf(r.freq)) || n.has(pcOf(r.freq)))
+             .map(r => (h.has(pcOf(r.freq)) && n.has(pcOf(r.freq)) ? { ...r, instant: true } : r));
 }
 
 function detectPitchPoly(sr) {
@@ -3439,11 +3443,13 @@ function runPolyDetection(sr) {
   const heard = new Map(); // nIdx -> octave
   const labelParts = [];
   const frameConf = {};
-  for (const { freq, conf } of results) {
+  const instant = new Set(); // notes the detector is sure enough of to skip Stability (P5 adaptive)
+  for (const { freq, conf, instant: inst } of results) {
     const nNum = Math.round(12 * Math.log2(freq / C0_HZ));
     const nIdx = ((nNum % 12) + 12) % 12;
     const oct  = Math.floor(nNum / 12);
     if (!heard.has(nIdx)) heard.set(nIdx, oct);
+    if (inst) instant.add(nIdx);
     if (conf !== undefined) frameConf[nIdx] = Math.max(frameConf[nIdx] || 0, conf); // strongest octave of this note
     labelParts.push(NOTES[nIdx] + oct);
   }
@@ -3453,7 +3459,7 @@ function runPolyDetection(sr) {
   const newActive = new Map();
   for (let i = 0; i < 12; i++) polyStreak[i] = heard.has(i) ? polyStreak[i] + 1 : 0;
   heard.forEach((oct, nIdx) => {
-    if (activePolyNotes.has(nIdx) || polyStreak[nIdx] >= detection.stability) newActive.set(nIdx, oct);
+    if (activePolyNotes.has(nIdx) || polyStreak[nIdx] >= detection.stability || instant.has(nIdx)) newActive.set(nIdx, oct);
   });
   // Latest note: chord algorithms flicker — a held note can drop out for a
   // frame and come straight back, which used to count as "new" and grab the
@@ -5730,7 +5736,7 @@ const ALGO_INFO = {
           badge: 'best single chord method',
           best: 'anything with chords — guitar, piano, a full band.',
           watch: 'fast runs (8+ notes/s) blur; in a dense distorted band it sometimes shows the 9th instead of the 5th.' },
-  ensemble: { name: 'P5 Ensemble', what: 'Runs P4, P1 and P2 together; a P4 note shows only if P1 or P2 hears it too.',
+  ensemble: { name: 'P5 Ensemble', what: 'Runs P4, P1 and P2 together; a P4 note shows only if P1 or P2 hears it too — at once when all three hear it.',
           stars: { notes: 4, chords: 5, band: 5, speed: 3, noise: 5, quiet: 4, cpu: 4 },
           badge: 'default · fewest wrong notes',
           best: 'chords and a full band when stray notes bother you — about a quarter fewer than P4 on the bench.',
@@ -5828,7 +5834,7 @@ const SETTING_INFO = {
  "Speed": "How quickly detection reacts.\nFaster: checks more often and listens to shorter pieces of sound, so notes appear sooner, but low notes and chords get less accurate.\nShown: time between checks.",
  "Gate": "Sound quieter than this is ignored.\nThe bar shows your live input level: white gets through, grey is blocked.\nSet it just below your normal playing level.",
  "Confidence": "How sure an algorithm must be before a sound counts as a note.\nHigher: ignores unclear sounds and noise.\nLower: catches more, but makes more mistakes.\n50% is the original setting.",
- "Stability": "How many checks in a row a note must be heard before it counts.\nHigher: stops flicker and stray notes.\nLower: reacts faster.",
+ "Stability": "How many checks in a row a note must be heard before it counts.\nHigher: stops flicker and stray notes.\nLower: reacts faster.\nWith P5 Ensemble a note all three of its methods hear shows at once, without waiting.",
  "View": "What fills the main area.\nPiano: 12 bars, one per note name.\nPi-auto: one bar per real note (C3, C4…). Starts with one octave and adds octaves on either side as notes outside it are heard or played — click the app title to start again from 12 bars.\nLP: an on-screen Launchpad that shows exactly what a real one would, and can be played.",
  "Listen to": "What the detector hears — also the mini picker in the top bar.\nNone (muted): detection off.\nMic: the microphone.\nApp sound: the app's own sound (keys, MIDI in, pads) routed straight in — no mic, no room noise — to check how accurately each algorithm detects a known sound.\nMic + app sound: both together.\nFile (audio): an audio or video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm…, whatever this browser can play) loaded in the player below, played straight in and to the speakers.",
  "Bars show": "What a bar's height means.\nLive: the notes sounding now, as tall as the detector is sure of them. Yellow = the clearly strongest, red = the others. A bar falls back at the Decay rate after its note stops.\nTime: how long each note has sounded.\nCount: how often each note started.\nChroma: how much each note name stands out in the sound, before any detection (shows what the detector hears). Yellow = detected.\nTime and Count build up and shrink with Decay.",

@@ -2,7 +2,7 @@
 title: Algorithms
 summary: The 10 detection algorithms (M1–M5 single-note, P1–P5 chords) plus T1 test, strengths and weaknesses.
 sources: [index.html (ALGO_INFO), bench/baseline-v1.60.md, raw/git-history-v1.93.md]
-updated: v1.133
+updated: v1.140
 ---
 
 # Algorithms
@@ -31,7 +31,10 @@ hum on 50/60 Hz multiples): Multi-F0 chord F1 went 0.18 → 1.00 and works at an
 Single-note algorithms can only ever show one note, so only one held key can flash
 "pressed + detected" with them — see [Colors](colors.md).
 
-## P5 Ensemble (v1.132)
+## P5 Ensemble (v1.132, adaptive since v1.140)
+**Adaptive (v1.140):** a note all three methods hear is marked `instant` and skips the Stability wait;
+one heard by P4 + one other still waits. Bench: see the table at the end of this section.
+
 `detectEnsemble()` runs P4 Multi-F0, P1 HPCP and P2 NNLS on the same frame and keeps each P4 note
 only when P1 or P2 also hears that note name (octave and confidence from P4). Stray notes one method
 invents rarely appear in another. Chosen with the ensemble bench (see [Bench](bench.md#ensemble-test-v1130)):

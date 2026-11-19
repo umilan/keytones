@@ -219,3 +219,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 - `.sp-seg` (Settings View / Keys) and the topbar `.view-toggle`: recessed track with 2 px padding, selected
   option a raised plate, others plain text, no dividers — unambiguous with two options.
 - Updated: colors, views.
+
+## [2026-11-19] ingest | v1.140 P5 adaptive
+- `detectEnsemble()` marks notes heard by all three methods `instant`; `runPolyDetection()` shows them
+  without the Stability wait. Quick real-app bench: mono_fast 0.36 → 0.52, triads settled 1.00. Full
+  bench to follow. Stability help text mentions it.
+- Updated: algorithms, detection, settings.

@@ -2,7 +2,7 @@
 title: Settings
 summary: Every setting, its default and what it does, grouped as in the panel.
 sources: [index.html (SETTING_INFO), raw/git-history-v1.93.md]
-updated: v1.133
+updated: v1.140
 ---
 
 # Settings
@@ -36,7 +36,7 @@ Settings that can't apply right now are greyed out with the reason.
 | Gate | −40 dB | ignore quieter sound; slider shows the live level (white passes / grey blocked) |
 | Speed | 3 (50 ms) | 1–5: check interval 100→25 ms, FFT 8192→2048, smoothing 0.8→0.2 |
 | Confidence | 50% | scales each algorithm's own threshold; 50% = original values |
-| Stability | 2 | checks in a row before a note counts |
+| Stability | 2 | checks in a row before a note counts; with P5 a note all three of its methods hear shows at once (v1.140) |
 
 Details and trade-offs: [Detection](detection.md).
 

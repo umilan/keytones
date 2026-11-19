@@ -2,7 +2,7 @@
 title: Detection
 summary: How notes are detected and how Gain, Gate, Speed, Confidence and Stability shape it.
 sources: [index.html, bench/README.md, raw/git-history-v1.93.md]
-updated: v1.93
+updated: v1.140
 ---
 
 # Detection
@@ -16,6 +16,8 @@ updated: v1.93
 3. **Confidence** — `confThreshold(loose, old, strict)` maps the 0–100% slider onto each
    algorithm's own threshold (50% = the original value).
 4. **Stability** — a note must be seen N checks in a row (mono `pendingTicks`, chords `polyStreak`).
+   Exception (v1.140): a result marked `instant` skips the wait — P5 Ensemble marks notes all three of
+   its methods hear (adaptive stability).
 5. Shown: bars, keys, Launchpad, MIDI out; `noteConf[n]` keeps the confidence.
 
 Time-domain algorithms read the **newest** 2048 samples of the analyser buffer (they read the
