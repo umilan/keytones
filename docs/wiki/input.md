@@ -2,7 +2,7 @@
 title: Input
 summary: Playing notes: on-screen keys, computer keyboard, glide, touch gestures.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.116
+updated: v1.136
 ---
 
 # Input
@@ -29,7 +29,7 @@ v1.93** (each finger independently; Pi-auto one at a time).
   window, max 900 px); remembered (`keytones-panel-width-v1`). Added v1.100; on iOS fingers use touch events
   (non-passive) since v1.106 — pointer events were cancelled by the panel's scrolling.
 - Drag the algorithm strip up/down → resize the keyboard (a press turns into a drag after 8 px).
-- Drag the top-bar GAIN control sideways or up/down → change the gain (right / up = louder,
+- Drag the top-bar gain value (right half of the source + gain control) sideways or up/down → change the gain (right / up = louder,
   0.25 dB per px). `initScrubDrag()` locks to the axis that moves first (after 4 px), so
   wobble on the other axis doesn't cancel the drag; fingers use non-passive touch events
   (v1.116) so iOS webviews (MIDI Web) don't scroll instead.

@@ -197,3 +197,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   gives mono_fast 0.36 → 0.53, onset 116 → 81 ms, no extra CPU; long window best for band (0.98) but
   kills fast notes. Filed into the bench page; no app change yet.
 - Updated: bench.
+
+## [2026-11-19] ingest | v1.136 Source + gain as one control
+- Top bar: Listen-to picker and gain value merged into one framed control (`#src-group`), picker left,
+  1 px divider, gain right; the separate "GAIN" label is gone (tooltip / aria-label "Gain"). Drag, menu
+  and narrow layouts (320–900 px) checked.
+- Updated: architecture, audio-sources, input.

@@ -2,7 +2,7 @@
 title: Audio sources
 summary: Listen to (None (muted) / Mic / App sound / Mic + app sound / File (audio)), devices, phone call mode, synth.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.117
+updated: v1.136
 ---
 
 # Audio sources
@@ -17,7 +17,8 @@ updated: v1.117
 | File (audio) | a loaded audio/video file (wav, mp3, m4a, flac, ogg, mp4, mov, webm… — whatever the browser decodes), also played to the speakers; the player is a slim bar just below the top bar, shown only in this mode (v1.105); the last file is kept in IndexedDB (≤ 500 MB) and is back after a refresh — and File (audio) stays the input if it was (v1.107) |
 
 The topbar picker shows the active source as icon + short name (MUTE / MIC / APP / M+A / FILE)
-and opens the menu (v1.102). In the menu the active source has a ✓ and bold text; options use
+and opens the menu (v1.102). Since v1.136 it shares one framed control with the gain value, picker
+left, gain right, split by a thin divider (`#src-group`). In the menu the active source has a ✓ and bold text; options use
 high-contrast text (`#CFCBEF`, about 10:1 on the menu) and a lighter red for an active None.
 Opening focuses the active option; ↑/↓ move between options and Esc closes (v1.117). The status dot left of the title shows the state: green = listening, orange = a note is heard
 now, red = error; its tooltip says LIVE / APP / FILE / MUTED (the separate LIVE badge was removed

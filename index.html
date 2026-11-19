@@ -252,15 +252,6 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    .decay-lbl {
-      font-family: monospace;
-      font-size: var(--ui-font-size);
-      font-weight: 700;
-      letter-spacing: var(--let-spac);
-      text-transform: uppercase;
-      color: var(--dim);
-    }
-
     .decay-val {
       font-family: monospace;
       font-size: var(--ui-font-size);
@@ -836,6 +827,17 @@
     #listen-btn .lb-text { font-family: monospace; font-size: var(--ui-font-size); font-weight: 700; letter-spacing: var(--let-spac); min-width: 4ch; text-align: left; }
     #listen-btn .lb-chev { width: 10px; height: 6px; background: var(--chevron-col); -webkit-mask: var(--chevron-icon) no-repeat center; mask: var(--chevron-icon) no-repeat center; opacity: 0.9; }
     #topbar.tight #listen-btn .lb-chev { display: none; }
+    /* Listen to + Gain as one control: the group draws the frame, a 1 px line splits them */
+    .src-group {
+      display: flex; align-items: stretch; flex-shrink: 0; height: var(--ctrl-size);
+      background: var(--surface); border: 1px solid var(--surface-strong); border-radius: var(--radius);
+    }
+    .src-group #listen-btn { height: 100%; border: 0; background: transparent; border-radius: var(--radius) 0 0 var(--radius); }
+    .src-group #listen-btn:active, .src-group #listen-btn.open { background: var(--surface-hover); }
+    .src-div { width: 1px; align-self: stretch; margin: 6px 0; background: var(--surface-strong); }
+    .src-group #gain-ctrl { border-radius: 0 var(--radius) var(--radius) 0; }
+    .src-group #gain-ctrl .decay-val { height: 100%; border: 0; background: transparent; border-radius: 0 var(--radius) var(--radius) 0; padding: 0 9px; }
+    .src-group #gain-ctrl.dragging .decay-val { background: var(--surface-hover); }
     #listen-menu {
       position: fixed; z-index: 120; display: flex; flex-direction: column; gap: 3px; padding: 4px;
       background: var(--pop-bg); border: 1px solid rgba(255,255,255,0.14); border-radius: var(--radius);
@@ -1180,14 +1182,16 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.135</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.136</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
-    <div class="decay-ctrl" id="gain-ctrl" title="Drag to adjust mic gain">
-      <span class="decay-lbl"><span class="tb-full">gain</span><span class="tb-short">g</span></span>
-      <span class="decay-val" id="gain-val">0dB</span>
+    <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
+    <div class="src-group" id="src-group">
+      <button id="listen-btn" type="button" title="Listen to" aria-label="Listen to" aria-haspopup="listbox" aria-expanded="false"></button>
+      <span class="src-div" aria-hidden="true"></span>
+      <div class="decay-ctrl" id="gain-ctrl" title="Gain: drag to adjust" role="slider" aria-label="Gain">
+        <span class="decay-val" id="gain-val">0dB</span>
+      </div>
     </div>
-
-    <button id="listen-btn" type="button" title="Listen to" aria-label="Listen to" aria-haspopup="listbox" aria-expanded="false"></button>
 
     <button id="view-btn" type="button" title="Switch to Launchpad view" aria-label="Switch to Launchpad view">
       <svg class="vb-grid" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -2514,7 +2518,7 @@ function updateOffRows() {
   }
   const g = document.getElementById('gain-ctrl'), gr = OFF_ROWS['gain-db-select']();
   g.classList.toggle('off', !!gr);
-  g.title = gr || 'Drag to adjust mic gain';
+  g.title = gr || 'Gain: drag to adjust';
 }
 
 /* hover (mouse) or tap a disabled row: the reason, in the same tip as the ⓘ */

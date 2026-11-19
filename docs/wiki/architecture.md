@@ -2,7 +2,7 @@
 title: Architecture
 summary: How index.html is organised: state, audio graph, render loop, persistence.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.107
+updated: v1.136
 ---
 
 # Architecture
@@ -11,10 +11,11 @@ Everything — HTML, CSS, JS — lives in one file, [`index.html`](../../index.h
 plus `manifest.json` and icons for the PWA. No build step, no dependencies.
 
 ## Layout of the page
-- `#topbar` — status dot + title + version, GAIN scrub control, Listen-to mini picker,
+- `#topbar` — status dot + title + version (+ tempo, chord), `#src-group` = Listen-to mini picker | gain
+  scrub value (one framed control with a divider since v1.136, no "GAIN" label),
   view toggle, settings button (the LIVE / MUTED badge was removed in v1.95, the DECAY control
   in v1.96 — Decay is set in Settings > Visualisation only).
-  Icon buttons are `--ctrl-size` = 32 px (18 px icons) since v1.97; the GAIN box matches that height. Shortens labels on narrow screens (KT / DCY / G)
+  Icon buttons are `--ctrl-size` = 32 px (18 px icons) since v1.97; the source + gain group matches that height. Shortens labels on narrow screens (KT …)
   instead of scrolling (`fitTopbar()`, levels `compact` → `tight` → `tiny`).
 - `#bar-area` — the 12 bar columns (Piano), `#pa-view` (Pi-auto) or `#lp-view` (on-screen Launchpad).
 - `#mic-strip` — algorithm buttons (or a compact picker); also the drag handle that resizes the keyboard.
