@@ -1249,7 +1249,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.144</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.145</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
     <div class="src-group" id="src-group">
@@ -1864,7 +1864,8 @@ const lpOf    = name => name === 'none' ? null : PALETTE[name].lp;
 const lkOf    = name => name === 'none' ? null : PALETTE[name].lk;
 /* Settings > Colors > Intensity: the Detected notes colour scaled towards black
    (screen) / a dimmer pad (Launchpad). The Launchkey only has fixed palette
-   colours, so it stays at full. */
+   colours, so it stays at full. Newest notes always stay at full intensity,
+   including while Newest fades blends them into the Detected colour. */
 const DET_INTENSITY_KEY = 'keytones-det-intensity-v1';
 const DET_INTENSITY_DEFAULT = 100;
 let detIntensity = DET_INTENSITY_DEFAULT;
@@ -1906,7 +1907,7 @@ function newness(i) {
 }
 /* 'r,g,b' of note i's newest colour right now (dark = black-key shade) */
 function newestRgb(i, dark = false) {
-  const t = newness(i), a = webOf(colors.latest), b = colors.detected === 'none' ? webOf(colors.latest) : detWeb();
+  const t = newness(i), a = webOf(colors.latest), b = webOf(colors.detected === 'none' ? colors.latest : colors.detected); // full intensity: Intensity dims only plain detected notes, never the newest
   return a.map((c, k) => Math.round((b[k] + (c - b[k]) * t) * (dark ? 0.88 : 1))).join(',');
 }
 
@@ -4832,7 +4833,7 @@ function paintLaunchpadNoteFade(noteIdx) {
   const t = lpNoteBrightness[noteIdx] || 0;
   const idle   = lpBacklightColorForNote(baseIdx);
   let latest = isLatestShown(noteIdx) ? lpOf(latestColor) : null;
-  if (latest && LP_RGB_NOTE) latest = lpBlendColor(LP_RGB_NOTE, latest, newness(noteIdx)); // Newest fades
+  if (latest && LP_RGB_NOTE) latest = lpBlendColor(lpOf(colors.detected), latest, newness(noteIdx)); // Newest fades — into the full-intensity colour
   // full range detection: the exact-octave pad carries the Latest note colour
   // (or Exact octave for a note that isn't the latest); the note's other
   // octaves keep the plain Notes colour. Otherwise every octave of the latest
@@ -5926,7 +5927,7 @@ const SETTING_INFO = {
  "UI hue": "The colour the whole interface is tinted with: panels, bars, top bar, menus, black keys and text. Note colours (sounding, newest, pressed…) don't change.\n240°: the original blue-violet.",
  "UI tint": "How strongly the UI hue shows.\n0%: neutral grey.\n100%: the original look.\n200%: the most colourful.\nOnly the colourfulness changes, never the brightness, so text stays as readable at any value.",
  "Detected notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
- "Intensity": "How strong the Detected notes colour is, on screen and on a Launchpad.\n100%: full colour.\nLower: darker on screen, dimmer pads — calmer when many notes sound.\nA Launchkey has fixed colours and stays at full.",
+ "Intensity": "How strong the Detected notes colour is, on screen and on a Launchpad.\n100%: full colour.\nLower: darker on screen, dimmer pads — calmer when many notes sound.\nNewest notes always stay at full intensity, also while they fade into the Detected colour. A Launchkey has fixed colours and stays at full.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
  "Transition": "How long a key, bar or pad takes to cross-fade when its colour changes (newest ↔ sounding ↔ idle) — on screen and on a real Launchpad.\noff: instant.\nA note lighting up and pressing a key or pad always show at once.",
  "Newest fades": "How long a newest note takes to blend from the Newest colour into the Detected colour, on the bars (Time / Count), keys and pads.\noff: it stays in the Newest colour until another note takes over.",

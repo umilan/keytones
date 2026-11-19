@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.144
+updated: v1.145
 ---
 
 # Colors
@@ -112,7 +112,9 @@ drew them natively (a bright white box when unchecked).
 ## Detected notes intensity (v1.144)
 **Settings > Colors > Intensity** (10–100%, default 100%, `keytones-det-intensity-v1`) scales the Detected
 notes colour: towards black on screen (`--active-bg`, `--active-bg2`, the Pad-press fallback) and dimmer on
-the Launchpad (`LP_RGB_NOTE`). Helpers `detWeb()` / `detRgb()` / `detDark()` / `detLp()`. Not scaled: the
+the Launchpad (`LP_RGB_NOTE`). Newest notes stay at full intensity (since v1.145): Newest fades blends
+them into the full-strength Detected colour (`newestRgb()`, the Launchpad latest blend); a note only takes
+the Intensity-scaled colour once it is no longer the newest. Helpers `detWeb()` / `detRgb()` / `detDark()` / `detLp()`. Not scaled: the
 Launchkey (fixed palette colours), the Launchpad's side / top buttons, and UI accents — sliders, checkboxes
 and the seek bar use `--ui-accent`, the full-strength colour. Greyed out when Detected notes is none; Reset
 colors restores 100%.

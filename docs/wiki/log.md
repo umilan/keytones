@@ -246,3 +246,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   slider (10–100%) scales that colour on screen and on the Launchpad; UI accents moved to `--ui-accent`
   (full strength) so sliders don't dim with it. Launchkey unchanged (fixed palette).
 - Updated: colors, launchpad, settings, views.
+
+## [2026-11-19] ingest | v1.145 Newest at full intensity
+- Newest fades now blends the newest note into the full-strength Detected colour (screen and Launchpad);
+  Intensity dims only detected notes that aren't the newest.
+- Updated: colors.
