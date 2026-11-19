@@ -798,7 +798,7 @@
     .black-key .key-kb   { font-size: var(--ui-font-size); color: rgba(255,255,255,0.24); }
 
     /* ── SETTINGS BUTTON ─────────────────── */
-    #settings-btn, #view-btn, #listen-btn {
+    #settings-btn, #listen-btn {
       width: var(--ctrl-size); height: var(--ctrl-size);
       background: var(--surface);
       border: 1px solid var(--surface-strong);
@@ -813,7 +813,7 @@
       -webkit-tap-highlight-color: transparent;
       position: relative;
     }
-    #view-btn:active, #listen-btn:active, #listen-btn.open,
+    #listen-btn:active, #listen-btn.open,
     #settings-btn:active, #settings-btn.active {
       background: var(--surface-hover);
       border-color: var(--border-active);
@@ -861,8 +861,21 @@
     #listen-menu button.active .lm-check { visibility: visible; }
     #listen-menu button[data-value="none"].active { color: #FF8A8A; } /* lighter red, ~6:1 */
     /* shows the icon of the view a tap switches TO */
-    #view-btn .vb-keys, #view-btn.lp .vb-grid { display: none; }
-    #view-btn.lp .vb-keys { display: block; }
+    /* View toggle: two icon segments in one frame, the current view highlighted */
+    .view-toggle {
+      display: flex; align-items: stretch; flex-shrink: 0; height: var(--ctrl-size);
+      background: var(--surface); border: 1px solid var(--surface-strong); border-radius: var(--radius);
+    }
+    .view-toggle button {
+      width: calc(var(--ctrl-size) - 2px); display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 0; color: var(--dim); cursor: pointer; padding: 0;
+      transition: background 0.15s, color 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .view-toggle .vt-keys { border-radius: var(--radius) 0 0 var(--radius); }
+    .view-toggle .vt-lp   { border-radius: 0 var(--radius) var(--radius) 0; }
+    .view-toggle button.active { background: var(--surface-strong); color: var(--text); }
+    .view-toggle button:not(.active):hover { color: var(--text); }
+    .view-toggle button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
     #settings-btn .mdot {
       position: absolute;
       top: 5px; right: 5px;
@@ -1182,7 +1195,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.136</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.137</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
     <div class="src-group" id="src-group">
@@ -1193,18 +1206,24 @@
       </div>
     </div>
 
-    <button id="view-btn" type="button" title="Switch to Launchpad view" aria-label="Switch to Launchpad view">
-      <svg class="vb-grid" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-      </svg>
-      <svg class="vb-keys" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <path d="M9 21v-6M15 21v-6"/>
-        <rect x="7.5" y="3" width="3" height="12" fill="currentColor" stroke="none"/>
-        <rect x="13.5" y="3" width="3" height="12" fill="currentColor" stroke="none"/>
-      </svg>
-    </button>
+    <!-- View: a 2-icon toggle — keys (Piano / Pi-auto, whichever was last) | Launchpad grid -->
+    <div id="view-btn" class="view-toggle" role="group" aria-label="View">
+      <button type="button" class="vt-keys active" data-view="keys" title="Piano view" aria-label="Piano view" aria-pressed="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M9 21v-6M15 21v-6"/>
+          <rect x="7.5" y="3" width="3" height="12" fill="currentColor" stroke="none"/>
+          <rect x="13.5" y="3" width="3" height="12" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <span class="src-div" aria-hidden="true"></span>
+      <button type="button" class="vt-lp" data-view="launchpad" title="LP view" aria-label="LP view" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+    </div>
 
     <button id="settings-btn" title="Settings">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -5218,10 +5237,11 @@ function setView(view) {
     const on = b.dataset.value === view;
     b.classList.toggle('active', on); b.setAttribute('aria-checked', on);
   });
-  const vb = document.getElementById('view-btn');
-  vb.classList.toggle('lp', lpSim);
-  vb.title = lpSim ? `Switch to ${lastPianoView === 'piauto' ? 'Pi-auto' : 'Piano'} view` : 'Switch to LP view';
-  vb.setAttribute('aria-label', vb.title);
+  const vk = document.querySelector('#view-btn .vt-keys'), vl = document.querySelector('#view-btn .vt-lp');
+  const keysName = (lastPianoView === 'piauto' ? 'Pi-auto' : 'Piano') + ' view';
+  vk.classList.toggle('active', !lpSim); vk.setAttribute('aria-pressed', !lpSim);
+  vl.classList.toggle('active', lpSim);  vl.setAttribute('aria-pressed', lpSim);
+  vk.title = keysName; vk.setAttribute('aria-label', keysName);
   document.getElementById('lp-view').hidden = !lpSim;
   document.getElementById('bar-area').classList.toggle('lp-mode', lpSim);
   document.getElementById('pa-view').hidden = view !== 'piauto';
@@ -6088,7 +6108,8 @@ function initSettings() {
   try { view = localStorage.getItem(VIEW_KEY) || 'bars'; } catch (e) { /* storage unavailable */ }
   setView(view);
   document.querySelectorAll('#view-select button').forEach(b => b.addEventListener('click', () => setView(b.dataset.value)));
-  document.getElementById('view-btn').addEventListener('click', () => setView(lpSim ? lastPianoView : 'launchpad'));
+  document.querySelector('#view-btn .vt-keys').addEventListener('click', () => { if (lpSim) setView(lastPianoView); });
+  document.querySelector('#view-btn .vt-lp').addEventListener('click', () => { if (!lpSim) setView('launchpad'); });
   setPadGlow('halftone', lpHalftoneGlow);
   setPadGlow('natural', lpNaturalGlow);
   document.getElementById('halftone-range').addEventListener('input', e => setPadGlow('halftone', Number(e.target.value)));

@@ -203,3 +203,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   1 px divider, gain right; the separate "GAIN" label is gone (tooltip / aria-label "Gain"). Drag, menu
   and narrow layouts (320–900 px) checked.
 - Updated: architecture, audio-sources, input.
+
+## [2026-11-19] ingest | v1.137 View as a 2-icon toggle
+- Top-bar view button → 2-segment toggle (keys | Launchpad grid) in one frame, current view highlighted;
+  keys returns to the last piano view (Piano / Pi-auto). Checked at 320–900 px.
+- Updated: views, architecture.
