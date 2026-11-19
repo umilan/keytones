@@ -2,7 +2,7 @@
 title: Launchpad
 summary: Launchpad Mini MK3 programmer-mode support: layouts, colours, buttons, on-screen mirror.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.93
+updated: v1.144
 ---
 
 # Launchpad
@@ -19,12 +19,12 @@ not the 128-colour palette. `setLaunchpadRGB()` also updates the on-screen Launc
 Arrows: ▲▼ octave shift, ◀▶ transpose (each arrow lights in proportion to its own steps).
 
 ## What lights up
-- Sounding notes: every octave of the note, fading with Decay.
+- Detected notes: every octave of the note, fading with Decay (dimmed by Colors > Intensity).
 - Full range: the newest note's exact-octave pad in the Newest colour.
 - Notes played from keys / keyboard / MIDI in: their exact-octave pad in Pad press.
 - Physical pad press: Pad press colour while held (none = off).
 - Idle: C pads, ♯/♭ and natural glow sliders; unused pads off.
-- Side column: waveform buttons (selected = Sounding colour, idle grey), bottom
+- Side column: waveform buttons (selected = Detected colour, idle grey), bottom
   **Stop Solo Mute = reset** (white, ✕ on screen).
 
 Pressing pads plays notes; layout / arrow / waveform / reset buttons work as on the device.

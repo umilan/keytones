@@ -2,7 +2,7 @@
 title: Views and bars
 summary: View (Piano / Pi-auto / LP), Bars show modes, keys, Decay and reset.
 sources: [index.html, raw/git-history-v1.93.md]
-updated: v1.139
+updated: v1.144
 ---
 
 # Views and bars
@@ -30,7 +30,7 @@ piano keys | Launchpad grid, the current one on a raised plate (v1.139). The key
 Percent labels = share of the total (Time / Count) or the level (Live / Chroma). Bars have no glow or shadow (removed in v1.99).
 
 ## Keys
-Keys mirror the detected state: each detected note's key glows in the Sounding colour (Newest
+Keys mirror the detected state: each detected note's key glows in the Detected colour (Newest
 for the newest) and **fades with Decay in step with its Launchpad pads** (v1.92). In Live /
 Chroma the key shows the bar colour while sounding. Held keys show the Pad press colour;
 held + detected keys flash (see [Colors](colors.md)). *Keys: Like bars* makes idle keys match the bar columns. Black keys are a shade darker than white ones (Piano gradient

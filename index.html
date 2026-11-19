@@ -690,7 +690,7 @@
 
     /* a key you play (on screen, computer keyboard, MIDI in) is drawn in the
        Pad press colour — the same as its pad in the Launchpad view; falls
-       back to the Sounding notes colour when Pad press is none */
+       back to the Detected notes colour when Pad press is none */
     .white-key.pressed, .white-key.pressed.latest { background: var(--press-bg, var(--active-bg)); }
     .black-key.pressed, .black-key.pressed.latest { background: var(--press-bg2, var(--active-bg2)); }
 
@@ -1042,7 +1042,7 @@
     .sp-range {
       /* the slider gives way first, so a long label (Confidence) never runs into its value */
       flex: 0 1 120px; width: 120px; min-width: 56px; margin: 0;
-      accent-color: var(--active-bg); cursor: pointer;
+      accent-color: var(--ui-accent); cursor: pointer;
     }
     /* UI hue: the track is a hue rainbow so the slider shows what it picks */
     .ui-hue-range { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 4px;
@@ -1064,7 +1064,7 @@
     }
     .sp-check:hover { border-color: var(--border-focus); }
     .sp-check:checked {
-      background-color: var(--active-bg); border-color: var(--active-bg);
+      background-color: var(--ui-accent); border-color: var(--ui-accent);
       background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3%208.5l3.2%203.2L13%204.8'%20fill='none'%20stroke='white'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
     }
     .sp-check:disabled { cursor: not-allowed; }
@@ -1162,11 +1162,11 @@
     #gate-range::-webkit-slider-thumb {
       -webkit-appearance: none; appearance: none;
       width: 18px; height: 18px; border-radius: 50%;
-      background: var(--active-bg); border: none; cursor: pointer;
+      background: var(--ui-accent); border: none; cursor: pointer;
     }
     #gate-range::-moz-range-thumb {
       width: 18px; height: 18px; border-radius: 50%;
-      background: var(--active-bg); border: none; cursor: pointer;
+      background: var(--ui-accent); border: none; cursor: pointer;
     }
     .sp-reset {
       background: var(--surface); color: var(--text);
@@ -1203,7 +1203,7 @@
     .fp-btn:active { background: var(--surface-hover); }
     .fp-btn:disabled { opacity: 0.35; cursor: default; }
     .fp-time { margin-left: auto; font-family: monospace; font-size: 11px; color: var(--dim); white-space: nowrap; }
-    .fp-seek { width: 100%; margin: 0; accent-color: var(--active-bg); cursor: pointer; }
+    .fp-seek { width: 100%; margin: 0; accent-color: var(--ui-accent); cursor: pointer; }
     .fp-seek:disabled { opacity: 0.35; cursor: default; }
     /* slim one-row player bar under the top bar (v1.105) */
     #file-player.fp-slim {
@@ -1249,7 +1249,7 @@
   <div class="safe-top"></div>
 
   <div id="topbar">
-    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.143</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
+    <div class="app-title" id="app-title"><span class="mic-dot" id="mic-dot" title="Detection status"></span><span class="tb-full">Key<span class="app-title-accent">tones</span></span><span class="tb-short">K<span class="app-title-accent">T</span></span><span class="app-version" id="app-version">v1.144</span><span class="bpm-val" id="bpm-val" title="Tempo (estimated from what the detector hears)" hidden></span><span class="chord-val" id="chord-val" hidden></span></div>
 
     <!-- Listen to picker + Gain: one control, split by a divider (source left, gain right) -->
     <div class="src-group" id="src-group">
@@ -1508,9 +1508,14 @@
       <select class="sp-select" id="color-latest"></select></span>
     </div>
     <div class="sp-row">
-      <label class="sp-label" for="color-detected">Sounding notes</label>
+      <label class="sp-label" for="color-detected">Detected notes</label>
       <span class="sp-color"><span class="sp-swatch" id="color-detected-swatch"></span>
       <select class="sp-select" id="color-detected"></select></span>
+    </div>
+    <div class="sp-row">
+      <label class="sp-label" for="det-intensity-range">Intensity</label>
+      <span class="sp-value" id="det-intensity-range-value"></span>
+      <input type="range" class="sp-range" id="det-intensity-range" min="10" max="100" step="5" value="100">
     </div>
     <div class="sp-row">
       <label class="sp-label" for="color-fade-range">Transition</label>
@@ -1857,6 +1862,18 @@ const webRgb  = name => webOf(name).join(',');
 const webDark = name => webOf(name).map(c => Math.round(c * 0.88)).join(','); // black keys
 const lpOf    = name => name === 'none' ? null : PALETTE[name].lp;
 const lkOf    = name => name === 'none' ? null : PALETTE[name].lk;
+/* Settings > Colors > Intensity: the Detected notes colour scaled towards black
+   (screen) / a dimmer pad (Launchpad). The Launchkey only has fixed palette
+   colours, so it stays at full. */
+const DET_INTENSITY_KEY = 'keytones-det-intensity-v1';
+const DET_INTENSITY_DEFAULT = 100;
+let detIntensity = DET_INTENSITY_DEFAULT;
+try { const v = +localStorage.getItem(DET_INTENSITY_KEY); if (v >= 10 && v <= 100) detIntensity = v; } catch (e) { /* storage unavailable */ }
+const detK      = () => detIntensity / 100;
+const detWeb    = () => webOf(colors.detected).map(c => Math.round(c * detK()));
+const detRgb    = () => detWeb().join(',');
+const detDark   = () => detWeb().map(c => Math.round(c * 0.88)).join(',');
+const detLp     = () => { const c = lpOf(colors.detected); return c && c.map(v => Math.round(v * detK())); };
 const LP_RGB_UI_NEUTRAL = [90, 90, 90]; // controller buttons when Notes is 'none'
 let latestColor = colors.latest; // 'none' or a palette name — kept as its own name for the code below
 /* the latest note(s): one with the single-note algorithms, possibly several
@@ -1872,7 +1889,7 @@ const COLOR_FADE_DEFAULT = 0.4;
 let colorFadeS = COLOR_FADE_DEFAULT;
 
 /* Settings > Colors > Newest fades: a newest note starts in the Newest
-   colour and blends into the Sounding colour over this many seconds
+   colour and blends into the Detected colour over this many seconds
    (0 = stays Newest until another note takes over) — on the bars (Time /
    Count), the keys and the Launchpad pads */
 const NEWEST_FADE_KEY = 'keytones-newest-fade-v1';
@@ -1889,7 +1906,7 @@ function newness(i) {
 }
 /* 'r,g,b' of note i's newest colour right now (dark = black-key shade) */
 function newestRgb(i, dark = false) {
-  const t = newness(i), a = webOf(colors.latest), b = webOf(colors.detected === 'none' ? colors.latest : colors.detected);
+  const t = newness(i), a = webOf(colors.latest), b = colors.detected === 'none' ? webOf(colors.latest) : detWeb();
   return a.map((c, k) => Math.round((b[k] + (c - b[k]) * t) * (dark ? 0.88 : 1))).join(',');
 }
 
@@ -1910,25 +1927,27 @@ function agingFrame(t) {
 }
 
 /* Launchpad / Launchkey colours that follow Settings > COLORS (see applyColors) */
-let LP_RGB_NOTE       = lpOf(colors.detected);   // note highlighted by the app (mic, on-screen key, chroma test); null = none
-let LP_RGB_APP_ACTIVE = LP_RGB_NOTE || LP_RGB_UI_NEUTRAL; // the same colour for the side/top buttons, never null
+let LP_RGB_NOTE       = detLp();   // note highlighted by the app (mic, on-screen key, chroma test); null = none
+let LP_RGB_APP_ACTIVE = lpOf(colors.detected) || LP_RGB_UI_NEUTRAL; // the same colour for the side/top buttons, never null
 let LP_RGB_C_BLUE     = lpOf(colors.cNote);      // idle backlight of every C; null = like the other pads
 let LP_RGB_ACTIVE     = lpOf(colors.pressed);    // a pad being physically pressed; null = no press colour
 
 function applyColors() {
   const root = document.documentElement.style;
-  root.setProperty('--active-bg',  `rgb(${webRgb(colors.detected)})`, 'important');
-  root.setProperty('--active-bg2', `rgb(${webDark(colors.detected)})`, 'important');
-  const press = colors.pressed !== 'none' ? colors.pressed : colors.detected;
-  root.setProperty('--press-bg',  `rgb(${webRgb(press)})`);
-  root.setProperty('--press-bg2', `rgb(${webDark(press)})`);
+  root.setProperty('--active-bg',  `rgb(${detRgb()})`, 'important');
+  // sliders / checkboxes / seek bar: the Detected colour at full strength (Intensity dims notes, not the UI)
+  root.setProperty('--ui-accent', `rgb(${webRgb(colors.detected)})`);
+  root.setProperty('--active-bg2', `rgb(${detDark()})`, 'important');
+  // Pad press 'none' falls back to the Detected colour (at its intensity)
+  root.setProperty('--press-bg',  `rgb(${colors.pressed !== 'none' ? webRgb(colors.pressed) : detRgb()})`);
+  root.setProperty('--press-bg2', `rgb(${colors.pressed !== 'none' ? webDark(colors.pressed) : detDark()})`);
   if (colors.latest !== 'none') {
     root.setProperty('--latest-bg',  `rgb(${webRgb(colors.latest)})`);
     root.setProperty('--latest-bg2', `rgb(${webDark(colors.latest)})`);
   }
   latestColor       = colors.latest;
-  LP_RGB_NOTE       = lpOf(colors.detected);
-  LP_RGB_APP_ACTIVE = LP_RGB_NOTE || LP_RGB_UI_NEUTRAL;
+  LP_RGB_NOTE       = detLp();
+  LP_RGB_APP_ACTIVE = lpOf(colors.detected) || LP_RGB_UI_NEUTRAL; // controller buttons stay at full
   LP_RGB_C_BLUE     = lpOf(colors.cNote);
   LP_RGB_ACTIVE     = lpOf(colors.pressed);
 }
@@ -2564,6 +2583,7 @@ function initListenPicker() {
    hovering / tapping them says why. Re-evaluated whenever the state that
    decides it changes (Listen to, View, Bars show, detection on/off). */
 const OFF_ROWS = {
+  'det-intensity-range': () => colors.detected === 'none' ? 'Not used: Detected notes is set to none, so there is no colour to dim.' : '',
   'gain-db-select': () => listenSource === 'app'  ? 'Not used: Listen to is App sound, which goes into the detector at a fixed level. Gain only affects the microphone.'
                         : listenSource === 'file' ? 'Not used: Listen to is File (audio), which goes into the detector at a fixed level. Gain only affects the microphone.' : '',
   'call-mode-select': () => listenSource === 'app' || listenSource === 'file'
@@ -2571,7 +2591,7 @@ const OFF_ROWS = {
   'audio-in-select': () => listenSource === 'app' || listenSource === 'file'
                         ? `Not used: Listen to is ${listenSource === 'app' ? 'App sound' : 'File (audio)'}. Audio in picks the microphone.` : '',
   'newest-fade-range': () => colors.latest === 'none' ? 'Not used: Newest notes is set to none.'
-                           : colors.detected === 'none' ? 'Not used: Sounding notes is set to none, so there is no colour to fade into.' : '',
+                           : colors.detected === 'none' ? 'Not used: Detected notes is set to none, so there is no colour to fade into.' : '',
   'bars-select': () => currentView === 'launchpad' ? 'Not used in the LP view, which shows pads instead of bars. Switch View to Piano or Pi-auto.' : '',
   'conf-opacity-check': () =>
       currentView === 'launchpad' ? 'Not used in the LP view, which shows pads instead of bars.'
@@ -3859,7 +3879,7 @@ function renderPaView(availH) {
     paKeys[i].classList.toggle('pressed', mode !== 'outside' ? now.has(c.midi) : paHeld === c.midi);
     // detected notes (mic / app sound / file) get the key mark too, in their bar's colour (not in Fill)
     const detRgb = mode === 'outside' && now.has(c.midi)
-      ? (latestColor !== 'none' && yellow.has(c.midi) ? (yRgb || webRgb(latestColor)) : colors.detected !== 'none' ? webRgb(colors.detected) : null) : null;
+      ? (latestColor !== 'none' && yellow.has(c.midi) ? (yRgb || webRgb(latestColor)) : colors.detected !== 'none' ? detRgb() : null) : null;
     paKeys[i].classList.toggle('det', !!detRgb);
     if (detRgb) paKeys[i].style.setProperty('--pa-mark', `rgb(${detRgb})`);
   });
@@ -3948,7 +3968,7 @@ function render() {
     const pctEl = pctEls[i];
     if (!barEl || !pctEl) continue;
 
-    /* bar height + colour: yellow (Newest notes colour) or red (Sounding notes colour) */
+    /* bar height + colour: yellow (Newest notes colour) or red (Detected notes colour) */
     const ratio = scale > 0 ? Math.min(1, vals[i] / scale) : 0;
     barEl.style.height     = Math.round(ratio * availH) + 'px';
     const isYellow = latestColor !== 'none' && yellow.has(i) && ratio > 0;
@@ -4066,6 +4086,15 @@ function applyDecayTick(dtMs = 1000, paintHw = true) {
 }
 
 /* the number shown next to a Settings slider */
+function setDetIntensity(v) {
+  detIntensity = Math.max(10, Math.min(100, Math.round(v)));
+  try { localStorage.setItem(DET_INTENSITY_KEY, detIntensity); } catch (e) { /* storage unavailable */ }
+  const el = document.getElementById('det-intensity-range'); if (el) el.value = detIntensity;
+  setRangeLabel('det-intensity-range', detIntensity + '%');
+  applyColors();
+  if (typeof repaintColors === 'function') repaintColors();
+}
+
 /* Settings > Colors > UI hue / UI tint — the root UI colour (see --ui-h / --ui-sat) */
 const UI_HUE_KEY = 'keytones-ui-hue-v1', UI_TINT_KEY = 'keytones-ui-tint-v1';
 const UI_HUE_DEFAULT = 240, UI_TINT_DEFAULT = 100, UI_TINT_MAX = 200;
@@ -5686,6 +5715,7 @@ function initColorControls() {
     setColor('detected', COLOR_DEFAULTS.detected); // saves + repaints everything
     setPadGlow('halftone', HALFTONE_GLOW_DEFAULT);
     setPadGlow('natural', NATURAL_GLOW_DEFAULT);
+    setDetIntensity(DET_INTENSITY_DEFAULT);
     setUiColor(UI_HUE_DEFAULT, UI_TINT_DEFAULT);
     sync();
   });
@@ -5895,10 +5925,11 @@ const SETTING_INFO = {
  "Bar opacity = confidence": "With detection on (mic, app sound or audio file) and Bars show at Time or Count, each bar is as opaque as the last detection of that note was certain.\nSolid bars: sure.\nFaint bars: guesses (e.g. close notes, harmonics).\nIn Pi-auto each real note (C3, C4…) has its own. Live already shows confidence as the height.",
  "UI hue": "The colour the whole interface is tinted with: panels, bars, top bar, menus, black keys and text. Note colours (sounding, newest, pressed…) don't change.\n240°: the original blue-violet.",
  "UI tint": "How strongly the UI hue shows.\n0%: neutral grey.\n100%: the original look.\n200%: the most colourful.\nOnly the colourfulness changes, never the brightness, so text stays as readable at any value.",
- "Sounding notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
+ "Detected notes": "Colour of notes being played or detected: bars, key glow, and their pads on a Launchpad or Launchkey.",
+ "Intensity": "How strong the Detected notes colour is, on screen and on a Launchpad.\n100%: full colour.\nLower: darker on screen, dimmer pads — calmer when many notes sound.\nA Launchkey has fixed colours and stays at full.",
  "Newest notes": "Colour of the most recently started note (or chord) on the keys, bars and controller pads. none turns it off.",
  "Transition": "How long a key, bar or pad takes to cross-fade when its colour changes (newest ↔ sounding ↔ idle) — on screen and on a real Launchpad.\noff: instant.\nA note lighting up and pressing a key or pad always show at once.",
- "Newest fades": "How long a newest note takes to blend from the Newest colour into the Sounding colour, on the bars (Time / Count), keys and pads.\noff: it stays in the Newest colour until another note takes over.",
+ "Newest fades": "How long a newest note takes to blend from the Newest colour into the Detected colour, on the bars (Time / Count), keys and pads.\noff: it stays in the Newest colour until another note takes over.",
  "C pads": "Idle colour of every C on the Launchpad / Launchkey, as an anchor to find octaves. none makes them like the other pads.",
  "Pad press": "Colour of a Launchpad pad while you press it. none = pads don't light up when pressed.",
  "Idle ♯/♭ pads": "Brightness of the sharp/flat pads on the Launchpad while nothing is playing.",
@@ -6193,6 +6224,8 @@ function initSettings() {
   document.querySelectorAll('.algo-btn').forEach(btn =>
     btn.addEventListener('click', () => setPitchAlgo(btn.dataset.algo)));
 
+  document.getElementById('det-intensity-range').addEventListener('input', e => setDetIntensity(+e.target.value));
+  setDetIntensity(detIntensity);
   document.getElementById('ui-hue-range').addEventListener('input', e => setUiColor(+e.target.value, uiTint));
   document.getElementById('ui-tint-range').addEventListener('input', e => setUiColor(uiHue, +e.target.value));
   applyUiColor();

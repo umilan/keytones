@@ -2,7 +2,7 @@
 title: Settings
 summary: Every setting, its default and what it does, grouped as in the panel.
 sources: [index.html (SETTING_INFO), raw/git-history-v1.93.md]
-updated: v1.140
+updated: v1.144
 ---
 
 # Settings
@@ -41,7 +41,7 @@ Settings that can't apply right now are greyed out with the reason.
 Details and trade-offs: [Detection](detection.md).
 
 ## Colors
-Sounding notes (red) · Newest notes (yellow) · Newest fades (2 s) · Transition (0.4 s) ·
+Detected notes (red; "Sounding notes" until v1.144) · Intensity (100%) · Newest notes (yellow) · Newest fades (2 s) · Transition (0.4 s) ·
 *Pads:* C pads (white) · Pad press (magenta) · Idle ♯/♭ pads · Idle natural pads ·
 *UI · interface tint* (own subsection since v1.127): UI hue (240°, 0–359°) · UI tint (100%, 0–200%; 0% = grey) — the interface's own tint, also reset by
 Reset colors. Every note colour can be **none**. See [Colors](colors.md).

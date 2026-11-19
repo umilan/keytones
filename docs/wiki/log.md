@@ -240,3 +240,9 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
 ## [2026-11-19] ingest | v1.143 Checkbox style
 - `.sp-check` custom-drawn like the inputs (surface fill, line border, radius); checked = accent + white tick.
 - Updated: colors.
+
+## [2026-11-19] ingest | v1.144 Detected notes + Intensity
+- "Sounding notes" renamed "Detected notes" (label, help, off-reasons, comments). New Colors > Intensity
+  slider (10–100%) scales that colour on screen and on the Launchpad; UI accents moved to `--ui-accent`
+  (full strength) so sliders don't dim with it. Launchkey unchanged (fixed palette).
+- Updated: colors, launchpad, settings, views.

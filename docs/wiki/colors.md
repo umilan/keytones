@@ -2,7 +2,7 @@
 title: Colors
 summary: Shared palette for screen, Launchpad and Launchkey; colour roles, newest, transitions, flashing.
 sources: [index.html (PALETTE, COLOR_DEFAULTS), raw/git-history-v1.93.md]
-updated: v1.143
+updated: v1.144
 ---
 
 # Colors
@@ -14,7 +14,7 @@ white — plus **none** for every role.
 
 | role | default | used for |
 |---|---|---|
-| Sounding notes (`detected`) | red | bars, key glow, pads of sounding notes; also the LP UI buttons (the title has no colour accent since v1.119) |
+| Detected notes (`detected`, "Sounding notes" until v1.144) | red | bars, key glow, pads of sounding notes; also the LP UI buttons (the title has no colour accent since v1.119) |
 | Newest notes (`latest`) | yellow | newest note(s) on keys, bars, pads |
 | C pads (`cNote`) | white | idle C pads (octave anchors) on LP / LK |
 | Pad press (`pressed`) | magenta | a held pad / key; none = no press lighting |
@@ -108,4 +108,12 @@ black (`--sunk`).
 Settings checkboxes (`.sp-check`) are drawn like the dropdowns: `--surface` fill, `--line` border, `--radius`;
 hover brightens the border; checked = `--active-bg` with a white tick (SVG background). Before, browsers
 drew them natively (a bright white box when unchecked).
+
+## Detected notes intensity (v1.144)
+**Settings > Colors > Intensity** (10–100%, default 100%, `keytones-det-intensity-v1`) scales the Detected
+notes colour: towards black on screen (`--active-bg`, `--active-bg2`, the Pad-press fallback) and dimmer on
+the Launchpad (`LP_RGB_NOTE`). Helpers `detWeb()` / `detRgb()` / `detDark()` / `detLp()`. Not scaled: the
+Launchkey (fixed palette colours), the Launchpad's side / top buttons, and UI accents — sliders, checkboxes
+and the seek bar use `--ui-accent`, the full-strength colour. Greyed out when Detected notes is none; Reset
+colors restores 100%.
 
