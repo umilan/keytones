@@ -2,7 +2,7 @@
 title: Algorithms
 summary: The 10 detection algorithms (M1–M5 single-note, P1–P5 chords) plus T1 test, strengths and weaknesses.
 sources: [index.html (ALGO_INFO), bench/baseline-v1.60.md, raw/git-history-v1.93.md]
-updated: v1.140
+updated: v1.142
 ---
 
 # Algorithms
@@ -33,7 +33,17 @@ Single-note algorithms can only ever show one note, so only one held key can fla
 
 ## P5 Ensemble (v1.132, adaptive since v1.140)
 **Adaptive (v1.140):** a note all three methods hear is marked `instant` and skips the Stability wait;
-one heard by P4 + one other still waits. Bench: see the table at the end of this section.
+one heard by P4 + one other still waits. Real-app bench (`bench/p5-adaptive-v1.140.md`) vs v1.132:
+
+| | P5 v1.132 | P5 adaptive |
+|---|---:|---:|
+| fast notes (8/s) | 0.36 | **0.52** |
+| single notes | 0.87 | **0.90** |
+| band / chords | 0.93 / 0.99 | 0.93 / 0.99 |
+| onset median | 92 ms | **81 ms** |
+| wrong notes | 13% | 15% |
+| release median | 44 ms | 81 ms |
+| ghosts noise / hum | 0 / 0 | 0 / 0 |
 
 `detectEnsemble()` runs P4 Multi-F0, P1 HPCP and P2 NNLS on the same frame and keeps each P4 note
 only when P1 or P2 also hears that note name (octave and confidence from P4). Stray notes one method

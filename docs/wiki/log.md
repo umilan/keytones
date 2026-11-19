@@ -231,3 +231,8 @@ Format: `## [YYYY-MM-DD] <op> | <subject>` then what changed.
   gradient, black-key letters, stars, hearing orange, error-soft, mic level fills in JS) became `:root`
   tokens; no visible change (pixel diff). Segmented-switch track now black (`--sunk`).
 - Updated: colors.
+
+## [2026-11-19] query | v1.142 Adaptive P5 bench
+- Full real-app bench (`bench/p5-adaptive-v1.140.md`): fast notes 0.36 → 0.52, mono 0.87 → 0.90, onset
+  92 → 81 ms, band / chords same, no ghosts; wrong notes 13 → 15%, release 44 → 81 ms. Filed into algorithms.
+- Updated: algorithms, bench.
